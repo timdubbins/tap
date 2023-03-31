@@ -1,0 +1,10 @@
+[package]
+name = "tap"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.1.8", features = ["derive"] }
+cursive = { version = "0.20", features = ["crossterm-backend"] }
+lofty = { version = "0.11" }
+rodio = { version = "0.17.1", features = ["symphonia-all"], default-features = false }
