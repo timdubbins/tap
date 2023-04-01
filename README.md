@@ -1,2 +1,2 @@
 # tap
-tap is a tui audio player that streams audio from the working directory.
+tap is a TUI-audio-player that can stream all audio files in the given directory (defaults to the working directory).
