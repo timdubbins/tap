@@ -8,8 +8,6 @@ use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 use crate::audio_file::AudioFile;
 use crate::player_status::PlayerStatus;
 
-#[allow(dead_code)]
-// #[derive(PartialEq)]
 pub struct Player {
     pub playlist: Vec<AudioFile>,
     pub file: AudioFile,
@@ -18,8 +16,8 @@ pub struct Player {
     last_started: Instant,
     last_elapsed: Duration,
     sink: Sink,
-    stream: OutputStream,
-    stream_handle: OutputStreamHandle,
+    _stream: OutputStream,
+    _stream_handle: OutputStreamHandle,
 }
 
 impl Player {
@@ -29,8 +27,8 @@ impl Player {
             .first()
             .expect("playlist should not be empty")
             .clone();
-        let (stream, stream_handle) = OutputStream::try_default().unwrap();
-        let sink = Sink::try_new(&stream_handle).unwrap();
+        let (_stream, _stream_handle) = OutputStream::try_default().unwrap();
+        let sink = Sink::try_new(&_stream_handle).unwrap();
         let size = playlist.len() + 3;
 
         let player = Self {
@@ -41,8 +39,8 @@ impl Player {
             playlist,
             file,
             sink,
-            stream,
-            stream_handle,
+            _stream,
+            _stream_handle,
         };
 
         (player, size)
