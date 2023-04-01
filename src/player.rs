@@ -6,7 +6,13 @@ use std::time::{Duration, Instant};
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
 use crate::audio_file::AudioFile;
-use crate::player_status::PlayerStatus;
+
+#[derive(PartialEq)]
+pub enum PlayerStatus {
+    Paused,
+    Playing,
+    Stopped,
+}
 
 pub struct Player {
     pub playlist: Vec<AudioFile>,

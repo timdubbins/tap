@@ -2,8 +2,7 @@ use cursive::event::{Event, EventResult};
 use cursive::traits::View;
 use cursive::Printer;
 
-use crate::player::Player;
-use crate::player_status::PlayerStatus;
+use crate::player::{Player, PlayerStatus};
 
 pub struct PlayerView {
     player: Player,

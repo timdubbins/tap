@@ -7,7 +7,6 @@ use cursive::Cursive;
 mod args;
 mod audio_file;
 mod player;
-mod player_status;
 mod player_view;
 
 use crate::args::Args;
