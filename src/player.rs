@@ -1,3 +1,4 @@
+use ::std::cmp::min;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
@@ -35,9 +36,9 @@ impl Player {
             .clone();
         let (_stream, _stream_handle) = OutputStream::try_default().unwrap();
         let sink = Sink::try_new(&_stream_handle).unwrap();
-        let size = playlist.len() + 3;
+        let size = min(45, playlist.len() + 5);
 
-        let player = Self {
+        let mut player = Self {
             status: PlayerStatus::Stopped,
             last_started: Instant::now(),
             last_elapsed: Duration::default(),
@@ -48,6 +49,8 @@ impl Player {
             _stream,
             _stream_handle,
         };
+
+        player.play_or_pause();
 
         (player, size)
     }
@@ -138,6 +141,7 @@ impl Player {
                 self.last_elapsed = Duration::default();
             } else {
                 self.stop();
+                self.next();
             }
         }
     }

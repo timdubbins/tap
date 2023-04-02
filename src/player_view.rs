@@ -1,4 +1,5 @@
 use cursive::event::{Event, EventResult};
+use cursive::theme::Effect;
 use cursive::traits::View;
 use cursive::Printer;
 
@@ -31,20 +32,21 @@ impl View for PlayerView {
             PlayerStatus::Stopped => ".",
         };
 
-        printer.print((0, 0), &header.as_str());
-
+        printer.with_effect(Effect::Underline, |p| {
+            p.print((2, 1), &header.as_str());
+        });
         for (y, f) in self.player.playlist.iter().enumerate() {
             let line = format!("{:02} - {} - {}", f.track, f.title, f.duration_display);
 
             if y == self.player.index {
-                printer.print((1, y + 1), status);
+                printer.print((3, y + 2), status);
             }
 
-            printer.print((4, y + 1), &line);
+            printer.print((6, y + 2), &line);
         }
 
         printer.print(
-            (0, self.size - 1),
+            (2, self.size - 2),
             &format!("{:02}:{:02}", elapsed / 60, elapsed % 60),
         );
     }
