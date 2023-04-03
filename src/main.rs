@@ -1,7 +1,9 @@
+use std::env::current_exe;
 use std::io::Error;
+use std::process::{Command, ExitStatus};
 
-use cursive::event::Event;
-use cursive::view::{Resizable, Scrollable};
+use cursive::event::{Event, Key::Tab};
+use cursive::view::Resizable;
 use cursive::Cursive;
 
 use crate::args::Args;
@@ -37,9 +39,57 @@ fn run() -> Result<(), Error> {
             .fixed_height(size), // .scrollable()
     );
 
-    cursive.set_on_pre_event(Event::Char('q'), |c: &mut Cursive| c.quit());
+    cursive.set_on_pre_event(Event::Char('q'), quit);
+    cursive.set_on_pre_event(Event::Key(Tab), restart);
     cursive.set_fps(16);
     cursive.run();
 
+    clear_terminal()?;
     Ok(())
+}
+
+fn check_fuzzy_command() -> bool {
+    let fd_cmd = Command::new("/bin/bash")
+        .arg("-c")
+        .arg("fd")
+        .status()
+        .expect("failed to run fd");
+
+    let fzf_cmd = Command::new("/bin/bash")
+        .arg("-c")
+        .arg("fzf")
+        .status()
+        .expect("failed to run fzf");
+
+    fd_cmd.success() && fzf_cmd.success()
+}
+
+fn restart(c: &mut Cursive) {
+    c.pop_layer();
+
+    let arg_string = format!(
+        "{} {}",
+        current_exe().unwrap().display(),
+        "\"$(fd -t d | fzf)\""
+    );
+
+    Command::new("/bin/bash")
+        .arg("-c")
+        .arg(arg_string)
+        .spawn()
+        .unwrap()
+        .wait()
+        .unwrap();
+
+    c.quit();
+}
+
+fn clear_terminal() -> Result<ExitStatus, Error> {
+    Command::new("cls")
+        .status()
+        .or_else(|_| Command::new("clear").status())
+}
+
+fn quit(c: &mut Cursive) {
+    c.quit();
 }
