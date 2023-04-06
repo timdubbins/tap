@@ -1,17 +1,19 @@
-use std::env::current_exe;
 use std::io::Error;
+use std::path::PathBuf;
 use std::process::{Command, ExitStatus};
 
-use cursive::event::{Event, Key::Tab};
+use cursive::event::{Event, Key};
 use cursive::view::Resizable;
 use cursive::Cursive;
 
 use crate::args::Args;
+use crate::mode::Mode;
 use crate::player::Player;
 use crate::player_view::PlayerView;
 
 mod args;
 mod audio_file;
+mod mode;
 mod player;
 mod player_view;
 
@@ -26,7 +28,14 @@ fn main() {
 }
 
 fn run() -> Result<(), Error> {
-    let (player, size) = Player::new(Args::parse_args()?);
+    let (mode, path) = Args::parse_args()?;
+
+    if Args::first_run() {
+        mode.restart_command(path);
+        return Ok(());
+    }
+
+    let (player, size) = Player::new(path.clone());
     let mut cursive = cursive::default();
 
     cursive
@@ -40,7 +49,9 @@ fn run() -> Result<(), Error> {
     );
 
     cursive.set_on_pre_event(Event::Char('q'), quit);
-    cursive.set_on_pre_event(Event::Key(Tab), restart);
+    cursive.set_on_pre_event(Event::Key(Key::Tab), move |c: &mut Cursive| {
+        new_fuzzy_search(c, mode.clone(), path.clone())
+    });
     cursive.set_fps(16);
     cursive.run();
 
@@ -48,40 +59,12 @@ fn run() -> Result<(), Error> {
     Ok(())
 }
 
-fn check_fuzzy_command() -> bool {
-    let fd_cmd = Command::new("/bin/bash")
-        .arg("-c")
-        .arg("fd")
-        .status()
-        .expect("failed to run fd");
-
-    let fzf_cmd = Command::new("/bin/bash")
-        .arg("-c")
-        .arg("fzf")
-        .status()
-        .expect("failed to run fzf");
-
-    fd_cmd.success() && fzf_cmd.success()
-}
-
-fn restart(c: &mut Cursive) {
-    c.pop_layer();
-
-    let arg_string = format!(
-        "{} {}",
-        current_exe().unwrap().display(),
-        "\"$(fd -t d | fzf)\""
-    );
-
-    Command::new("/bin/bash")
-        .arg("-c")
-        .arg(arg_string)
-        .spawn()
-        .unwrap()
-        .wait()
-        .unwrap();
-
-    c.quit();
+fn new_fuzzy_search(c: &mut Cursive, mode: Mode, path: PathBuf) {
+    if mode != Mode::NoFuzzy {
+        c.pop_layer();
+        mode.restart_command(path);
+        c.quit()
+    }
 }
 
 fn clear_terminal() -> Result<ExitStatus, Error> {

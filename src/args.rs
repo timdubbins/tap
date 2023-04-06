@@ -1,21 +1,44 @@
+use std::env::current_dir;
 use std::io::Error;
 use std::path::PathBuf;
 
 use clap::Parser;
 
+use crate::mode::Mode;
+
 #[derive(Parser)]
 #[command(author, version, about)]
 pub struct Args {
     path: Option<PathBuf>,
+
+    #[clap(hide(true), default_value = None, long)]
+    command_arg: Option<u8>,
 }
 
 impl Args {
-    pub fn parse_args() -> Result<PathBuf, Error> {
+    pub fn first_run() -> bool {
+        match Args::parse().command_arg {
+            Some(_) => false,
+            None => true,
+        }
+    }
+
+    pub fn parse_args() -> Result<(Mode, PathBuf), Error> {
         let path = match Args::parse().path {
             Some(p) => p,
-            None => std::env::current_dir()?,
+            None => current_dir()?,
         };
 
-        Ok(path)
+        Ok((Args::parse_mode(&path), path))
+    }
+
+    fn parse_mode(path: &PathBuf) -> Mode {
+        match Args::parse().command_arg {
+            None => Mode::get_mode(path),
+            Some(0) => Mode::NoFuzzy,
+            Some(1) => Mode::FuzzyFromCurrentDir,
+            Some(2) => Mode::FuzzyFromPathArg,
+            Some(3_u8..=u8::MAX) => panic!("invalid argument"),
+        }
     }
 }
