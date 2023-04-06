@@ -16,6 +16,7 @@ mod audio_file;
 mod mode;
 mod player;
 mod player_view;
+mod utils;
 
 fn main() {
     let result = run();
@@ -45,7 +46,7 @@ fn run() -> Result<(), Error> {
     cursive.add_layer(
         PlayerView::new(player, size)
             .full_width()
-            .fixed_height(size), // .scrollable()
+            .fixed_height(size),
     );
 
     cursive.set_on_pre_event(Event::Char('q'), quit);
@@ -60,7 +61,7 @@ fn run() -> Result<(), Error> {
 }
 
 fn new_fuzzy_search(c: &mut Cursive, mode: Mode, path: PathBuf) {
-    if mode == Mode::FuzzyCurrentDir || mode == Mode::FuzzyPathArg {
+    if mode.is_fuzzy_searchable() {
         c.pop_layer();
         mode.restart_command(path);
         c.quit()

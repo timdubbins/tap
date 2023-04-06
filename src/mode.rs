@@ -1,9 +1,9 @@
 use std::env;
-use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
 use crate::args::Args;
+use crate::utils::{env_var_includes, path_contains_dir};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Mode {
@@ -40,6 +40,14 @@ impl Mode {
             .unwrap();
     }
 
+    pub fn is_fuzzy_searchable(&self) -> bool {
+        *self == Mode::FuzzyCurrentDir || *self == Mode::FuzzyPathArg
+    }
+
+    fn fuzzy_searchable(path: &PathBuf) -> bool {
+        path_contains_dir(path) && env_var_includes("fzf") && env_var_includes("fd")
+    }
+
     fn arg_string(&self, path: PathBuf) -> String {
         match self {
             Self::NoFuzzyCurrentDir => {
@@ -72,37 +80,5 @@ impl Mode {
                 )
             }
         }
-    }
-
-    fn fuzzy_searchable(path: &PathBuf) -> bool {
-        Mode::path_contains_dir(path) && Mode::is_in_path("fzf") && Mode::is_in_path("fd")
-    }
-
-    fn is_in_path(program: &str) -> bool {
-        if let Ok(path) = env::var("PATH") {
-            for p in path.split(":") {
-                let p_str = format!("{}/{}", p, program);
-                if fs::metadata(p_str).is_ok() {
-                    return true;
-                }
-            }
-        }
-        false
-    }
-
-    fn path_contains_dir(path: &PathBuf) -> bool {
-        if path.is_dir() {
-            for entry in path.read_dir().expect("directory should not be empty") {
-                if let Ok(entry) = entry {
-                    if entry.path().is_dir() {
-                        return true;
-                    }
-                }
-            }
-        } else {
-            return false;
-        }
-
-        false
     }
 }
