@@ -60,7 +60,7 @@ fn run() -> Result<(), Error> {
 }
 
 fn new_fuzzy_search(c: &mut Cursive, mode: Mode, path: PathBuf) {
-    if mode != Mode::NoFuzzy {
+    if mode == Mode::FuzzyCurrentDir || mode == Mode::FuzzyPathArg {
         c.pop_layer();
         mode.restart_command(path);
         c.quit()

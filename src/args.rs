@@ -35,10 +35,11 @@ impl Args {
     fn parse_mode(path: &PathBuf) -> Mode {
         match Args::parse().command_arg {
             None => Mode::get_mode(path),
-            Some(0) => Mode::NoFuzzy,
-            Some(1) => Mode::FuzzyFromCurrentDir,
-            Some(2) => Mode::FuzzyFromPathArg,
-            Some(3_u8..=u8::MAX) => panic!("invalid argument"),
+            Some(0) => Mode::NoFuzzyCurrentDir,
+            Some(1) => Mode::NoFuzzyPathArg,
+            Some(2) => Mode::FuzzyCurrentDir,
+            Some(3) => Mode::FuzzyPathArg,
+            Some(4_u8..=u8::MAX) => panic!("invalid argument"),
         }
     }
 }

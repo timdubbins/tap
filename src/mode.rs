@@ -5,22 +5,26 @@ use std::process::Command;
 
 #[derive(Clone, PartialEq)]
 pub enum Mode {
-    NoFuzzy,
-    FuzzyFromCurrentDir,
-    FuzzyFromPathArg,
-    // TODO: implement NoFuzzyFromPathArg
+    NoFuzzyCurrentDir,
+    NoFuzzyPathArg,
+    FuzzyCurrentDir,
+    FuzzyPathArg,
 }
 
 impl Mode {
     pub fn get_mode(path: &PathBuf) -> Self {
         if Mode::fuzzy_searchable(&path) {
             if *path == env::current_dir().unwrap() {
-                Mode::FuzzyFromCurrentDir
+                Mode::FuzzyCurrentDir
             } else {
-                Mode::FuzzyFromPathArg
+                Mode::FuzzyPathArg
             }
         } else {
-            Mode::NoFuzzy
+            if *path == env::current_dir().unwrap() {
+                Mode::NoFuzzyCurrentDir
+            } else {
+                Mode::NoFuzzyPathArg
+            }
         }
     }
 
@@ -36,24 +40,30 @@ impl Mode {
 
     fn arg_string(&self, path: PathBuf) -> String {
         match self {
-            Self::NoFuzzy => format!(
+            Self::NoFuzzyCurrentDir => format!(
                 "{} {}",
                 env::current_exe().unwrap().display(),
                 "--command-arg 0"
             ),
-            Self::FuzzyFromCurrentDir => format!(
+            Self::NoFuzzyPathArg => format!(
+                "{} \"{}\" {}",
+                env::current_exe().unwrap().display(),
+                path.into_os_string().into_string().unwrap(),
+                "--command-arg 1"
+            ),
+            Self::FuzzyCurrentDir => format!(
                 "{} {} {}",
                 env::current_exe().unwrap().display(),
                 "\"$(fd -t d | fzf)\"",
-                "--command-arg 1",
+                "--command-arg 2",
             ),
-            Self::FuzzyFromPathArg => format!(
+            Self::FuzzyPathArg => format!(
                 "{} {} {} {} {}",
                 env::current_exe().unwrap().display(),
                 "\"$(fd -t d .",
                 path.into_os_string().into_string().unwrap(),
                 "| fzf)\"",
-                "--command-arg 2",
+                "--command-arg 3",
             ),
         }
     }
