@@ -48,7 +48,6 @@ impl Args {
     }
 
     fn parse_mode(path: &PathBuf) -> Mode {
-        println!("parse mode path: {:?}", path);
         match Args::parse().mode {
             None => Mode::get_mode(path),
             Some(0) => Mode::NoFuzzyCurrentDir,
