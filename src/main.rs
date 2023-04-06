@@ -29,6 +29,7 @@ fn main() {
 
 fn run() -> Result<(), Error> {
     let (mode, path) = Args::parse_args()?;
+    println!("path: {:?}, mode {:?}", path, mode);
 
     if Args::first_run() {
         mode.restart_command(path);

@@ -12,12 +12,15 @@ pub struct Args {
     path: Option<PathBuf>,
 
     #[clap(hide(true), default_value = None, long)]
-    command_arg: Option<u8>,
+    mode: Option<u8>,
+
+    #[clap[hide(true), default_value = None, long]]
+    initial_path: Option<String>,
 }
 
 impl Args {
     pub fn first_run() -> bool {
-        match Args::parse().command_arg {
+        match Args::parse().mode {
             Some(_) => false,
             None => true,
         }
@@ -32,8 +35,21 @@ impl Args {
         Ok((Args::parse_mode(&path), path))
     }
 
+    pub fn get_path_arg() -> String {
+        match Args::parse().initial_path {
+            Some(p) => p,
+            None => Args::parse()
+                .path
+                .unwrap()
+                .into_os_string()
+                .into_string()
+                .unwrap(),
+        }
+    }
+
     fn parse_mode(path: &PathBuf) -> Mode {
-        match Args::parse().command_arg {
+        println!("parse mode path: {:?}", path);
+        match Args::parse().mode {
             None => Mode::get_mode(path),
             Some(0) => Mode::NoFuzzyCurrentDir,
             Some(1) => Mode::NoFuzzyPathArg,

@@ -3,7 +3,9 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
-#[derive(Clone, PartialEq)]
+use crate::args::Args;
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Mode {
     NoFuzzyCurrentDir,
     NoFuzzyPathArg,
@@ -40,31 +42,35 @@ impl Mode {
 
     fn arg_string(&self, path: PathBuf) -> String {
         match self {
-            Self::NoFuzzyCurrentDir => format!(
-                "{} {}",
-                env::current_exe().unwrap().display(),
-                "--command-arg 0"
-            ),
+            Self::NoFuzzyCurrentDir => {
+                format!("{} {}", env::current_exe().unwrap().display(), "--mode 0")
+            }
             Self::NoFuzzyPathArg => format!(
                 "{} \"{}\" {}",
                 env::current_exe().unwrap().display(),
                 path.into_os_string().into_string().unwrap(),
-                "--command-arg 1"
+                "--mode 1"
             ),
             Self::FuzzyCurrentDir => format!(
                 "{} {} {}",
                 env::current_exe().unwrap().display(),
                 "\"$(fd -t d | fzf)\"",
-                "--command-arg 2",
+                "--mode 2",
             ),
-            Self::FuzzyPathArg => format!(
-                "{} {} {} {} {}",
-                env::current_exe().unwrap().display(),
-                "\"$(fd -t d .",
-                path.into_os_string().into_string().unwrap(),
-                "| fzf)\"",
-                "--command-arg 3",
-            ),
+            Self::FuzzyPathArg => {
+                let initial_path = Args::get_path_arg();
+
+                format!(
+                    "{} {} \'{}\' {} {} {} {}",
+                    env::current_exe().unwrap().display(),
+                    "\"$(fd -t d .",
+                    initial_path,
+                    "| fzf)\"",
+                    "--mode 3",
+                    "--initial-path",
+                    initial_path,
+                )
+            }
         }
     }
 
