@@ -1,4 +1,4 @@
-use ::std::cmp::min;
+use std::cmp::min;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
@@ -7,6 +7,8 @@ use std::time::{Duration, Instant};
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
 use crate::audio_file::AudioFile;
+
+const FORMATS: &'static [&'static str] = &["aac", "flac", "mp3", "mp4", "ogg", "wav"];
 
 #[derive(PartialEq)]
 pub enum PlayerStatus {
@@ -147,8 +149,6 @@ impl Player {
     }
 
     fn create_playlist(path: PathBuf) -> Vec<AudioFile> {
-        const FORMATS: &'static [&'static str] = &["aac", "flac", "mp3", "mp4", "ogg", "wav"];
-
         let mut audio_files = vec![];
 
         if path.is_dir() {

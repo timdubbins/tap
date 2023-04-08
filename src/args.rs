@@ -1,10 +1,10 @@
-use std::env::current_dir;
+use std::env;
 use std::io::Error;
 use std::path::PathBuf;
 
 use clap::Parser;
 
-use crate::mode::Mode;
+use crate::search::{SearchDir, SearchMode};
 
 #[derive(Parser)]
 #[command(author, version, about)]
@@ -14,47 +14,42 @@ pub struct Args {
     #[clap(hide(true), default_value = None, long)]
     mode: Option<u8>,
 
+    #[clap(hide(true), default_value = None, long)]
+    search_options: Option<u8>,
+
     #[clap[hide(true), default_value = None, long]]
     initial_path: Option<String>,
 }
 
 impl Args {
-    pub fn first_run() -> bool {
-        match Args::parse().mode {
+    pub fn parse_first_run() -> bool {
+        match Args::parse().search_options {
             Some(_) => false,
             None => true,
         }
     }
-
-    pub fn parse_args() -> Result<(Mode, PathBuf), Error> {
+    pub fn parse_path_args() -> Result<(PathBuf, String), Error> {
         let path = match Args::parse().path {
             Some(p) => p,
-            None => current_dir()?,
+            None => env::current_dir()?,
         };
 
-        Ok((Args::parse_mode(&path), path))
-    }
-
-    pub fn get_path_arg() -> String {
-        match Args::parse().initial_path {
+        let initial_path = match Args::parse().initial_path {
             Some(p) => p,
-            None => Args::parse()
-                .path
-                .unwrap()
-                .into_os_string()
-                .into_string()
-                .unwrap(),
-        }
+            None => path.clone().into_os_string().into_string().unwrap(),
+        };
+
+        Ok((path, initial_path))
     }
 
-    fn parse_mode(path: &PathBuf) -> Mode {
-        match Args::parse().mode {
-            None => Mode::get_mode(path),
-            Some(0) => Mode::NoFuzzyCurrentDir,
-            Some(1) => Mode::NoFuzzyPathArg,
-            Some(2) => Mode::FuzzyCurrentDir,
-            Some(3) => Mode::FuzzyPathArg,
-            Some(4_u8..=u8::MAX) => panic!("invalid argument"),
+    pub fn parse_search_options(path: &PathBuf) -> (SearchMode, SearchDir) {
+        match Args::parse().search_options {
+            None => (SearchMode::get_from(path), SearchDir::get_from(path)),
+            Some(0) => (SearchMode::NonFuzzy, SearchDir::CurrentDir),
+            Some(1) => (SearchMode::NonFuzzy, SearchDir::PathArg),
+            Some(2) => (SearchMode::Fuzzy, SearchDir::CurrentDir),
+            Some(3) => (SearchMode::Fuzzy, SearchDir::PathArg),
+            Some(4_u8..=u8::MAX) => panic!("invalid search options"),
         }
     }
 }

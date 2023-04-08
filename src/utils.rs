@@ -2,12 +2,14 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-pub fn env_var_includes(program: &str) -> bool {
+pub fn env_var_includes(programs: &[&str]) -> bool {
     if let Ok(path) = env::var("PATH") {
-        for p in path.split(":") {
-            let p_str = format!("{}/{}", p, program);
-            if fs::metadata(p_str).is_ok() {
-                return true;
+        for sub_str in path.split(":") {
+            for prog in programs {
+                let p_str = format!("{}/{}", sub_str, prog);
+                if fs::metadata(p_str).is_ok() {
+                    return true;
+                }
             }
         }
     }
