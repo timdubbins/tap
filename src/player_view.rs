@@ -1,4 +1,4 @@
-use cursive::event::{Event, EventResult};
+use cursive::event::{Event, EventResult, Key};
 use cursive::theme::Effect;
 use cursive::traits::View;
 use cursive::Printer;
@@ -58,6 +58,13 @@ impl View for PlayerView {
                 EventResult::Consumed(None)
             }
 
+            Event::Key(Key::Enter) => {
+                if self.player.select_track() {
+                    self.player.play_or_pause()
+                }
+                EventResult::Consumed(None)
+            }
+
             Event::Char('p') => {
                 self.player.play_or_pause();
                 EventResult::Consumed(None)
@@ -75,6 +82,56 @@ impl View for PlayerView {
 
             Event::Char('k') => {
                 self.player.prev();
+                EventResult::Consumed(None)
+            }
+
+            Event::Char('0') => {
+                self.player.numbers_pressed.push(0);
+                EventResult::Consumed(None)
+            }
+
+            Event::Char('1') => {
+                self.player.numbers_pressed.push(1);
+                EventResult::Consumed(None)
+            }
+
+            Event::Char('2') => {
+                self.player.numbers_pressed.push(2);
+                EventResult::Consumed(None)
+            }
+
+            Event::Char('3') => {
+                self.player.numbers_pressed.push(3);
+                EventResult::Consumed(None)
+            }
+
+            Event::Char('4') => {
+                self.player.numbers_pressed.push(4);
+                EventResult::Consumed(None)
+            }
+
+            Event::Char('5') => {
+                self.player.numbers_pressed.push(5);
+                EventResult::Consumed(None)
+            }
+
+            Event::Char('6') => {
+                self.player.numbers_pressed.push(6);
+                EventResult::Consumed(None)
+            }
+
+            Event::Char('7') => {
+                self.player.numbers_pressed.push(7);
+                EventResult::Consumed(None)
+            }
+
+            Event::Char('8') => {
+                self.player.numbers_pressed.push(8);
+                EventResult::Consumed(None)
+            }
+
+            Event::Char('9') => {
+                self.player.numbers_pressed.push(9);
                 EventResult::Consumed(None)
             }
 

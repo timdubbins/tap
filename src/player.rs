@@ -22,6 +22,7 @@ pub struct Player {
     pub file: AudioFile,
     pub index: usize,
     pub status: PlayerStatus,
+    pub numbers_pressed: Vec<usize>,
     last_started: Instant,
     last_elapsed: Duration,
     sink: Sink,
@@ -45,6 +46,7 @@ impl Player {
             last_started: Instant::now(),
             last_elapsed: Duration::default(),
             index: 0,
+            numbers_pressed: vec![],
             playlist,
             file,
             sink,
@@ -81,6 +83,7 @@ impl Player {
                 self.last_started = Instant::now();
             }
         }
+        self.numbers_pressed.clear()
     }
 
     pub fn stop(&mut self) {
@@ -92,6 +95,24 @@ impl Player {
                 self.last_elapsed = Duration::default()
             }
         }
+        self.numbers_pressed.clear()
+    }
+
+    pub fn select_track(&mut self) -> bool {
+        let mut selected = false;
+
+        if !self.numbers_pressed.is_empty() {
+            let track_number = self.numbers_pressed.iter().fold(0, |acc, x| acc * 10 + x) - 1;
+            if track_number < self.playlist.len() {
+                self.stop();
+                self.index = track_number;
+                self.file = self.playlist[self.index].clone();
+                selected = true
+            }
+        }
+
+        self.numbers_pressed.clear();
+        selected
     }
 
     pub fn next(&mut self) {
@@ -110,6 +131,7 @@ impl Player {
                 self.play_or_pause()
             }
         }
+        self.numbers_pressed.clear()
     }
 
     pub fn prev(&mut self) {
@@ -125,6 +147,7 @@ impl Player {
                 self.play_or_pause()
             }
         }
+        self.numbers_pressed.clear()
     }
 
     pub fn elapsed(&self) -> Duration {
