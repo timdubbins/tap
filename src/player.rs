@@ -60,6 +60,8 @@ impl Player {
     }
 
     pub fn play_or_pause(&mut self) {
+        self.numbers_pressed.clear();
+
         match self.status {
             PlayerStatus::Paused => {
                 self.sink.play();
@@ -83,10 +85,11 @@ impl Player {
                 self.last_started = Instant::now();
             }
         }
-        self.numbers_pressed.clear()
     }
 
     pub fn stop(&mut self) {
+        self.numbers_pressed.clear();
+
         match self.status {
             PlayerStatus::Stopped => {}
             _ => {
@@ -95,17 +98,16 @@ impl Player {
                 self.last_elapsed = Duration::default()
             }
         }
-        self.numbers_pressed.clear()
     }
 
     pub fn select_track(&mut self) -> bool {
         let mut selected = false;
 
         if !self.numbers_pressed.is_empty() {
-            let track_number = self.numbers_pressed.iter().fold(0, |acc, x| acc * 10 + x) - 1;
+            let track_number = self.numbers_pressed.iter().fold(0, |acc, x| acc * 10 + x);
             if track_number < self.playlist.len() {
                 self.stop();
-                self.index = track_number;
+                self.index = track_number - 1;
                 self.file = self.playlist[self.index].clone();
                 selected = true
             }
@@ -116,6 +118,8 @@ impl Player {
     }
 
     pub fn next(&mut self) {
+        self.numbers_pressed.clear();
+
         if self.index < self.playlist.len() - 1 {
             self.index += 1;
             self.file = self.playlist[self.index].clone();
@@ -131,10 +135,11 @@ impl Player {
                 self.play_or_pause()
             }
         }
-        self.numbers_pressed.clear()
     }
 
     pub fn prev(&mut self) {
+        self.numbers_pressed.clear();
+
         if self.index > 0 {
             self.index -= 1;
             self.file = self.playlist[self.index].clone();
@@ -147,7 +152,6 @@ impl Player {
                 self.play_or_pause()
             }
         }
-        self.numbers_pressed.clear()
     }
 
     pub fn elapsed(&self) -> Duration {
