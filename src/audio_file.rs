@@ -12,7 +12,6 @@ pub struct AudioFile {
     pub year: Option<u32>,
     pub track: u32,
     pub duration: usize,
-    // pub duration_display: String,
 }
 
 impl AudioFile {

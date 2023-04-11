@@ -20,12 +20,6 @@ pub struct App {
     is_first_run: bool,
 }
 
-// #[derive(Default)]
-// pub struct PlaybackData {
-//     pub duration: u64,
-//     pub elapsed: u64,
-// }
-
 impl App {
     fn try_new() -> Result<Self, Error> {
         let (path, initial_path) = Args::parse_path_args()?;
