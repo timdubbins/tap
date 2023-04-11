@@ -11,8 +11,8 @@ pub struct AudioFile {
     pub album: String,
     pub year: Option<u32>,
     pub track: u32,
-    duration: u64,
-    pub duration_display: String,
+    pub duration: usize,
+    // pub duration_display: String,
 }
 
 impl AudioFile {
@@ -28,7 +28,7 @@ impl AudioFile {
         };
 
         let properties = tagged_file.properties();
-        let duration = properties.duration().as_secs();
+        let duration = properties.duration().as_secs() as usize;
 
         Self {
             title: tag.title().as_deref().unwrap_or("None").trim().to_string(),
@@ -36,7 +36,7 @@ impl AudioFile {
             album: tag.album().as_deref().unwrap_or("None").trim().to_string(),
             year: tag.year(),
             track: tag.track().unwrap_or(0),
-            duration_display: format!("{:02}:{:02}", duration / 60, duration % 60),
+            // duration_display: format!("{:02}:{:02}", duration / 60, duration % 60),
             path,
             duration,
         }

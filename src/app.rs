@@ -20,6 +20,12 @@ pub struct App {
     is_first_run: bool,
 }
 
+// #[derive(Default)]
+// pub struct PlaybackData {
+//     pub duration: u64,
+//     pub elapsed: u64,
+// }
+
 impl App {
     fn try_new() -> Result<Self, Error> {
         let (path, initial_path) = Args::parse_path_args()?;
@@ -51,11 +57,7 @@ impl App {
             .load_toml(include_str!("assets/style.toml"))
             .unwrap();
 
-        cursive.add_layer(
-            PlayerView::new(player, size)
-                .full_width()
-                .fixed_height(size),
-        );
+        cursive.add_layer(PlayerView::new(player).full_width().fixed_height(size));
 
         cursive.set_on_pre_event(Event::Char('q'), quit);
         cursive.set_on_pre_event(Event::Key(Key::Tab), move |c: &mut Cursive| {

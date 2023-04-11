@@ -4,6 +4,7 @@
         "consts",
         "crossterm",
         "flac",
+        "hline",
         "libc",
         "rodio",
         "SIGCHLD",
