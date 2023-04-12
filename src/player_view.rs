@@ -59,7 +59,7 @@ impl PlayerView {
         }
     }
 
-    fn status_symbol(&self) -> &'static str {
+    fn player_status_symbol(&self) -> &'static str {
         match self.player.status {
             PlayerStatus::Paused => "||",
             PlayerStatus::Playing => ">",
@@ -75,33 +75,14 @@ impl PlayerView {
             None => format!("{} - {}", f.artist, f.album),
         }
     }
-}
 
-impl View for PlayerView {
-    fn draw(&self, printer: &Printer) {
+    fn print_playback_position(&self, printer: &Printer) {
         let duration = self.player.file.duration;
         let elapsed = self.player.elapsed().as_secs() as usize;
         let remaining = cmp::min(duration, duration - elapsed);
         let (length, extra) = ratio(elapsed, duration, printer.size.x - 16);
 
-        printer.with_effect(Effect::Underline, |p| {
-            p.print((2, 1), &self.artist_album_year().as_str());
-        });
-
-        for (i, f) in self.player.playlist.iter().enumerate() {
-            if i == self.player.index {
-                printer.print((3, i + 2), self.status_symbol());
-            }
-
-            printer.print((6, i + 2), track_title_duration(f).as_str());
-        }
-
         printer.print((2, printer.size.y - 2), &mins_and_secs(elapsed));
-
-        printer.print(
-            (printer.size.x - 7, printer.size.y - 2),
-            &mins_and_secs(remaining),
-        );
 
         printer.with_color(self.cs, |printer| {
             printer.with_effect(Effect::Reverse, |printer| {
@@ -109,10 +90,34 @@ impl View for PlayerView {
             });
         });
 
-        let printer = &printer.cropped((length + 8, printer.size.y));
-        printer.with_color(self.cs_inverted, |printer| {
-            printer.print_hline((8, printer.size.y - 2), length, "█");
+        printer
+            .cropped((length + 8, printer.size.y))
+            .with_color(self.cs_inverted, |printer| {
+                printer.print_hline((8, printer.size.y - 2), length, "█");
+            });
+
+        printer.print(
+            (printer.size.x - 7, printer.size.y - 2),
+            &mins_and_secs(remaining),
+        );
+    }
+}
+
+impl View for PlayerView {
+    fn draw(&self, printer: &Printer) {
+        printer.with_effect(Effect::Underline, |p| {
+            p.print((2, 1), &self.artist_album_year().as_str());
         });
+
+        for (i, f) in self.player.playlist.iter().enumerate() {
+            if i == self.player.index {
+                printer.print((3, i + 2), self.player_status_symbol());
+            }
+
+            printer.print((6, i + 2), track_title_duration(f).as_str());
+        }
+
+        self.print_playback_position(printer)
     }
 
     fn on_event(&mut self, event: Event) -> EventResult {
