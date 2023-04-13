@@ -11,6 +11,11 @@ categories = ["command-line-utilities"]
 license = "Unlicense OR MIT"
 edition = "2021"
 
+[[bin]]
+bench = false
+path = "src/main.rs"
+name = "tap"
+
 [dependencies]
 clap = { version = "4.1.8", features = ["derive"] }
 cursive = { version = "0.20", features = ["crossterm-backend", "toml"] }
