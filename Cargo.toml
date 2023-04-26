@@ -18,6 +18,6 @@ name = "tap"
 
 [dependencies]
 clap = { version = "4.1.8", features = ["derive"] }
-cursive = { version = "0.20", features = ["crossterm-backend", "toml"] }
+cursive = { version = "0.20", features = ["ncurses-backend", "toml"] }
 lofty = { version = "0.11" }
 rodio = { git = "https://github.com/timdubbins/rodio", features = ["symphonia-all"], default-features = false }

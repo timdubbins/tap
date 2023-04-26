@@ -2,7 +2,7 @@ tap
 ------------
 tap is a TUI-audio-player. It's a fast, minimal player that utilizes `fzf` and `fd` commands for rapid file selecting.
 
-<img src="https://github.com/timdubbins/tap/blob/master/doc/screenshot.png" width="650"/>
+<img src="https://github.com/timdubbins/tap/blob/master/doc/tap_screenshot.png" width="650"/>
 
 ### How to use
 1. Run `$ tap [PATH]` (or just `$ tap` to use the current directory as the argument).
@@ -31,14 +31,14 @@ tap is a TUI-audio-player. It's a fast, minimal player that utilizes `fzf` and `
 
 - `Fuzzy` mode depends on [`fzf`](https://github.com/junegunn/fzf) and [`fd`](https://github.com/sharkdp/fd) being installed (tap looks for `fzf` and `fd` in `$PATH`).
 
-- If you used `cargo build` instead of `cargo install` you will need to replace `tap` with the path to the executable.  
+- If you used `cargo build` instead of `cargo install` you will need to replace `tap` with the path to the executable.
  Alternatively, create an alias with `$ alias tap='/path/to/executable'`.
 
 
 ### Installation
 If you're a Rust programmer, tap can be installed with `cargo`.
 
-- Note that the binary may be bigger than expected because it contains debug symbols.  
+- Note that the binary may be bigger than expected because it contains debug symbols.
 To remove debug symbols run strip on the binary.
 
 Run this command from inside the `tap` directory.

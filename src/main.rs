@@ -4,6 +4,7 @@ mod audio_file;
 mod player;
 mod player_view;
 mod search;
+mod theme;
 mod utils;
 
 use crate::app::App;

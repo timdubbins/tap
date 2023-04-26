@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::process::{Command, ExitStatus};
 
 use cursive::event::{Event, Key};
-use cursive::view::Resizable;
+use cursive::view::{Nameable, Resizable};
 use cursive::Cursive;
 
 use crate::args::Args;
@@ -51,7 +51,13 @@ impl App {
             .load_toml(include_str!("assets/style.toml"))
             .unwrap();
 
-        cursive.add_layer(PlayerView::new(player).full_width().fixed_height(size));
+        cursive.add_layer(
+            PlayerView::new(player)
+                .full_width()
+                .max_width(std::cmp::max(size.0, 53))
+                .fixed_height(size.1)
+                .with_name("player"),
+        );
 
         cursive.set_on_pre_event(Event::Char('q'), quit);
         cursive.set_on_pre_event(Event::Key(Key::Tab), move |c: &mut Cursive| {

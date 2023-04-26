@@ -1,4 +1,4 @@
-use std::cmp::min;
+use std::cmp;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
@@ -30,16 +30,18 @@ pub struct Player {
     _stream_handle: OutputStreamHandle,
 }
 
+pub struct Size(pub usize, pub usize);
+
 impl Player {
-    pub fn new(path: PathBuf) -> (Self, usize) {
-        let playlist = Player::create_playlist(path);
+    pub fn new(path: PathBuf) -> (Self, Size) {
+        let (playlist, x) = Player::create_playlist(path);
+        let y = cmp::min(45, playlist.len() + 5);
         let file = playlist
             .first()
             .expect("playlist should not be empty")
             .clone();
         let (_stream, _stream_handle) = OutputStream::try_default().unwrap();
         let sink = Sink::try_new(&_stream_handle).unwrap();
-        let size = min(45, playlist.len() + 5);
 
         let mut player = Self {
             status: PlayerStatus::Stopped,
@@ -56,7 +58,7 @@ impl Player {
 
         player.play_or_pause();
 
-        (player, size)
+        (player, Size(x, y))
     }
 
     pub fn play_or_pause(&mut self) {
@@ -175,21 +177,32 @@ impl Player {
         }
     }
 
-    fn create_playlist(path: PathBuf) -> Vec<AudioFile> {
+    fn create_playlist(path: PathBuf) -> (Vec<AudioFile>, usize) {
         let mut audio_files = vec![];
+        let mut max_length = 0;
 
         if path.is_dir() {
             for entry in path.read_dir().expect("directory should not be empty") {
                 if let Ok(entry) = entry {
                     if let Some(ext) = entry.path().extension() {
                         if FORMATS.contains(&ext.to_str().unwrap()) {
-                            audio_files.push(AudioFile::new(entry.path()))
+                            let file = AudioFile::new(entry.path());
+
+                            let next_length = cmp::max(
+                                file.title.len() + 19,
+                                file.artist.len() + file.album.len() + 20,
+                            );
+                            max_length = cmp::max(max_length, next_length);
+
+                            audio_files.push(file)
                         }
                     }
                 }
             }
         } else if FORMATS.contains(&path.extension().unwrap_or_default().to_str().unwrap()) {
-            audio_files.push(AudioFile::new(path))
+            let file = AudioFile::new(path);
+            max_length = cmp::max(max_length, file.title.len());
+            audio_files.push(file)
         }
 
         if audio_files.is_empty() {
@@ -199,6 +212,6 @@ impl Player {
 
         audio_files.sort();
 
-        audio_files
+        (audio_files, max_length)
     }
 }

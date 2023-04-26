@@ -1,17 +1,15 @@
 use std::cmp;
 
 use cursive::event::{Event, EventResult, Key};
-use cursive::theme::{BaseColor::*, ColorStyle, Effect};
+use cursive::theme::{ColorStyle, Effect};
 use cursive::traits::View;
 use cursive::Printer;
 
-use crate::audio_file::AudioFile;
 use crate::player::{Player, PlayerStatus};
+use crate::theme::*;
 
 pub struct PlayerView {
     player: Player,
-    cs: ColorStyle,
-    cs_inverted: ColorStyle,
 }
 
 fn ratio(value: usize, max: usize, length: usize) -> (usize, usize) {
@@ -38,86 +36,90 @@ fn sub_block(extra: usize) -> &'static str {
 }
 
 fn mins_and_secs(secs: usize) -> String {
-    format!("{:02}:{:02}", secs / 60, secs % 60)
-}
-
-fn track_title_duration(file: &AudioFile) -> String {
-    format!(
-        "{:02} - {} - {}",
-        file.track,
-        file.title,
-        mins_and_secs(file.duration)
-    )
+    format!("  {:02}:{:02}  ", secs / 60, secs % 60)
 }
 
 impl PlayerView {
     pub fn new(player: Player) -> Self {
-        Self {
-            player,
-            cs: ColorStyle::new(Black, Black.light()),
-            cs_inverted: ColorStyle::new(Black.light(), Black),
-        }
+        Self { player }
     }
 
-    fn player_status_symbol(&self) -> &'static str {
+    fn player_status(&self) -> (&'static str, ColorStyle) {
         match self.player.status {
-            PlayerStatus::Paused => "||",
-            PlayerStatus::Playing => ">",
-            PlayerStatus::Stopped => ".",
+            PlayerStatus::Paused => ("|", white()),
+            PlayerStatus::Playing => (">", yellow()),
+            PlayerStatus::Stopped => (".", red()),
         }
-    }
-
-    fn artist_album_year(&self) -> String {
-        let f = &self.player.file;
-
-        match f.year {
-            Some(y) => format!("{} - {} - {}", f.artist, f.album, y),
-            None => format!("{} - {}", f.artist, f.album),
-        }
-    }
-
-    fn print_playback_position(&self, printer: &Printer) {
-        let duration = self.player.file.duration;
-        let elapsed = self.player.elapsed().as_secs() as usize;
-        let remaining = cmp::min(duration, duration - elapsed);
-        let (length, extra) = ratio(elapsed, duration, printer.size.x - 16);
-
-        printer.print((2, printer.size.y - 2), &mins_and_secs(elapsed));
-
-        printer.with_color(self.cs, |printer| {
-            printer.with_effect(Effect::Reverse, |printer| {
-                printer.print((length + 8, printer.size.y - 2), sub_block(extra));
-            });
-        });
-
-        printer
-            .cropped((length + 8, printer.size.y))
-            .with_color(self.cs_inverted, |printer| {
-                printer.print_hline((8, printer.size.y - 2), length, "█");
-            });
-
-        printer.print(
-            (printer.size.x - 7, printer.size.y - 2),
-            &mins_and_secs(remaining),
-        );
     }
 }
 
 impl View for PlayerView {
     fn draw(&self, printer: &Printer) {
-        printer.with_effect(Effect::Underline, |p| {
-            p.print((2, 1), &self.artist_album_year().as_str());
+        let f = &self.player.file;
+        let (available_x, available_y) = (printer.size.x, printer.size.y);
+        let elapsed = self.player.elapsed().as_secs() as usize;
+        let remaining = cmp::min(f.duration, f.duration - elapsed);
+        let (length, extra) = ratio(elapsed, f.duration, available_x - 16);
+
+        // Draw the header: 'Artist, Album, Year'.
+        printer.with_effect(Effect::Bold, |printer| {
+            printer.with_color(green(), |printer| printer.print((2, 1), &f.artist.as_str()));
+            printer.with_effect(Effect::Italic, |printer| {
+                printer.with_color(yellow(), |printer| {
+                    printer.print(
+                        (f.offset, 1),
+                        format!("{} ({})", &f.album, &f.year.unwrap_or_default()).as_str(),
+                    )
+                })
+            })
         });
 
+        // Draw the playlist, with rows: 'Track, Title, Duration'.
         for (i, f) in self.player.playlist.iter().enumerate() {
             if i == self.player.index {
-                printer.print((3, i + 2), self.player_status_symbol());
+                // Include player status for the active row, and use highlighting color.
+                let (symbol, color) = self.player_status();
+                printer.with_color(color, |printer| printer.print((3, i + 2), symbol));
+                printer.with_color(white(), |printer| {
+                    printer.print((6, i + 2), format!("{:02}  {}", f.track, f.title).as_str());
+                    printer.print((available_x - 9, i + 2), mins_and_secs(f.duration).as_str());
+                });
+            } else {
+                // Draw the rest of the playlist.
+                printer.with_color(blue(), |printer| {
+                    printer.print((6, i + 2), format!("{:02}  {}", f.track, f.title).as_str());
+                    printer.print((available_x - 9, i + 2), mins_and_secs(f.duration).as_str());
+                });
             }
 
-            printer.print((6, i + 2), track_title_duration(f).as_str());
-        }
+            // Draw the elapsed and remaining playback times, in mins and secs.
+            printer.with_color(white(), |printer| {
+                printer.print((0, available_y - 2), &mins_and_secs(elapsed));
+                printer.print(
+                    (available_x - 9, available_y - 2),
+                    mins_and_secs(remaining).as_str(),
+                )
+            });
 
-        self.print_playback_position(printer)
+            // Draw the fractional part of the progress bar.
+            printer.with_color(magenta().invert(), |printer| {
+                printer.with_effect(Effect::Reverse, |printer| {
+                    printer.print((length + 8, available_y - 2), sub_block(extra));
+                });
+            });
+
+            // Draw the rest of the progress bar (preceding the fractional part).
+            printer
+                .cropped((length + 8, available_y))
+                .with_color(magenta(), |printer| {
+                    printer.print_hline((8, available_y - 2), length, "█");
+                });
+
+            // Crop the RHS of the header and progress bar by drawing spaces.
+            // This maintains consistent padding when resizing.
+            printer.print((available_x - 2, 1), "  ");
+            printer.print((available_x - 2, available_y - 2), "  ");
+        }
     }
 
     fn on_event(&mut self, event: Event) -> EventResult {

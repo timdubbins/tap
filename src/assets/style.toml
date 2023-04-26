@@ -1,22 +1,6 @@
-shadow = false
+shadow  = false
 borders = "simple"
 
 [colors]
-	background = "light black"
-	shadow     = "red"
-	view       = "black"
-
-	primary   = "white"
-	secondary = "yellow"
-	tertiary  = "#252521"
-	
-	title_primary   = "white"
-	title_secondary = "#ffff55"
-	
-	highlight          = "white"
-	highlight_inactive = "#5555FF"
-
-[styles.highlight]
-    effects = "red"
-    front = "red"
-    back = "inherit_parent"
+	background = "#1d1f21"			# black
+	view       = "#1d1f21"    	# black
