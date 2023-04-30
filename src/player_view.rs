@@ -51,6 +51,14 @@ impl PlayerView {
             PlayerStatus::Stopped => (".", red()),
         }
     }
+
+    fn album_and_year(&self) -> String {
+        if let Some(year) = self.player.file.year {
+            return format!("{} ({})", self.player.file.album, year);
+        } else {
+            return format!("{}", self.player.file.album);
+        }
+    }
 }
 
 impl View for PlayerView {
@@ -66,10 +74,7 @@ impl View for PlayerView {
             printer.with_color(green(), |printer| printer.print((2, 1), &f.artist.as_str()));
             printer.with_effect(Effect::Italic, |printer| {
                 printer.with_color(yellow(), |printer| {
-                    printer.print(
-                        (f.offset, 1),
-                        format!("{} ({})", &f.album, &f.year.unwrap_or_default()).as_str(),
-                    )
+                    printer.print((f.offset, 1), &self.album_and_year().as_str())
                 })
             })
         });

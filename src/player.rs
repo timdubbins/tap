@@ -107,7 +107,7 @@ impl Player {
 
         if !self.numbers_pressed.is_empty() {
             let track_number = self.numbers_pressed.iter().fold(0, |acc, x| acc * 10 + x);
-            if track_number <= self.playlist.len() {
+            if track_number > 0 && track_number <= self.playlist.len() {
                 self.stop();
                 self.index = track_number - 1;
                 self.file = self.playlist[self.index].clone();
