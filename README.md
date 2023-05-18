@@ -6,9 +6,9 @@ tap is a TUI-audio-player with fuzzy-finder shortcuts.
 
 ### Who's it for?
 
-tap aims to make selecting albums from large collections a breeze. If you want a fast, minimal player for the terminal and quick access to your entire library, tap may be for you.
+If you want a fast, minimal player for the terminal and quick access to your entire library, tap may be for you.
 
-### How to use
+## How to use
 
 ```bash
 > tap [path]
@@ -20,9 +20,9 @@ tap will then start in one of two states:
 
 1. if the supplied path is an audio file, or a directory containing audio files (i.e. an album), tap will open and play the files.
 
-2. if path is a directory that contains other directories (such as your root music folder), tap will open a fuzzy search, allowing you to select an album to play.
+2. if path is a directory that contains other directories (such as your root music folder), tap will open a fuzzy search, allowing you to select an album to play. Playback starts on selection and you can return to search mode by pressing `TAB`.
 
-### Bindings
+## Bindings
 
 - `TAB` - start new fuzzy search in `[path]`
 
@@ -39,25 +39,34 @@ tap will then start in one of two states:
 - `q` - quit
 
 
-### Notes
+## Notes
 
 - The currently supported formats are: `aac`, `flac`, `mp3`, `mp4`, `ogg` and `wav`.
-- The `TAB` shortcut for starting a new fuzzy search is only available when there are directories available to search for in [path].
+- The `TAB` shortcut for starting a new fuzzy search is only available when there are directories available to search for in `[path]`.
 
-### Installation
+## Installation
 
-tap is written in Rust, so you'll need to grab a
-[Rust installation](https://www.rust-lang.org/) in order to compile it.
+1. Install tap.
 
-1. Install tap:
+If you're on `macOS` you can use [Homebrew]():
 
-``` bash
+```bash
+> brew install timdubbins/tap/tap
+> tap --version
+0.1.0
+```
+
+To compile from source, first you need a [Rust installation](https://www.rust-lang.org/) (if you don't have one) and then you can use [cargo](https://github.com/rust-lang/cargo):
+
+```bash
 > git clone https://github.com/timdubbins/tap
 > cd tap
 > cargo install --path .
 > tap --version
 0.1.0
 ```
+
+Alternatively, the binaries are available [here](https://github.com/timdubbins/tap/releases/tag/v0.1.0).
 
 2. Install [`fzf`](https://github.com/junegunn/fzf) or [`skim`](https://github.com/lotabout/skim). fzf is a very popular (and useful!) fuzzy finder, and skim is a Rust alternative to fzf. Installing either program will enable fuzzy-finding in tap.
 
