@@ -23,7 +23,7 @@ impl SearchMode {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum SearchDir {
     CurrentDir,
     PathArg,

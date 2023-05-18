@@ -4,6 +4,7 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
+use anyhow::bail;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
 use crate::audio_file::AudioFile;
@@ -33,8 +34,8 @@ pub struct Player {
 pub struct Size(pub usize, pub usize);
 
 impl Player {
-    pub fn new(path: PathBuf) -> (Self, Size) {
-        let (playlist, x) = Player::create_playlist(path);
+    pub fn new(path: PathBuf) -> Result<(Self, Size), anyhow::Error> {
+        let (playlist, x) = Player::create_playlist(path)?;
         let y = cmp::min(45, playlist.len() + 5);
         let file = playlist
             .first()
@@ -58,7 +59,7 @@ impl Player {
 
         player.play_or_pause();
 
-        (player, Size(x, y))
+        Ok((player, Size(x, y)))
     }
 
     pub fn play_or_pause(&mut self) {
@@ -177,41 +178,61 @@ impl Player {
         }
     }
 
-    fn create_playlist(path: PathBuf) -> (Vec<AudioFile>, usize) {
+    fn create_playlist(path: PathBuf) -> Result<(Vec<AudioFile>, usize), anyhow::Error> {
+        // The list of files to use in the player.
         let mut audio_files = vec![];
-        let mut max_length = 0;
+        // The width of the player.
+        let mut width = 0;
+        // The number of entries in the current dir.
+        let mut count: usize = 0;
+        // The first dir we find in the current dir.
+        let mut p: Option<PathBuf> = None;
 
         if path.is_dir() {
-            for entry in path.read_dir().expect("directory should not be empty") {
+            for entry in path.read_dir().expect("path should be a dir.") {
+                count += 1;
                 if let Ok(entry) = entry {
-                    if let Some(ext) = entry.path().extension() {
-                        if FORMATS.contains(&ext.to_str().unwrap()) {
-                            let file = AudioFile::new(entry.path());
-
-                            let next_length = cmp::max(
-                                file.title.len() + 19,
-                                file.artist.len() + file.album.len() + 20,
-                            );
-                            max_length = cmp::max(max_length, next_length);
-
-                            audio_files.push(file)
-                        }
+                    if entry.path().is_dir() && p == None {
+                        p = Some(entry.path());
+                    } else if FORMATS.contains(
+                        &entry
+                            .path()
+                            .extension()
+                            .unwrap_or_default()
+                            .to_str()
+                            .unwrap(),
+                    ) {
+                        let file = AudioFile::new(entry.path());
+                        let next = cmp::max(
+                            file.title.len() + 19,
+                            file.artist.len() + file.album.len() + 20,
+                        );
+                        width = cmp::max(width, next);
+                        audio_files.push(file)
                     }
                 }
             }
         } else if FORMATS.contains(&path.extension().unwrap_or_default().to_str().unwrap()) {
-            let file = AudioFile::new(path);
-            max_length = cmp::max(max_length, file.title.len());
+            let file = AudioFile::new(path.clone());
+            width = cmp::max(
+                file.title.len() + 19,
+                file.artist.len() + file.album.len() + 20,
+            );
             audio_files.push(file)
         }
 
         if audio_files.is_empty() {
-            println!("No files to play. Try a different directory.");
-            std::process::exit(9);
+            if let Some(p) = p {
+                return Player::create_playlist(p);
+            } else if count == 0 {
+                bail!("{:?} is empty.", path)
+            } else {
+                bail!("no valid files found in {:?}.", path)
+            }
         }
 
         audio_files.sort();
 
-        (audio_files, max_length)
+        Ok((audio_files, width))
     }
 }

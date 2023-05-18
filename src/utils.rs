@@ -28,6 +28,13 @@ pub fn path_contains_dir(path: &PathBuf) -> bool {
     } else {
         return false;
     }
-
     false
+}
+
+pub fn path_as_string(path: &PathBuf) -> String {
+    let mut p = path.clone().into_os_string().into_string().unwrap();
+    if p.ends_with('/') {
+        p.pop();
+    }
+    p
 }

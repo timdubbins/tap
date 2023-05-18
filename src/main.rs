@@ -10,7 +10,7 @@ mod utils;
 use crate::app::App;
 
 fn main() {
-    let result = App::run();
+    let result: Result<(), anyhow::Error> = App::run();
     match result {
         Ok(r) => r,
         Err(err) => {

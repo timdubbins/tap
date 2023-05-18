@@ -1,7 +1,6 @@
 use cursive::theme::{Color, ColorStyle};
 
-const FZF_THEME: &'static str = "--color=bg+:#3F3F3F,bg:#4B4B4B,border:#6B6B6B,spinner:#98BC99,hl:#719872,fg:#D9D9D9,header:#719872,info:#BDBB72,pointer:#E12672,marker:#E17899,fg+:#D9D9D9,preview-bg:#3F3F3F,prompt:#98BEDE,hl+:#98BC99";
-const BLACK: Color = Color::Rgb(29, 31, 33); // #1d1f21
+const BLACK: Color = Color::Rgb(31, 33, 29); // #1f211d
 const WHITE: Color = Color::Rgb(197, 200, 198); // #c5c8c6
 const RED: Color = Color::Rgb(204, 102, 102); // #cc6666
 const GREEN: Color = Color::Rgb(181, 189, 104); // #b5bd68

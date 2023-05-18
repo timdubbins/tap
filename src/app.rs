@@ -10,6 +10,7 @@ use crate::args::Args;
 use crate::player::Player;
 use crate::player_view::PlayerView;
 use crate::search::{search_arg, SearchDir, SearchMode};
+use crate::utils::path_as_string;
 
 #[derive(Clone)]
 pub struct App {
@@ -17,16 +18,17 @@ pub struct App {
     pub search_mode: SearchMode,
     pub initial_path: String,
     pub path: PathBuf,
-    is_first_run: bool,
+    needs_restart: bool,
 }
 
 impl App {
-    fn try_new() -> Result<Self, Error> {
+    fn try_new() -> Result<Self, anyhow::Error> {
         let (path, initial_path) = Args::parse_path_args()?;
         let (search_mode, search_dir) = Args::parse_search_options(&path);
+        let needs_restart = search_mode == SearchMode::Fuzzy && Args::is_first_run();
 
         let app = Self {
-            is_first_run: Args::parse_first_run(),
+            needs_restart: needs_restart,
             path: path,
             initial_path: initial_path,
             search_dir: search_dir,
@@ -36,15 +38,24 @@ impl App {
         Ok(app)
     }
 
-    pub fn run() -> Result<(), Error> {
+    pub fn run() -> Result<(), anyhow::Error> {
         let app = App::try_new()?;
 
-        if app.is_first_run {
+        if app.needs_restart {
             app.restart();
             return Ok(());
         }
 
-        let (player, size) = Player::new(app.path.clone());
+        // Without this check a playlist can be created when escaping
+        // a fuzzy search. Instead we exit the program gracefully.
+        if app.search_mode == SearchMode::Fuzzy
+            && app.search_dir == SearchDir::PathArg
+            && path_as_string(&app.path) == app.initial_path
+        {
+            return Ok(());
+        }
+
+        let (player, size) = Player::new(app.path.clone())?;
         let mut cursive = cursive::default();
 
         cursive
@@ -67,6 +78,7 @@ impl App {
         cursive.run();
 
         clear_terminal()?;
+
         Ok(())
     }
 

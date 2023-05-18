@@ -1,10 +1,11 @@
 use std::env;
-use std::io::Error;
 use std::path::PathBuf;
 
+use anyhow::bail;
 use clap::Parser;
 
 use crate::search::{SearchDir, SearchMode};
+use crate::utils::path_as_string;
 
 #[derive(Parser)]
 #[command(author, version, about)]
@@ -22,21 +23,26 @@ pub struct Args {
 }
 
 impl Args {
-    pub fn parse_first_run() -> bool {
+    pub fn is_first_run() -> bool {
         match Args::parse().search_options {
             Some(_) => false,
             None => true,
         }
     }
-    pub fn parse_path_args() -> Result<(PathBuf, String), Error> {
+
+    pub fn parse_path_args() -> Result<(PathBuf, String), anyhow::Error> {
         let path = match Args::parse().path {
             Some(p) => p,
             None => env::current_dir()?,
         };
 
+        if !path.exists() {
+            bail!("{:?} doesn't exist.", path)
+        }
+
         let initial_path = match Args::parse().initial_path {
             Some(p) => p,
-            None => path.clone().into_os_string().into_string().unwrap(),
+            None => path_as_string(&path),
         };
 
         Ok((path, initial_path))
