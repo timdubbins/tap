@@ -9,7 +9,7 @@ use cursive::Cursive;
 use crate::args::Args;
 use crate::player::Player;
 use crate::player_view::PlayerView;
-use crate::search::{search_arg, SearchDir, SearchMode};
+use crate::search::{build_arg, SearchDir, SearchMode};
 use crate::utils::path_as_string;
 
 #[derive(Clone)]
@@ -24,15 +24,15 @@ pub struct App {
 impl App {
     fn try_new() -> Result<Self, anyhow::Error> {
         let (path, initial_path) = Args::parse_path_args()?;
-        let (search_mode, search_dir) = Args::parse_search_options(&path);
+        let (search_mode, search_dir) = Args::parse_search_options(&path)?;
         let needs_restart = search_mode == SearchMode::Fuzzy && Args::is_first_run();
 
         let app = Self {
-            needs_restart: needs_restart,
             path: path,
             initial_path: initial_path,
             search_dir: search_dir,
             search_mode: search_mode,
+            needs_restart: needs_restart,
         };
 
         Ok(app)
@@ -41,8 +41,11 @@ impl App {
     pub fn run() -> Result<(), anyhow::Error> {
         let app = App::try_new()?;
 
+        // We decide whether we need fuzzy search on the first app run.
+        // If we do, a restart is required in order to run the initial
+        // fuzzy search.
         if app.needs_restart {
-            app.restart();
+            app.restart_with_fuzzy_query();
             return Ok(());
         }
 
@@ -82,10 +85,10 @@ impl App {
         Ok(())
     }
 
-    fn restart(&self) {
+    fn restart_with_fuzzy_query(&self) {
         Command::new("/bin/bash")
             .arg("-c")
-            .arg(search_arg(self))
+            .arg(build_arg(self))
             .spawn()
             .unwrap()
             .wait()
@@ -95,7 +98,7 @@ impl App {
     fn new_fuzzy_search(&self, c: &mut Cursive) {
         if self.search_mode == SearchMode::Fuzzy {
             c.pop_layer();
-            self.restart();
+            self.restart_with_fuzzy_query();
             c.quit()
         }
     }

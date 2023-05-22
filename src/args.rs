@@ -13,9 +13,6 @@ pub struct Args {
     path: Option<PathBuf>,
 
     #[clap(hide(true), default_value = None, long)]
-    mode: Option<u8>,
-
-    #[clap(hide(true), default_value = None, long)]
     search_options: Option<u8>,
 
     #[clap[hide(true), default_value = None, long]]
@@ -48,14 +45,12 @@ impl Args {
         Ok((path, initial_path))
     }
 
-    pub fn parse_search_options(path: &PathBuf) -> (SearchMode, SearchDir) {
+    pub fn parse_search_options(path: &PathBuf) -> Result<(SearchMode, SearchDir), anyhow::Error> {
         match Args::parse().search_options {
-            None => (SearchMode::get_from(path), SearchDir::get_from(path)),
-            Some(0) => (SearchMode::NonFuzzy, SearchDir::CurrentDir),
-            Some(1) => (SearchMode::NonFuzzy, SearchDir::PathArg),
-            Some(2) => (SearchMode::Fuzzy, SearchDir::CurrentDir),
-            Some(3) => (SearchMode::Fuzzy, SearchDir::PathArg),
-            Some(4_u8..=u8::MAX) => panic!("invalid search options"),
+            None => Ok((SearchMode::get_from(path), SearchDir::get_from(path))),
+            Some(0) => Ok((SearchMode::Fuzzy, SearchDir::CurrentDir)),
+            Some(1) => Ok((SearchMode::Fuzzy, SearchDir::PathArg)),
+            _ => bail!("Invalid search options."),
         }
     }
 }

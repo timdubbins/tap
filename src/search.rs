@@ -45,41 +45,31 @@ fn fuzzy_finder() -> &'static str {
     }
 }
 
-pub fn search_arg(app: &App) -> String {
+pub fn build_arg(app: &App) -> String {
     let current_exe = env::current_exe().unwrap();
     let fd_available = env_var_includes(&["fd"]);
+    let query: String;
 
-    match (app.search_mode, app.search_dir) {
-        (SearchMode::NonFuzzy, SearchDir::CurrentDir) => {
-            format!(
-                "{} {}",
-                env::current_exe().unwrap().display(),
-                "--search-options 0"
-            )
-        }
-        (SearchMode::NonFuzzy, SearchDir::PathArg) => {
-            let path = app.path.clone().into_os_string().into_string().unwrap();
-            format!("{:?} \"{}\" --search-options 1", current_exe, path)
-        }
-        (SearchMode::Fuzzy, SearchDir::CurrentDir) => {
-            if fd_available {
-                format!(
-                    "{:?} \"$(fd -t d | {})\" --search-options 2",
-                    current_exe,
-                    fuzzy_finder()
-                )
-            } else {
-                format!(
-                    "{:?} ./\"$(find . -type d | sed -n 's|^./||p' | sort | {})\" --search-options 2",
+    match (app.search_dir, fd_available) {
+        (SearchDir::CurrentDir, true) => {
+                query = format!(
+                    "{:?} \"$(fd -t d | {})\" --search-options 0",
                     current_exe,
                     fuzzy_finder()
                 )
             }
+            
+        (SearchDir::CurrentDir, false) => {
+                query = format!(
+                    "{:?} ./\"$(find . -type d | sed -n 's|^./||p' | sort | {})\" --search-options 0",
+                    current_exe,
+                    fuzzy_finder()
+                )
         }
-        (SearchMode::Fuzzy, SearchDir::PathArg) => {
-            if fd_available {
-                format!(
-                    "{:?} {}/\"$(fd . \'{}\' -t d | sed -n 's|^{}/||p' | {})\" --search-options 3 --initial-path {}",
+
+        (SearchDir::PathArg, true) => {
+                query = format!(
+                    "{:?} {}/\"$(fd . \'{}\' -t d | sed -n 's|^{}/||p' | {})\" --search-options 1 --initial-path {}",
                     current_exe,
                     app.initial_path,
                     app.initial_path,
@@ -87,9 +77,11 @@ pub fn search_arg(app: &App) -> String {
                     fuzzy_finder(),
                     app.initial_path,
                 )
-            } else {
-                format!(
-                    "{:?} {}/\"$(find \'{}\' -type d | sed -n 's|^{}/||p' | sort | {})\" --search-options 3 --initial-path {}",
+            }
+
+        (SearchDir::PathArg, false) => {
+                query = format!(
+                    "{:?} {}/\"$(find \'{}\' -type d | sed -n 's|^{}/||p' | sort | {})\" --search-options 1 --initial-path {}",
                     current_exe,
                     app.initial_path,
                     app.initial_path,
@@ -99,5 +91,6 @@ pub fn search_arg(app: &App) -> String {
                 )
             }
         }
-    }
+
+    query
 }
