@@ -23,8 +23,9 @@ pub struct App {
 
 impl App {
     fn try_new() -> Result<Self, anyhow::Error> {
-        let (path, initial_path) = Args::parse_path_args()?;
+        let path = Args::parse_path()?;
         let (search_mode, search_dir) = Args::parse_search_options(&path)?;
+        let initial_path = Args::parse_initial_path(&path, search_mode == SearchMode::Fuzzy)?;
         let needs_restart = search_mode == SearchMode::Fuzzy && Args::is_first_run();
 
         let app = Self {
@@ -96,12 +97,12 @@ impl App {
     }
 
     fn new_fuzzy_search(&self, c: &mut Cursive) {
-        if self.search_mode == SearchMode::Fuzzy {
-            c.pop_layer();
-            self.restart_with_fuzzy_query();
-            c.quit()
-        }
+        // if self.search_mode == SearchMode::Fuzzy {
+        c.pop_layer();
+        self.restart_with_fuzzy_query();
+        c.quit()
     }
+    // }
 }
 
 fn clear_terminal() -> Result<ExitStatus, Error> {

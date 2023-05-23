@@ -27,7 +27,7 @@ impl Args {
         }
     }
 
-    pub fn parse_path_args() -> Result<(PathBuf, String), anyhow::Error> {
+    pub fn parse_path() -> Result<PathBuf, anyhow::Error> {
         let path = match Args::parse().path {
             Some(p) => p,
             None => env::current_dir()?,
@@ -37,12 +37,35 @@ impl Args {
             bail!("{:?} doesn't exist.", path)
         }
 
-        let initial_path = match Args::parse().initial_path {
+        Ok(path)
+    }
+
+    fn get_containing_dir(path: &PathBuf) -> Result<PathBuf, anyhow::Error> {
+        let parent = match path.parent() {
             Some(p) => p,
-            None => path_as_string(&path),
+            None => bail!("{:?} doesn't have a `parent` folder.", path),
         };
 
-        Ok((path, initial_path))
+        match path.is_dir() {
+            true => Ok(parent.into()),
+            false => match parent.parent() {
+                Some(p) => Ok(p.into()),
+                None => bail!("{:?} doesn't have a `grand-parent` folder.", path),
+            },
+        }
+    }
+
+    pub fn parse_initial_path(path: &PathBuf, fuzzy: bool) -> Result<String, anyhow::Error> {
+        match Args::parse().initial_path {
+            Some(p) => Ok(p),
+            None => match fuzzy {
+                true => Ok(path_as_string(path)),
+                false => {
+                    let parent = Args::get_containing_dir(path)?;
+                    Ok(path_as_string(parent))
+                }
+            },
+        }
     }
 
     pub fn parse_search_options(path: &PathBuf) -> Result<(SearchMode, SearchDir), anyhow::Error> {

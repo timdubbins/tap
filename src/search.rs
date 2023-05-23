@@ -38,59 +38,56 @@ impl SearchDir {
     }
 }
 
-fn fuzzy_finder() -> &'static str {
-    match env_var_includes(&["fzf"]) {
-        true => FZF_CMD,
-        false => SK_CMD,
-    }
-}
-
 pub fn build_arg(app: &App) -> String {
     let current_exe = env::current_exe().unwrap();
     let fd_available = env_var_includes(&["fd"]);
-    let query: String;
+    let fuzzy_query = match env_var_includes(&["fzf"]) {
+        true => FZF_CMD,
+        false => SK_CMD,
+    };
+    let res: String;
 
     match (app.search_dir, fd_available) {
         (SearchDir::CurrentDir, true) => {
-                query = format!(
+                res = format!(
                     "{:?} \"$(fd -t d | {})\" --search-options 0",
                     current_exe,
-                    fuzzy_finder()
+                    fuzzy_query
                 )
             }
             
         (SearchDir::CurrentDir, false) => {
-                query = format!(
+                res = format!(
                     "{:?} ./\"$(find . -type d | sed -n 's|^./||p' | sort | {})\" --search-options 0",
                     current_exe,
-                    fuzzy_finder()
+                    fuzzy_query
                 )
         }
 
         (SearchDir::PathArg, true) => {
-                query = format!(
+                res = format!(
                     "{:?} {}/\"$(fd . \'{}\' -t d | sed -n 's|^{}/||p' | {})\" --search-options 1 --initial-path {}",
                     current_exe,
                     app.initial_path,
                     app.initial_path,
                     app.initial_path,
-                    fuzzy_finder(),
-                    app.initial_path,
+                    fuzzy_query,
+                    app.initial_path
                 )
             }
 
         (SearchDir::PathArg, false) => {
-                query = format!(
+                res = format!(
                     "{:?} {}/\"$(find \'{}\' -type d | sed -n 's|^{}/||p' | sort | {})\" --search-options 1 --initial-path {}",
                     current_exe,
                     app.initial_path,
                     app.initial_path,
                     app.initial_path,
-                    fuzzy_finder(),
+                    fuzzy_query,
                     app.initial_path,
                 )
             }
         }
 
-    query
+    res
 }
