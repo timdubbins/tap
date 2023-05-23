@@ -1,7 +1,10 @@
+use async_std::task;
 use std::cmp;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::bail;
@@ -24,6 +27,7 @@ pub struct Player {
     pub index: usize,
     pub status: PlayerStatus,
     pub numbers_pressed: Vec<usize>,
+    can_reach: Arc<AtomicBool>,
     last_started: Instant,
     last_elapsed: Duration,
     sink: Sink,
@@ -50,6 +54,7 @@ impl Player {
             last_elapsed: Duration::default(),
             index: 0,
             numbers_pressed: vec![],
+            can_reach: Arc::new(AtomicBool::new(false)),
             playlist,
             file,
             sink,
@@ -63,7 +68,7 @@ impl Player {
     }
 
     pub fn play_or_pause(&mut self) {
-        self.numbers_pressed.clear();
+        self.clear();
 
         match self.status {
             PlayerStatus::Paused => {
@@ -91,7 +96,7 @@ impl Player {
     }
 
     pub fn stop(&mut self) {
-        self.numbers_pressed.clear();
+        self.clear();
 
         match self.status {
             PlayerStatus::Stopped => {}
@@ -103,25 +108,67 @@ impl Player {
         }
     }
 
+    pub fn play_last_track(&mut self) {
+        self.stop();
+        self.index = self.playlist.len() - 1;
+        self.file = self.playlist[self.index].clone();
+        self.play_or_pause();
+        self.clear();
+    }
+
+    fn clear(&mut self) {
+        self.numbers_pressed.clear();
+        self.can_reach.store(false, Ordering::Relaxed)
+    }
+
     pub fn select_track(&mut self) -> bool {
+        match self.numbers_pressed.is_empty() {
+            true => {
+                if self.can_reach.load(Ordering::Relaxed) {
+                    self.select_first_track()
+                } else {
+                    // Set `can_reach` to true temporarily so that calling
+                    // this function twice in quick succession will allow
+                    // us to run the 'if' block of this conditional. This
+                    // is to simulate a double tap gesture.
+                    self.can_reach.store(true, Ordering::Relaxed);
+                    let _can_reach = self.can_reach.clone();
+                    task::spawn(async move {
+                        task::sleep(Duration::from_millis(500)).await;
+                        _can_reach.store(false, Ordering::Relaxed)
+                    });
+                    false
+                }
+            }
+            false => self.select_track_number(),
+        }
+    }
+
+    fn select_track_number(&mut self) -> bool {
         let mut selected = false;
 
-        if !self.numbers_pressed.is_empty() {
-            let track_number = self.numbers_pressed.iter().fold(0, |acc, x| acc * 10 + x);
-            if track_number > 0 && track_number <= self.playlist.len() {
-                self.stop();
-                self.index = track_number - 1;
-                self.file = self.playlist[self.index].clone();
-                selected = true
-            }
+        let track_number = self.numbers_pressed.iter().fold(0, |acc, x| acc * 10 + x);
+        if track_number > 0 && track_number <= self.playlist.len() {
+            self.stop();
+            self.index = track_number - 1;
+            self.file = self.playlist[self.index].clone();
+            selected = true
         }
 
-        self.numbers_pressed.clear();
+        self.clear();
         selected
     }
 
+    fn select_first_track(&mut self) -> bool {
+        self.stop();
+        self.index = 0;
+        self.file = self.playlist[self.index].clone();
+        self.clear();
+        true
+    }
+
     pub fn next(&mut self) {
-        self.numbers_pressed.clear();
+        self.clear();
 
         if self.index < self.playlist.len() - 1 {
             self.index += 1;
@@ -141,7 +188,7 @@ impl Player {
     }
 
     pub fn prev(&mut self) {
-        self.numbers_pressed.clear();
+        self.clear();
 
         if self.index > 0 {
             self.index -= 1;
@@ -189,7 +236,10 @@ impl Player {
         let mut p: Option<PathBuf> = None;
 
         if path.is_dir() {
-            for entry in path.read_dir().expect("path should be a dir.") {
+            for entry in path
+                .read_dir()
+                .expect("path is a directory has just been checked")
+            {
                 count += 1;
                 if let Ok(entry) = entry {
                     if entry.path().is_dir() && p == None {
@@ -202,23 +252,25 @@ impl Player {
                             .to_str()
                             .unwrap(),
                     ) {
-                        let file = AudioFile::new(entry.path());
-                        let next = cmp::max(
-                            file.title.len() + 19,
-                            file.artist.len() + file.album.len() + 20,
-                        );
-                        width = cmp::max(width, next);
-                        audio_files.push(file)
+                        if let Ok(file) = AudioFile::new(entry.path()) {
+                            let next = cmp::max(
+                                file.title.len() + 19,
+                                file.artist.len() + file.album.len() + 20,
+                            );
+                            width = cmp::max(width, next);
+                            audio_files.push(file)
+                        }
                     }
                 }
             }
         } else if FORMATS.contains(&path.extension().unwrap_or_default().to_str().unwrap()) {
-            let file = AudioFile::new(path.clone());
-            width = cmp::max(
-                file.title.len() + 19,
-                file.artist.len() + file.album.len() + 20,
-            );
-            audio_files.push(file)
+            if let Ok(file) = AudioFile::new(path.clone()) {
+                width = cmp::max(
+                    file.title.len() + 19,
+                    file.artist.len() + file.album.len() + 20,
+                );
+                audio_files.push(file)
+            }
         }
 
         if audio_files.is_empty() {

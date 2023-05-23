@@ -82,7 +82,7 @@ impl View for PlayerView {
         // Draw the playlist, with rows: 'Track, Title, Duration'.
         for (i, f) in self.player.playlist.iter().enumerate() {
             if i == self.player.index {
-                // Include player status for the active row, and use highlighting color.
+                // Draw the active row with player status and highlighting.
                 let (symbol, color) = self.player_status();
                 printer.with_color(color, |printer| printer.print((3, i + 2), symbol));
                 printer.with_color(white(), |printer| {
@@ -90,7 +90,7 @@ impl View for PlayerView {
                     printer.print((available_x - 9, i + 2), mins_and_secs(f.duration).as_str());
                 });
             } else {
-                // Draw the rest of the playlist.
+                // Draw the inactive rows.
                 printer.with_color(blue(), |printer| {
                     printer.print((6, i + 2), format!("{:02}  {}", f.track, f.title).as_str());
                     printer.print((available_x - 9, i + 2), mins_and_secs(f.duration).as_str());
@@ -134,29 +134,37 @@ impl View for PlayerView {
                 EventResult::Consumed(None)
             }
 
-            Event::Key(Key::Enter) => {
+            Event::Key(Key::Enter) | Event::Char('g') => {
                 if self.player.select_track() {
                     self.player.play_or_pause()
                 }
                 EventResult::Consumed(None)
             }
 
-            Event::Char('p') => {
+            Event::Char('G') => {
+                self.player.play_last_track();
+                EventResult::Consumed(None)
+            }
+
+            Event::Char('p') | Event::Char(' ') => {
                 self.player.play_or_pause();
                 EventResult::Consumed(None)
             }
 
-            Event::Char('s') => {
+            Event::Char('s') | Event::Char('.') => {
                 self.player.stop();
                 EventResult::Consumed(None)
             }
 
-            Event::Char('j') => {
+            Event::Char('j')
+            | Event::Char('l')
+            | Event::Key(Key::Down)
+            | Event::Key(Key::Right) => {
                 self.player.next();
                 EventResult::Consumed(None)
             }
 
-            Event::Char('k') => {
+            Event::Char('k') | Event::Char('h') | Event::Key(Key::Up) | Event::Key(Key::Left) => {
                 self.player.prev();
                 EventResult::Consumed(None)
             }
