@@ -5,7 +5,7 @@ use anyhow::bail;
 use clap::Parser;
 
 use crate::search::{SearchDir, SearchMode};
-use crate::utils::path_as_string;
+use crate::utils::path_to_string;
 
 #[derive(Parser)]
 #[command(author, version, about)]
@@ -64,10 +64,10 @@ impl Args {
         match Args::parse().initial_path {
             Some(p) => Ok(p),
             None => match fuzzy {
-                true => Ok(path_as_string(path)),
+                true => Ok(path_to_string(path)?),
                 false => {
                     let parent = Args::get_containing_dir(path)?;
-                    Ok(path_as_string(parent))
+                    Ok(path_to_string(parent)?)
                 }
             },
         }

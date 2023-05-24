@@ -145,18 +145,18 @@ impl Player {
     }
 
     fn select_track_number(&mut self) -> bool {
-        let mut selected = false;
-
+        // Concatenates the array of numbers, i.e. `[1, 2, 3]` -> `123`.
         let track_number = self.numbers_pressed.iter().fold(0, |acc, x| acc * 10 + x);
-        if track_number > 0 && track_number <= self.playlist.len() {
+        let selection_valid = track_number > 0 && track_number <= self.playlist.len();
+
+        if selection_valid {
             self.stop();
             self.index = track_number - 1;
             self.file = self.playlist[self.index].clone();
-            selected = true
         }
 
         self.clear();
-        selected
+        selection_valid
     }
 
     fn select_first_track(&mut self) -> bool {

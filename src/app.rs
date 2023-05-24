@@ -10,7 +10,7 @@ use crate::args::Args;
 use crate::player::Player;
 use crate::player_view::PlayerView;
 use crate::search::{build_arg, SearchDir, SearchMode};
-use crate::utils::path_as_string;
+use crate::utils::path_to_string;
 
 #[derive(Clone)]
 pub struct App {
@@ -54,7 +54,7 @@ impl App {
         // a fuzzy search. Instead we exit the program gracefully.
         if app.search_mode == SearchMode::Fuzzy
             && app.search_dir == SearchDir::PathArg
-            && path_as_string(&app.path) == app.initial_path
+            && path_to_string(&app.path)? == app.initial_path
         {
             return Ok(());
         }
@@ -97,12 +97,10 @@ impl App {
     }
 
     fn new_fuzzy_search(&self, c: &mut Cursive) {
-        // if self.search_mode == SearchMode::Fuzzy {
         c.pop_layer();
         self.restart_with_fuzzy_query();
         c.quit()
     }
-    // }
 }
 
 fn clear_terminal() -> Result<ExitStatus, Error> {

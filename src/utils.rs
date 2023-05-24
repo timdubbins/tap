@@ -2,6 +2,8 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
+use anyhow::bail;
+
 pub fn env_var_includes(programs: &[&str]) -> bool {
     if let Ok(path) = env::var("PATH") {
         for sub_str in path.split(":") {
@@ -30,13 +32,17 @@ pub fn path_contains_dir(path: &PathBuf) -> bool {
     }
     false
 }
-pub fn path_as_string<P>(path: P) -> String
-where
-    P: Into<PathBuf>,
-{
-    let mut p = path.into().clone().into_os_string().into_string().unwrap();
-    if p.ends_with('/') {
-        p.pop();
+
+pub fn path_to_string<P: Into<PathBuf>>(path: P) -> Result<String, anyhow::Error> {
+    match path.into().clone().into_os_string().into_string() {
+        Ok(p) => Ok(remove_trailing_slash(p)),
+        Err(_) => bail!("Could not convert path to string"),
     }
-    p
+}
+
+fn remove_trailing_slash(mut s: String) -> String {
+    if s.ends_with('/') {
+        s.pop();
+    }
+    s
 }
