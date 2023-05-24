@@ -18,11 +18,11 @@ If you want a fast, minimal player for the terminal that provides quick access t
 
 tap will then start in one of two states:
 
-1. if the path is a directory that contains folders (such as your root music folder), tap will open a fuzzy search, allowing you to select an album to play. Playback starts on selection and you can return to search mode by pressing `TAB`.
+1. if the supplied path is an audio file, or a directory containing audio files (i.e. an album), tap will open and play the file(s).
 
-3. if the path is an audio file, or a directory containing audio files (i.e. an album), tap will open and play the files. **TODO:** `TAB` will start a fuzzy search in a parent folder of path that you select.
+2. if path is a directory that contains other directories (such as your root music folder), tap will open a fuzzy search, allowing you to select an album to play. Playback starts on selection and you can return to search mode by pressing `TAB`.
 
-**Tip**: One nice way to use tap is to provide a default path to your root music directory by creating an `alias`:
+**Tip**: Create an `alias` that provides a default path to your root music folder:
 
 ``` bash
 # 1. put this somewhere in your shell config (i.e. in your .zshrc for zsh users)
@@ -31,7 +31,7 @@ tap will then start in one of two states:
 alias tap="tap ~/path/to/my_music"
 ```
 
-We can overide this default path by passing in a second path argument. This means we now how the following behaviour:
+Since we can overide this default path by passing in a second path argument, we now how the following behaviour:
 ``` bash
 > tap                       # start by searching albums in `.../my_music`
 > tap .                     # runs tap in the current directory
@@ -67,7 +67,7 @@ If you're on `macOS` you can use [Homebrew]():
 ```bash
 > brew install timdubbins/tap/tap
 > tap --version
-0.1.1
+0.1.0
 ```
 
 To compile from source, first you need a [Rust installation](https://www.rust-lang.org/) (if you don't have one) and then you can use [cargo](https://github.com/rust-lang/cargo):
@@ -77,10 +77,10 @@ To compile from source, first you need a [Rust installation](https://www.rust-la
 > cd tap
 > cargo install --path .
 > tap --version
-0.1.1
+0.1.0
 ```
 
-Alternatively, the binaries are available [here](https://github.com/timdubbins/tap/releases/tag/v0.1.1).
+Alternatively, the binaries are available [here](https://github.com/timdubbins/tap/releases/tag/v0.1.0).
 
 2. Install [`fzf`](https://github.com/junegunn/fzf) or [`skim`](https://github.com/lotabout/skim). fzf is a very popular (and useful!) fuzzy finder, and skim is a Rust alternative to fzf. Installing either program will enable fuzzy-finding in tap.
 
