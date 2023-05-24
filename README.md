@@ -18,28 +18,39 @@ If you want a fast, minimal player for the terminal that provides quick access t
 
 tap will then start in one of two states:
 
-1. if the supplied path is a directory that contains other directories (such as your root music folder), tap will open a fuzzy search, allowing you to select an album to play. Playback starts on selection and you can return to search mode by pressing `TAB`.
+1. if the path is a directory that contains folders (such as your root music folder), tap will open a fuzzy search, allowing you to select an album to play. Playback starts on selection and you can return to search mode by pressing `TAB`.
 
-2. if the path is an audio file, or a directory containing audio files (i.e. an album), tap will open and play the files. `TAB` will start a fuzzy search in the parent folder of path.
+3. if the path is an audio file, or a directory containing audio files (i.e. an album), tap will open and play the files. **TODO:** `TAB` will start a fuzzy search in a parent folder of path that you select.
 
-One nice way to use tap is to `alias` it to your root music directory. For example, putting
+**Tip**: One nice way to use tap is to provide a default path to your root music directory by creating an `alias`:
+
 ``` bash
-alias tp="tap ~/path/to/my_music"
+# 1. put this somewhere in your shell config (i.e. in your .zshrc for zsh users)
+# 2. source the file or restart your shell
+
+alias tap="tap ~/path/to/my_music"
 ```
-somewhere in your shell config gives you access to any album in that directory by running `tp`.
+
+We can overide this default path by passing in a second path argument. This means we now how the following behaviour:
+``` bash
+> tap                       # start by searching albums in `.../my_music`
+> tap .                     # runs tap in the current directory
+> tap ~/path/to/album       # starts playback of `.../album` files
+> tap ~/path/to/album/file  # starts playback of `.../file`
+```
 
 ## Bindings
 
 Command | Keybinding
 ---|---
 new fuzzy search | `TAB`
-play or pause | `SPACE` or `p`
+play or pause | `p` or `SPACE`
 stop | `.` or `s`
-next | `DOWN` or `j` or `RIGHT` or `l`
-previous | `UP` or `k` or `LEFT` or `h`
+next | `j` or `DOWN` or `l` or `RIGHT`
+previous | `k` or `UP` or `h` or `LEFT`
 go to first track | `gg`
 go to last track | `G`
-go to track number | `0...9` + `ENTER` or `g`
+go to track number | `0...9` + `g` or `ENTER`
 quit | `q`
 
 ## Notes

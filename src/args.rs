@@ -12,6 +12,8 @@ use crate::utils::path_as_string;
 pub struct Args {
     path: Option<PathBuf>,
 
+    second_path: Option<PathBuf>,
+
     #[clap(hide(true), default_value = None, long)]
     search_options: Option<u8>,
 
@@ -28,9 +30,12 @@ impl Args {
     }
 
     pub fn parse_path() -> Result<PathBuf, anyhow::Error> {
-        let path = match Args::parse().path {
+        let path = match Args::parse().second_path {
             Some(p) => p,
-            None => env::current_dir()?,
+            None => match Args::parse().path {
+                Some(p) => p,
+                None => env::current_dir()?,
+            },
         };
 
         if !path.exists() {
