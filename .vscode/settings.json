@@ -1,0 +1,20 @@
+{
+    "cSpell.words": [
+        "consts",
+        "crossterm",
+        "flac",
+        "hline",
+        "libc",
+        "rodio",
+        "SIGCHLD",
+        "SIGCONT",
+        "SIGHUP",
+        "siginfo",
+        "SIGINT",
+        "SIGQUIT",
+        "SIGTERM",
+        "SIGTSTP",
+        "SIGWINCH",
+        "timdubbins"
+    ]
+}
