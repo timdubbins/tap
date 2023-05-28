@@ -1,6 +1,6 @@
 [package]
 name = "tap"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Tim Dubbins <timdubbins@gmail.com>"]
 description = "tap is a TUI-audio-player."
 documentation = "https://github.com/timdubbins/tap"
