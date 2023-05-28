@@ -62,12 +62,21 @@ quit | `q`
 
 1. Install tap.
 
-If you're on `macOS` you can use [Homebrew]():
+If you're on **macOS** you can use [Homebrew]():
 
 ```bash
 > brew install timdubbins/tap/tap
 > tap --version
-0.1.0
+0.1.1
+```
+
+If you're a **Debian** user (or a user of a Debian derivative like **Ubuntu**) then tap can be installed using a binary `.deb` file provided in each [tap release](https://github.com/timdubbins/tap/releases).
+
+```bash
+> curl -LO https://github.com/timdubbins/tap/releases/download/v0.1.1/tap_v0.1.1_amd64.deb
+> sudo dpkg -i tap_0.1.1_amd64.deb
+> tap --version
+0.1.1
 ```
 
 To compile from source, first you need a [Rust installation](https://www.rust-lang.org/) (if you don't have one) and then you can use [cargo](https://github.com/rust-lang/cargo):
@@ -77,10 +86,10 @@ To compile from source, first you need a [Rust installation](https://www.rust-la
 > cd tap
 > cargo install --path .
 > tap --version
-0.1.0
+0.1.1
 ```
 
-Alternatively, the binaries are available [here](https://github.com/timdubbins/tap/releases/tag/v0.1.0).
+Alternatively, the binaries are available [here](https://github.com/timdubbins/tap/releases/tag/v0.1.1).
 
 2. Install [`fzf`](https://github.com/junegunn/fzf) or [`skim`](https://github.com/lotabout/skim). fzf is a very popular (and useful!) fuzzy finder, and skim is a Rust alternative to fzf. Installing either program will enable fuzzy-finding in tap.
 
