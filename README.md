@@ -69,6 +69,12 @@ If you're on **macOS** you can use [Homebrew]():
 > tap --version
 0.1.1
 ```
+If you're on **Arch** you can grab the [AUR package](https://aur.archlinux.org/packages/tap). Alternatively, you can automate the install process with an [AUR helper](https://wiki.archlinux.org/title/AUR_helpers), such as [yay](https://github.com/Jguer/yay):
+```bash
+> yay -S tap
+> tap --version
+0.1.1
+```
 
 If you're a **Debian** user (or a user of a Debian derivative like **Ubuntu**) then tap can be installed using a binary `.deb` file provided in each [tap release](https://github.com/timdubbins/tap/releases).
 
