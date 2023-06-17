@@ -27,6 +27,7 @@ tap will then start in one of two states:
 ``` bash
 # 1. put this somewhere in your shell config (i.e. in your .zshrc for zsh users)
 # 2. source the file or restart your shell
+# NB if `tap` is not in PATH use the absolute path to the executable in the alias
 
 alias tap="tap ~/path/to/my_music"
 ```
