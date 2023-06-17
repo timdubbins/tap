@@ -59,72 +59,128 @@ impl PlayerView {
             return format!("{}", self.player.file.album);
         }
     }
+
+    fn offset(&self, available_y: usize) -> usize {
+        let needs_offset = self.player.index > 0 && available_y < self.player.playlist.len() + 2;
+
+        match needs_offset {
+            true => match available_y {
+                3 => self.player.index,
+                4 => match self.player.index == self.player.playlist.len() - 1 {
+                    true => self.player.index - 1,
+                    false => self.player.index,
+                },
+                _ => {
+                    let diff = self.player.playlist.len() + 2 - available_y;
+                    match self.player.index <= diff {
+                        true => self.player.index - 1,
+                        false => diff,
+                    }
+                }
+            },
+            false => 0,
+        }
+    }
 }
 
 impl View for PlayerView {
     fn draw(&self, printer: &Printer) {
+        // The file currently loaded in the player.
         let f = &self.player.file;
+
+        // The size of the screen we can draw on.
         let (available_x, available_y) = (printer.size.x, printer.size.y);
+
+        // The last line we can draw on.
+        let max_y = available_y - 1;
+
+        // The start of the duration column.
+        let dur_x = available_x - 9;
+
+        // The time elapsed since playback started.
         let elapsed = self.player.elapsed().as_secs() as usize;
+
+        // The time remaining until playback completes.
         let remaining = cmp::min(f.duration, f.duration - elapsed);
+
+        // The values needed to draw the progress bar.
         let (length, extra) = ratio(elapsed, f.duration, available_x - 16);
 
+        // Draw the playlist, with rows: 'Track, Title, Duration'.
+        if available_y > 2 {
+            // The offset needed to make sure we show relevant rows.
+            let offset = self.offset(available_y);
+
+            for (i, f) in self.player.playlist.iter().enumerate() {
+                // Skip rows that are not visible.
+                if i < offset {
+                    continue;
+                }
+
+                if i == self.player.index {
+                    // Draw the active row, including the player status.
+                    let (symbol, color) = self.player_status();
+                    printer.with_color(color, |printer| printer.print((3, i + 1 - offset), symbol));
+                    printer.with_color(white(), |printer| {
+                        printer.print(
+                            (6, i + 1 - offset),
+                            format!("{:02}  {}", f.track, f.title).as_str(),
+                        );
+                        printer.print((dur_x, i + 1 - offset), mins_and_secs(f.duration).as_str());
+                    })
+                } else if i + 1 - offset < max_y {
+                    // Draw the inactive rows.
+                    printer.with_color(blue(), |printer| {
+                        printer.print(
+                            (6, i + 1 - offset),
+                            format!("{:02}  {}", f.track, f.title).as_str(),
+                        );
+                        printer.print((dur_x, i + 1 - offset), mins_and_secs(f.duration).as_str());
+                    })
+                }
+
+                // The active row has been drawn so we can exit early.
+                if available_y == 3 {
+                    break;
+                }
+            }
+        }
+
         // Draw the header: 'Artist, Album, Year'.
-        printer.with_effect(Effect::Bold, |printer| {
-            printer.with_color(green(), |printer| printer.print((2, 1), &f.artist.as_str()));
-            printer.with_effect(Effect::Italic, |printer| {
-                printer.with_color(yellow(), |printer| {
-                    printer.print((f.offset, 1), &self.album_and_year().as_str())
+        if available_y > 1 {
+            printer.with_effect(Effect::Bold, |printer| {
+                printer.with_color(green(), |printer| printer.print((2, 0), &f.artist.as_str()));
+                printer.with_effect(Effect::Italic, |printer| {
+                    printer.with_color(yellow(), |printer| {
+                        printer.print((f.offset, 0), &self.album_and_year().as_str())
+                    })
                 })
             })
+        }
+
+        // Draw the elapsed and remaining playback times.
+        printer.with_color(white(), |printer| {
+            printer.print((0, max_y), &mins_and_secs(elapsed));
+            printer.print((dur_x, max_y), mins_and_secs(remaining).as_str())
         });
 
-        // Draw the playlist, with rows: 'Track, Title, Duration'.
-        for (i, f) in self.player.playlist.iter().enumerate() {
-            if i == self.player.index {
-                // Draw the active row with player status and highlighting.
-                let (symbol, color) = self.player_status();
-                printer.with_color(color, |printer| printer.print((3, i + 2), symbol));
-                printer.with_color(white(), |printer| {
-                    printer.print((6, i + 2), format!("{:02}  {}", f.track, f.title).as_str());
-                    printer.print((available_x - 9, i + 2), mins_and_secs(f.duration).as_str());
-                });
-            } else {
-                // Draw the inactive rows.
-                printer.with_color(blue(), |printer| {
-                    printer.print((6, i + 2), format!("{:02}  {}", f.track, f.title).as_str());
-                    printer.print((available_x - 9, i + 2), mins_and_secs(f.duration).as_str());
-                });
-            }
+        // Draw the fractional part of the progress bar.
+        printer.with_color(magenta().invert(), |printer| {
+            printer.with_effect(Effect::Reverse, |printer| {
+                printer.print((length + 8, max_y), sub_block(extra));
+            });
+        });
 
-            // Draw the elapsed and remaining playback times, in mins and secs.
-            printer.with_color(white(), |printer| {
-                printer.print((0, available_y - 2), &mins_and_secs(elapsed));
-                printer.print(
-                    (available_x - 9, available_y - 2),
-                    mins_and_secs(remaining).as_str(),
-                )
+        // Draw the solid part of the progress bar (preceding the fractional part).
+        printer
+            .cropped((length + 8, available_y))
+            .with_color(magenta(), |printer| {
+                printer.print_hline((8, max_y), length, "█");
             });
 
-            // Draw the fractional part of the progress bar.
-            printer.with_color(magenta().invert(), |printer| {
-                printer.with_effect(Effect::Reverse, |printer| {
-                    printer.print((length + 8, available_y - 2), sub_block(extra));
-                });
-            });
-
-            // Draw the rest of the progress bar (preceding the fractional part).
-            printer
-                .cropped((length + 8, available_y))
-                .with_color(magenta(), |printer| {
-                    printer.print_hline((8, available_y - 2), length, "█");
-                });
-
-            // Crop the RHS of the header and progress bar by drawing spaces.
-            // This maintains consistent padding when resizing.
-            printer.print((available_x - 2, 1), "  ");
-            printer.print((available_x - 2, available_y - 2), "  ");
-        }
+        // Draw spaces to maintain consistent padding when resizing.
+        printer.print((available_x - 2, 0), "  ");
+        printer.print((available_x - 2, max_y), "  ");
     }
 
     fn on_event(&mut self, event: Event) -> EventResult {
