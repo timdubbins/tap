@@ -1,5 +1,5 @@
-use async_std::task;
 use std::cmp;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
@@ -8,11 +8,12 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::bail;
+use async_std::task;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
 use crate::audio_file::AudioFile;
 
-const FORMATS: &'static [&'static str] = &["aac", "flac", "mp3", "mp4", "ogg", "wav"];
+const FORMATS: &'static [&'static str] = &["aac", "flac", "mp3", "m4a", "ogg", "wav"];
 
 #[derive(PartialEq)]
 pub enum PlayerStatus {
@@ -28,6 +29,7 @@ pub struct Player {
     pub status: PlayerStatus,
     pub numbers_pressed: Vec<usize>,
     can_reach: Arc<AtomicBool>,
+    indices: HashMap<u32, usize>,
     last_started: Instant,
     last_elapsed: Duration,
     sink: Sink,
@@ -40,13 +42,19 @@ pub struct Size(pub usize, pub usize);
 impl Player {
     pub fn new(path: PathBuf) -> Result<(Self, Size), anyhow::Error> {
         let (playlist, x) = Player::create_playlist(path)?;
-        let y = cmp::min(45, playlist.len() + 5);
+        let y = cmp::min(45, playlist.len() + 3);
         let file = playlist
             .first()
             .expect("playlist should not be empty")
             .clone();
         let (_stream, _stream_handle) = OutputStream::try_default().unwrap();
         let sink = Sink::try_new(&_stream_handle).unwrap();
+
+        let mut indices = HashMap::new();
+
+        for (i, f) in playlist.iter().enumerate() {
+            indices.insert(f.track, i);
+        }
 
         let mut player = Self {
             status: PlayerStatus::Stopped,
@@ -57,6 +65,7 @@ impl Player {
             can_reach: Arc::new(AtomicBool::new(false)),
             playlist,
             file,
+            indices,
             sink,
             _stream,
             _stream_handle,
@@ -145,18 +154,23 @@ impl Player {
     }
 
     fn select_track_number(&mut self) -> bool {
-        // Concatenates the array of numbers, i.e. `[1, 2, 3]` -> `123`.
-        let track_number = self.numbers_pressed.iter().fold(0, |acc, x| acc * 10 + x);
-        let selection_valid = track_number > 0 && track_number <= self.playlist.len();
+        // The `numbers_pressed` array concatenated to a single value, i.e. `[0, 1, 2]` -> `12`.
+        let track_number = self.numbers_pressed.iter().fold(0, |acc, x| acc * 10 + x) as u32;
 
-        if selection_valid {
-            self.stop();
-            self.index = track_number - 1;
-            self.file = self.playlist[self.index].clone();
+        match self.indices.get(&track_number) {
+            Some(i) => {
+                let index = i.clone() as usize;
+                self.stop();
+                self.index = index;
+                self.file = self.playlist[self.index].clone();
+                self.clear();
+                true
+            }
+            None => {
+                self.clear();
+                false
+            }
         }
-
-        self.clear();
-        selection_valid
     }
 
     fn select_first_track(&mut self) -> bool {
@@ -172,9 +186,6 @@ impl Player {
 
         if self.index < self.playlist.len() - 1 {
             self.index += 1;
-            self.file = self.playlist[self.index].clone();
-        } else {
-            self.index = 0;
             self.file = self.playlist[self.index].clone();
         }
 
@@ -228,10 +239,13 @@ impl Player {
     fn create_playlist(path: PathBuf) -> Result<(Vec<AudioFile>, usize), anyhow::Error> {
         // The list of files to use in the player.
         let mut audio_files = vec![];
+
         // The width of the player.
         let mut width = 0;
+
         // The number of entries in the current dir.
         let mut count: usize = 0;
+
         // The first dir we find in the current dir.
         let mut p: Option<PathBuf> = None;
 
