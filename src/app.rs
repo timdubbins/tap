@@ -1,16 +1,48 @@
-use std::io::Error;
+use std::env;
 use std::path::PathBuf;
-use std::process::{Command, ExitStatus};
 
 use cursive::event::{Event, Key};
 use cursive::view::{Nameable, Resizable};
 use cursive::Cursive;
+use rand::Rng;
 
 use crate::args::Args;
+use crate::commands::*;
 use crate::player::Player;
 use crate::player_view::PlayerView;
-use crate::search::{build_arg, SearchDir, SearchMode};
-use crate::utils::path_to_string;
+use crate::utils::*;
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum SearchMode {
+    Fuzzy,
+    NonFuzzy,
+    // Random,
+}
+
+impl SearchMode {
+    pub fn get_from(path: &PathBuf) -> Self {
+        let fuzzy_available = env_var_includes(&["fzf"]) || env_var_includes(&["sk"]);
+        match path_contains_dir(path) && fuzzy_available {
+            true => SearchMode::Fuzzy,
+            false => SearchMode::NonFuzzy,
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum SearchDir {
+    CurrentDir,
+    PathArg,
+}
+
+impl SearchDir {
+    pub fn get_from(path: &PathBuf) -> Self {
+        match *path == env::current_dir().unwrap() {
+            true => SearchDir::CurrentDir,
+            false => SearchDir::PathArg,
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct App {
@@ -18,6 +50,7 @@ pub struct App {
     pub search_mode: SearchMode,
     pub initial_path: String,
     pub path: PathBuf,
+    pub random_count: u8,
     needs_restart: bool,
 }
 
@@ -29,6 +62,7 @@ impl App {
         let needs_restart = search_mode == SearchMode::Fuzzy && Args::is_first_run();
 
         let app = Self {
+            random_count: 0,
             path: path,
             initial_path: initial_path,
             search_dir: search_dir,
@@ -46,9 +80,12 @@ impl App {
         // If we do, a restart is required in order to run the initial
         // fuzzy search.
         if app.needs_restart {
-            app.restart_with_fuzzy_query();
+            restart_with_fuzzy_query(&app);
             return Ok(());
         }
+
+        // Clone the app up front for use in pre-event callback.
+        let app_clone = app.clone();
 
         // Without this check a playlist can be created when escaping
         // a fuzzy search. Instead we exit the program gracefully.
@@ -62,10 +99,12 @@ impl App {
         let (player, size) = Player::new(app.path.clone())?;
         let mut cursive = cursive::default();
 
+        // Set style and background color.
         cursive
             .load_toml(include_str!("assets/style.toml"))
             .unwrap();
 
+        // Add the view for the player.
         cursive.add_layer(
             PlayerView::new(player)
                 .full_width()
@@ -74,10 +113,20 @@ impl App {
                 .with_name("player"),
         );
 
+        // Quit the app.
         cursive.set_on_pre_event(Event::Char('q'), quit);
+
+        // Launch new app instance with fuzzy search.
         cursive.set_on_pre_event(Event::Key(Key::Tab), move |c: &mut Cursive| {
-            app.new_fuzzy_search(c)
+            app_clone.new_fuzzy_search(c)
         });
+
+        // Launch new app instance from randomized selection.
+        cursive.set_on_pre_event(Event::Char('R'), move |c: &mut Cursive| {
+            app.new_random_search(c);
+        });
+
+        // Set fps to lowest value that looks steady.
         cursive.set_fps(16);
         cursive.run();
 
@@ -86,27 +135,20 @@ impl App {
         Ok(())
     }
 
-    fn restart_with_fuzzy_query(&self) {
-        Command::new("/bin/bash")
-            .arg("-c")
-            .arg(build_arg(self))
-            .spawn()
-            .unwrap()
-            .wait()
-            .unwrap();
-    }
-
     fn new_fuzzy_search(&self, c: &mut Cursive) {
         c.pop_layer();
-        self.restart_with_fuzzy_query();
-        c.quit()
+        restart_with_fuzzy_query(&self);
+        c.quit();
     }
-}
 
-fn clear_terminal() -> Result<ExitStatus, Error> {
-    Command::new("cls")
-        .status()
-        .or_else(|_| Command::new("clear").status())
+    fn new_random_search(&self, c: &mut Cursive) {
+        let dir_count = get_dir_count(&self);
+        let rand = rand::thread_rng().gen_range(1..dir_count);
+        let path_string = get_path_string(&self, rand);
+        c.pop_layer();
+        restart_with_path_string(&self, path_string);
+        c.quit();
+    }
 }
 
 fn quit(c: &mut Cursive) {
