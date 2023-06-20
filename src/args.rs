@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use anyhow::bail;
 use clap::Parser;
 
-use crate::search::{SearchDir, SearchMode};
+use crate::app::{SearchDir, SearchMode};
 use crate::utils::path_to_string;
 
 #[derive(Parser)]

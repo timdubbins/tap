@@ -1,9 +1,9 @@
 mod app;
 mod args;
 mod audio_file;
+mod commands;
 mod player;
 mod player_view;
-mod search;
 mod theme;
 mod utils;
 

@@ -60,7 +60,7 @@ impl PlayerView {
         }
     }
 
-    fn offset(&self, available_y: usize) -> usize {
+    fn y_offset(&self, available_y: usize) -> usize {
         let needs_offset = self.player.index > 0 && available_y < self.player.playlist.len() + 2;
 
         match needs_offset {
@@ -109,33 +109,41 @@ impl View for PlayerView {
         // Draw the playlist, with rows: 'Track, Title, Duration'.
         if available_y > 2 {
             // The offset needed to make sure we show relevant rows.
-            let offset = self.offset(available_y);
+            let y_offset = self.y_offset(available_y);
 
             for (i, f) in self.player.playlist.iter().enumerate() {
                 // Skip rows that are not visible.
-                if i < offset {
+                if i < y_offset {
                     continue;
                 }
 
                 if i == self.player.index {
                     // Draw the active row, including the player status.
                     let (symbol, color) = self.player_status();
-                    printer.with_color(color, |printer| printer.print((3, i + 1 - offset), symbol));
+                    printer.with_color(color, |printer| {
+                        printer.print((3, i + 1 - y_offset), symbol)
+                    });
                     printer.with_color(white(), |printer| {
                         printer.print(
-                            (6, i + 1 - offset),
+                            (6, i + 1 - y_offset),
                             format!("{:02}  {}", f.track, f.title).as_str(),
                         );
-                        printer.print((dur_x, i + 1 - offset), mins_and_secs(f.duration).as_str());
+                        printer.print(
+                            (dur_x, i + 1 - y_offset),
+                            mins_and_secs(f.duration).as_str(),
+                        );
                     })
-                } else if i + 1 - offset < max_y {
+                } else if i + 1 - y_offset < max_y {
                     // Draw the inactive rows.
                     printer.with_color(blue(), |printer| {
                         printer.print(
-                            (6, i + 1 - offset),
+                            (6, i + 1 - y_offset),
                             format!("{:02}  {}", f.track, f.title).as_str(),
                         );
-                        printer.print((dur_x, i + 1 - offset), mins_and_secs(f.duration).as_str());
+                        printer.print(
+                            (dur_x, i + 1 - y_offset),
+                            mins_and_secs(f.duration).as_str(),
+                        );
                     })
                 }
 
@@ -152,7 +160,7 @@ impl View for PlayerView {
                 printer.with_color(green(), |printer| printer.print((2, 0), &f.artist.as_str()));
                 printer.with_effect(Effect::Italic, |printer| {
                     printer.with_color(yellow(), |printer| {
-                        printer.print((f.offset, 0), &self.album_and_year().as_str())
+                        printer.print((f.x_offset, 0), &self.album_and_year().as_str())
                     })
                 })
             })
