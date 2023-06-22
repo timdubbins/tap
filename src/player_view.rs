@@ -233,6 +233,11 @@ impl View for PlayerView {
                 EventResult::Consumed(None)
             }
 
+            Event::Char('m') => {
+                self.player.toggle_mute();
+                EventResult::Consumed(None)
+            }
+
             Event::Char('0') => {
                 self.player.numbers_pressed.push(0);
                 EventResult::Consumed(None)

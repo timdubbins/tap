@@ -236,48 +236,46 @@ impl Player {
         }
     }
 
-    fn create_playlist(path: PathBuf) -> Result<(Vec<AudioFile>, usize), anyhow::Error> {
+    pub fn toggle_mute(&mut self) {
+        if self.sink.volume() == 0.0 {
+            self.sink.set_volume(1.0)
+        } else {
+            self.sink.set_volume(0.0)
+        }
+    }
+
+    pub fn create_playlist(path: PathBuf) -> Result<(Vec<AudioFile>, usize), anyhow::Error> {
         // The list of files to use in the player.
         let mut audio_files = vec![];
 
         // The width of the player.
         let mut width = 0;
 
-        // The number of entries in the current dir.
-        let mut count: usize = 0;
-
-        // The first dir we find in the current dir.
-        let mut p: Option<PathBuf> = None;
+        // The state of the current directory.
+        let mut dir_empty = true;
 
         if path.is_dir() {
-            for entry in path
-                .read_dir()
-                .expect("path is a directory has just been checked")
-            {
-                count += 1;
+            for entry in path.read_dir().expect("valid directory") {
+                dir_empty = false;
                 if let Ok(entry) = entry {
-                    if entry.path().is_dir() && p == None {
-                        p = Some(entry.path());
-                    } else if FORMATS.contains(
-                        &entry
-                            .path()
-                            .extension()
-                            .unwrap_or_default()
-                            .to_str()
-                            .unwrap(),
-                    ) {
-                        if let Ok(file) = AudioFile::new(entry.path()) {
-                            let next = cmp::max(
+                    let p = entry.path();
+                    if p.is_dir() {
+                        // Recurse into child directory.
+                        return Player::create_playlist(p);
+                    } else if valid_ext(&p) {
+                        // Add the file to the playlist.
+                        if let Ok(file) = AudioFile::new(p) {
+                            width = cmp::max(
                                 file.title.len() + 19,
                                 file.artist.len() + file.album.len() + 20,
                             );
-                            width = cmp::max(width, next);
                             audio_files.push(file)
                         }
                     }
                 }
             }
-        } else if FORMATS.contains(&path.extension().unwrap_or_default().to_str().unwrap()) {
+        } else if valid_ext(&path) {
+            // Add the file to the playlist.
             if let Ok(file) = AudioFile::new(path.clone()) {
                 width = cmp::max(
                     file.title.len() + 19,
@@ -288,12 +286,9 @@ impl Player {
         }
 
         if audio_files.is_empty() {
-            if let Some(p) = p {
-                return Player::create_playlist(p);
-            } else if count == 0 {
-                bail!("{:?} is empty.", path)
-            } else {
-                bail!("no valid files found in {:?}.", path)
+            match dir_empty {
+                true => bail!("{:?} is empty.", path),
+                false => bail!("no valid files found in {:?}.", path),
             }
         }
 
@@ -301,4 +296,9 @@ impl Player {
 
         Ok((audio_files, width))
     }
+}
+
+fn valid_ext(p: &PathBuf) -> bool {
+    let ext = p.extension().unwrap_or_default().to_str().unwrap();
+    FORMATS.contains(&ext)
 }
