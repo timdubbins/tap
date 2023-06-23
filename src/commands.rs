@@ -11,38 +11,6 @@ const FZF_CMD: &'static str = "fzf --color bg+:#131415,bg:#131415,border:#b294bb
 // Skim prefix to set colors.
 const SK_CMD: &'static str = "sk --color dark,border:#b294bb,spinner:#cc6666,hl:#c5c8c6,fg:#81a2be,header:#b5bd68,info:#b294bb,pointer:#f0c674,marker:#8abeb7,fg+:#c5c8c6,prompt:#616161,hl+:#b9ca4a";
 
-// #[derive(Clone, Copy, PartialEq)]
-// pub enum SearchMode {
-//     Fuzzy,
-//     NonFuzzy,
-//     // Random,
-// }
-
-// impl SearchMode {
-//     pub fn get_from(path: &PathBuf) -> Self {
-//         let fuzzy_available = env_var_includes(&["fzf"]) || env_var_includes(&["sk"]);
-//         match path_contains_dir(path) && fuzzy_available {
-//             true => SearchMode::Fuzzy,
-//             false => SearchMode::NonFuzzy,
-//         }
-//     }
-// }
-
-// #[derive(Clone, Copy, PartialEq)]
-// pub enum SearchDir {
-//     CurrentDir,
-//     PathArg,
-// }
-
-// impl SearchDir {
-//     pub fn get_from(path: &PathBuf) -> Self {
-//         match *path == env::current_dir().unwrap() {
-//             true => SearchDir::CurrentDir,
-//             false => SearchDir::PathArg,
-//         }
-//     }
-// }
-
 // tested
 pub fn get_dir_count(app: &App) -> i32 {
     let fd_available = env_var_includes(&["fd"]);
@@ -75,13 +43,13 @@ pub fn get_dir_count(app: &App) -> i32 {
 }
 
 // tested
-pub fn get_path_string(app: &App, rand: i32) -> String {
+pub fn get_path_string(app: &App, rand: i32) -> Option<String> {
     let fd_available = env_var_includes(&["fd"]);
     let rand = rand.to_string();
 
     let arg = match (app.search_dir, fd_available) {
         (SearchDir::CurrentDir, true) => {
-            format!("fd -t d --min-depth 1 | sed -n '{}p'", rand)
+            format!("fd -t d --min-depth 1 --absolute-path | sed -n '{}p'", rand)
         }
         (SearchDir::CurrentDir, false) => format!(
             r"find . -type d -mindepth 1 \( -name '.?*' -prune -o -print \) | sed -n '{}p'",
@@ -103,11 +71,17 @@ pub fn get_path_string(app: &App, rand: i32) -> String {
         .output()
         .expect("path from random");
 
-    let output = String::from_utf8(output.stdout).unwrap();
+    match String::from_utf8(output.stdout) {
+        Ok(s) => Some(s.replace("\n", "")),
+        Err(_) => None,
+    }
+    // let output = String::from_utf8(output.stdout).unwrap();
+    // output.replace("\n", "")
+}
 
-    // TODO - maybe there's a better way to sanitize the stdout
-    let replaced = output
-        .replace("\n", "")
+// TODO - maybe there's a better way to do this
+pub fn sanitize(path_string: String) -> String {
+    path_string
         .replace(" ", r"\ ")
         .replace("'", r"\'")
         .replace("(", r"\(")
@@ -116,9 +90,7 @@ pub fn get_path_string(app: &App, rand: i32) -> String {
         .replace("$", r"\$")
         .replace("#", r"\#")
         .replace("?", r"\?")
-        .replace("!", r"\!");
-
-    replaced.trim().into()
+        .replace("!", r"\!")
 }
 
 pub fn restart_with_path_string(app: &App, path_string: String) {

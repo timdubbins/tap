@@ -21,6 +21,6 @@ anyhow = "1.0"
 async-std = "1.12.0"
 clap = { version = "4.1.8", features = ["derive"] }
 cursive = { version = "0.20", features = ["ncurses-backend", "toml"] }
-lofty = "0.11"
+lofty = "0.14.0"
 rand = "0.8.5"
 rodio = { git = "https://github.com/timdubbins/rodio", features = ["symphonia-all"], default-features = false }

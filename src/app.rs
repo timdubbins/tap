@@ -16,7 +16,6 @@ use crate::utils::*;
 pub enum SearchMode {
     Fuzzy,
     NonFuzzy,
-    // Random,
 }
 
 impl SearchMode {
@@ -143,11 +142,35 @@ impl App {
 
     fn new_random_search(&self, c: &mut Cursive) {
         let dir_count = get_dir_count(&self);
-        let rand = rand::thread_rng().gen_range(1..dir_count);
-        let path_string = get_path_string(&self, rand);
-        c.pop_layer();
-        restart_with_path_string(&self, path_string);
-        c.quit();
+        let mut count = 0;
+
+        let path_string: Option<String> = loop {
+            if count > 10 {
+                break None;
+            }
+            let rand = rand::thread_rng().gen_range(1..dir_count);
+
+            let path = match get_path_string(&self, rand) {
+                Some(p) => p,
+                None => {
+                    count += 1;
+                    continue;
+                }
+            };
+            match Player::create_playlist(PathBuf::from(&path)) {
+                Ok(_) => break Some(sanitize(path)),
+                Err(_) => {
+                    count += 1;
+                    continue;
+                }
+            }
+        };
+
+        if let Some(p) = path_string {
+            c.pop_layer();
+            restart_with_path_string(&self, p);
+            c.quit();
+        }
     }
 }
 
