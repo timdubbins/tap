@@ -18,19 +18,21 @@ pub struct AudioFile {
 
 impl AudioFile {
     pub fn new(path: PathBuf) -> Result<Self, anyhow::Error> {
-        let file = Probe::open(&path)
-            .expect("the path of `tagged_file` is provided by `Player::create_playlist()`");
+        let file = match Probe::open(&path) {
+            Ok(f) => f,
+            Err(e) => bail!("Could not probe {:?}\n`{}`", path, e),
+        };
 
         let tagged_file = match file.read() {
             Ok(f) => f,
-            Err(e) => bail!("Failed to read '{:?}'. Error: {}", path, e),
+            Err(e) => bail!("Failed to read {:?}\n`{}`", path, e),
         };
 
         let tag = match tagged_file.primary_tag() {
             Some(primary_tag) => primary_tag,
             None => match tagged_file.first_tag().ok_or(()) {
                 Ok(t) => t,
-                Err(_) => bail!("No tags found for '{:?}", path),
+                Err(_) => bail!("No tags found for {:?}", path),
             },
         };
 

@@ -13,7 +13,7 @@ use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
 use crate::audio_file::AudioFile;
 
-const FORMATS: &'static [&'static str] = &["aac", "flac", "mp3", "m4a", "ogg", "wav"];
+const FORMATS: &'static [&'static str] = &["aac", "flac", "mp3", "m4a", "ogg", "wav", "wma"];
 
 #[derive(PartialEq)]
 pub enum PlayerStatus {
@@ -49,7 +49,6 @@ impl Player {
             .clone();
         let (_stream, _stream_handle) = OutputStream::try_default().unwrap();
         let sink = Sink::try_new(&_stream_handle).unwrap();
-
         let mut indices = HashMap::new();
 
         for (i, f) in playlist.iter().enumerate() {
@@ -92,9 +91,17 @@ impl Player {
                 self.status = PlayerStatus::Paused;
             }
 
+            // TODO - find a way to propagate these error through `EventResult`.
+            // Possibly show an error and skip the file instead of crashing.
             PlayerStatus::Stopped => {
-                let f = File::open(self.file.path.as_path()).unwrap();
-                let s = Decoder::new(BufReader::new(f)).unwrap();
+                let f = match File::open(self.file.path.as_path()) {
+                    Ok(f) => f,
+                    Err(_) => panic!("Could not open {:?}.", self.file.path.as_path()),
+                };
+                let s = match Decoder::new(BufReader::new(f)) {
+                    Ok(s) => s,
+                    Err(_) => panic!("Could not decode {:?}.", self.file.path.as_path()),
+                };
 
                 self.sink.append(s);
                 self.sink.play();
@@ -254,41 +261,53 @@ impl Player {
         // The state of the current directory.
         let mut dir_empty = true;
 
+        // The error we get if we can't create an audio file.
+        let mut audio_file_err: Option<anyhow::Error> = None;
+
         if path.is_dir() {
             for entry in path.read_dir().expect("valid directory") {
                 dir_empty = false;
                 if let Ok(entry) = entry {
-                    let p = entry.path();
-                    if p.is_dir() {
+                    let path = entry.path();
+                    if path.is_dir() {
                         // Recurse into child directory.
-                        return Player::create_playlist(p);
-                    } else if valid_ext(&p) {
-                        // Add the file to the playlist.
-                        if let Ok(file) = AudioFile::new(p) {
-                            width = cmp::max(
-                                file.title.len() + 19,
-                                file.artist.len() + file.album.len() + 20,
-                            );
-                            audio_files.push(file)
+                        return Player::create_playlist(path);
+                    } else if valid_ext(&path) {
+                        match AudioFile::new(path) {
+                            // Grow the playlist and update width.
+                            Ok(f) => {
+                                width = cmp::max(
+                                    f.title.len() + 19,
+                                    f.artist.len() + f.album.len() + 20,
+                                );
+                                audio_files.push(f)
+                            }
+                            // Save the error in case the playlist is empty.
+                            Err(e) => audio_file_err = Some(e),
                         }
                     }
                 }
             }
         } else if valid_ext(&path) {
-            // Add the file to the playlist.
-            if let Ok(file) = AudioFile::new(path.clone()) {
-                width = cmp::max(
-                    file.title.len() + 19,
-                    file.artist.len() + file.album.len() + 20,
-                );
-                audio_files.push(file)
+            dir_empty = false;
+            match AudioFile::new(path.clone()) {
+                // Create the playlist that contains a single file.
+                Ok(f) => {
+                    width = cmp::max(f.title.len() + 19, f.artist.len() + f.album.len() + 20);
+                    audio_files.push(f)
+                }
+                // We cannot recover if the audio file is not created.
+                Err(e) => bail!(e),
             }
         }
 
         if audio_files.is_empty() {
             match dir_empty {
                 true => bail!("{:?} is empty.", path),
-                false => bail!("no valid files found in {:?}.", path),
+                false => match audio_file_err {
+                    Some(e) => bail!(e),
+                    None => bail!("no valid files found in {:?}.", path),
+                },
             }
         }
 
