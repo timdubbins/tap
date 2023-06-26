@@ -1,5 +1,6 @@
 use std::env;
 use std::io::Error;
+use std::path::PathBuf;
 use std::process::{Command, ExitStatus};
 
 use crate::app::{App, SearchDir};
@@ -75,44 +76,54 @@ pub fn get_path_string(app: &App, rand: i32) -> Option<String> {
         Ok(s) => Some(s.replace("\n", "")),
         Err(_) => None,
     }
-    // let output = String::from_utf8(output.stdout).unwrap();
-    // output.replace("\n", "")
 }
 
-// TODO - maybe there's a better way to do this
-pub fn sanitize(path_string: String) -> String {
-    path_string
-        .replace(" ", r"\ ")
-        .replace("'", r"\'")
-        .replace("(", r"\(")
-        .replace(")", r"\)")
-        .replace("&", r"\&")
-        .replace("$", r"\$")
-        .replace("#", r"\#")
-        .replace("?", r"\?")
-        .replace("!", r"\!")
-}
+pub fn get_fuzzy_path(app: &App) -> PathBuf {
+    let fd_available = env_var_includes(&["fd"]);
 
-pub fn restart_with_path_string(app: &App, path_string: String) {
-    let current_exe = env::current_exe().unwrap();
+    let fuzzy_query = match env_var_includes(&["fzf"]) {
+        true => FZF_CMD,
+        false => SK_CMD,
+    };
 
-    let arg = match app.search_dir {
-        SearchDir::CurrentDir => {
-            format!("{:?} {} --search-options 0", current_exe, path_string)
+    let arg = match (app.search_dir, fd_available) {
+        (SearchDir::CurrentDir, true) => {
+            format!("fd -t d --min-depth 1 | {}", fuzzy_query)
         }
-        SearchDir::PathArg => format!(
-            "{:?} {} --search-options 1 --initial-path {}",
-            current_exe, path_string, app.initial_path
+        (SearchDir::CurrentDir, false) => format!(
+            r"find . -type d -mindepth 1 \( -name '.?*' -prune -o -print \) | sed -n 's|^./||p' | sort | {}",
+            fuzzy_query
+        ),
+        (SearchDir::PathArg, true) => format!(
+            "fd . {} -t d --min-depth 1 | sed -n 's|^{}/||p' | {}",
+            app.initial_path, app.initial_path, fuzzy_query
+        ),
+        (SearchDir::PathArg, false) => format!(
+            "find {} -type d -mindepth 1 | sed -n 's|^{}/||p' | sort | {}",
+            app.initial_path, app.initial_path, fuzzy_query
         ),
     };
 
-    Command::new("/bin/bash")
+    let output = Command::new("/bin/bash")
         .arg("-c")
         .arg(arg)
+        .stdout(std::process::Stdio::piped())
         .spawn()
         .unwrap()
-        .wait()
+        .wait_with_output()
         .unwrap();
+
+    let path_string = String::from_utf8(output.stdout).unwrap();
+
+    let mut root = match app.search_dir {
+        SearchDir::CurrentDir => std::env::current_dir().unwrap(),
+        SearchDir::PathArg => PathBuf::from(&app.initial_path.replace("\n", "")),
+    };
+
+    let path = PathBuf::from(path_string.replace("\n", ""));
+
+    root.push(path);
+    root
 }
 
 pub fn restart_with_fuzzy_query(app: &App) {

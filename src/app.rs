@@ -8,7 +8,7 @@ use rand::Rng;
 
 use crate::args::Args;
 use crate::commands::*;
-use crate::player::Player;
+use crate::player::{Player, Size};
 use crate::player_view::PlayerView;
 use crate::utils::*;
 
@@ -49,7 +49,6 @@ pub struct App {
     pub search_mode: SearchMode,
     pub initial_path: String,
     pub path: PathBuf,
-    pub random_count: u8,
     needs_restart: bool,
 }
 
@@ -61,7 +60,6 @@ impl App {
         let needs_restart = search_mode == SearchMode::Fuzzy && Args::is_first_run();
 
         let app = Self {
-            random_count: 0,
             path: path,
             initial_path: initial_path,
             search_dir: search_dir,
@@ -95,13 +93,14 @@ impl App {
             return Ok(());
         }
 
-        let (player, size) = Player::new(app.path.clone())?;
         let mut cursive = cursive::default();
 
         // Set style and background color.
         cursive
             .load_toml(include_str!("assets/style.toml"))
             .unwrap();
+
+        let (player, size) = Player::new(app.path.clone())?;
 
         // Add the view for the player.
         cursive.add_layer(
@@ -135,16 +134,23 @@ impl App {
     }
 
     fn new_fuzzy_search(&self, c: &mut Cursive) {
-        c.pop_layer();
-        restart_with_fuzzy_query(&self);
-        c.quit();
+        if let Ok((player, size)) = Player::new(get_fuzzy_path(&self)) {
+            c.pop_layer();
+            c.add_layer(
+                PlayerView::new(player)
+                    .full_width()
+                    .max_width(std::cmp::max(size.0, 53))
+                    .fixed_height(size.1)
+                    .with_name("player"),
+            );
+        }
     }
 
     fn new_random_search(&self, c: &mut Cursive) {
         let dir_count = get_dir_count(&self);
         let mut count = 0;
 
-        let path_string: Option<String> = loop {
+        let res: Option<(Player, Size)> = loop {
             if count > 10 {
                 break None;
             }
@@ -157,19 +163,25 @@ impl App {
                     continue;
                 }
             };
-            match Player::create_playlist(PathBuf::from(&path)) {
-                Ok(_) => break Some(sanitize(path)),
+
+            match Player::new(PathBuf::from(path)) {
+                Ok(res) => break Some(res),
                 Err(_) => {
                     count += 1;
                     continue;
                 }
-            }
+            };
         };
 
-        if let Some(p) = path_string {
+        if let Some((player, size)) = res {
             c.pop_layer();
-            restart_with_path_string(&self, p);
-            c.quit();
+            c.add_layer(
+                PlayerView::new(player)
+                    .full_width()
+                    .max_width(std::cmp::max(size.0, 53))
+                    .fixed_height(size.1)
+                    .with_name("player"),
+            );
         }
     }
 }
