@@ -21,7 +21,7 @@ pub fn get_fuzzy_cmd() -> String {
     }
 }
 
-// tested
+// Gets the number of subdirectories.
 pub fn get_dir_count(app: &App) -> i32 {
     let arg = match (app.search_dir, app.fd_available) {
         (SearchDir::CurrentDir, true) => String::from("fd -t d --min-depth 1 | wc -l"),
@@ -50,6 +50,7 @@ pub fn get_dir_count(app: &App) -> i32 {
     trimmed.parse::<i32>().unwrap()
 }
 
+// Gets the path of a random subdirectory.
 pub fn get_random_path(app: &App, dir_count: i32) -> PathBuf {
     let rand = rand::thread_rng().gen_range(1..dir_count);
 
@@ -82,6 +83,7 @@ pub fn get_random_path(app: &App, dir_count: i32) -> PathBuf {
     PathBuf::from(stdout.replace("\n", ""))
 }
 
+// Gets the path of a subdirectory chosen via fuzzy selection.
 pub fn get_fuzzy_path(app: &App) -> PathBuf {
     let arg = match (app.search_dir, app.fd_available) {
         (SearchDir::CurrentDir, true) => {
