@@ -1,4 +1,3 @@
-use std::cmp;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
@@ -42,7 +41,7 @@ pub struct Size(pub usize, pub usize);
 impl Player {
     pub fn new(path: PathBuf) -> Result<(Self, Size), anyhow::Error> {
         let (playlist, x) = Player::create_playlist(path)?;
-        let y = cmp::min(45, playlist.len() + 3);
+        let y = std::cmp::min(45, playlist.len() + 3);
         let file = playlist
             .first()
             .expect("playlist should not be empty")
@@ -255,7 +254,7 @@ impl Player {
         // The list of files to use in the player.
         let mut audio_files = vec![];
 
-        // The width of the player.
+        // The width of the player view.
         let mut width = 0;
 
         // The state of the current directory.
@@ -276,7 +275,7 @@ impl Player {
                         match AudioFile::new(path) {
                             // Grow the playlist and update width.
                             Ok(f) => {
-                                width = cmp::max(
+                                width = std::cmp::max(
                                     f.title.len() + 19,
                                     f.artist.len() + f.album.len() + 20,
                                 );
@@ -293,7 +292,7 @@ impl Player {
             match AudioFile::new(path.clone()) {
                 // Create the playlist that contains a single file.
                 Ok(f) => {
-                    width = cmp::max(f.title.len() + 19, f.artist.len() + f.album.len() + 20);
+                    width = std::cmp::max(f.title.len() + 19, f.artist.len() + f.album.len() + 20);
                     audio_files.push(f)
                 }
                 // We cannot recover if the audio file is not created.

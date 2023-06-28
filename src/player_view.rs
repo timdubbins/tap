@@ -1,5 +1,3 @@
-use std::cmp;
-
 use cursive::event::{Event, EventResult, Key};
 use cursive::theme::{ColorStyle, Effect};
 use cursive::traits::View;
@@ -10,33 +8,6 @@ use crate::theme::*;
 
 pub struct PlayerView {
     player: Player,
-}
-
-fn ratio(value: usize, max: usize, length: usize) -> (usize, usize) {
-    let integer = length * value / max;
-    let fraction = length * value - max * integer;
-
-    let fraction = fraction * 8 / max;
-
-    (integer, fraction)
-}
-
-fn sub_block(extra: usize) -> &'static str {
-    match extra {
-        0 => " ",
-        1 => "▏",
-        2 => "▎",
-        3 => "▍",
-        4 => "▌",
-        5 => "▋",
-        6 => "▊",
-        7 => "▉",
-        _ => "█",
-    }
-}
-
-fn mins_and_secs(secs: usize) -> String {
-    format!("  {:02}:{:02}  ", secs / 60, secs % 60)
 }
 
 impl PlayerView {
@@ -101,7 +72,7 @@ impl View for PlayerView {
         let elapsed = self.player.elapsed().as_secs() as usize;
 
         // The time remaining until playback completes.
-        let remaining = cmp::min(f.duration, f.duration - elapsed);
+        let remaining = std::cmp::min(f.duration, f.duration - elapsed);
 
         // The values needed to draw the progress bar.
         let (length, extra) = ratio(elapsed, f.duration, available_x - 16);
@@ -291,4 +262,31 @@ impl View for PlayerView {
             _ => EventResult::Consumed(None),
         }
     }
+}
+
+fn ratio(value: usize, max: usize, length: usize) -> (usize, usize) {
+    let integer = length * value / max;
+    let fraction = length * value - max * integer;
+
+    let fraction = fraction * 8 / max;
+
+    (integer, fraction)
+}
+
+fn sub_block(extra: usize) -> &'static str {
+    match extra {
+        0 => " ",
+        1 => "▏",
+        2 => "▎",
+        3 => "▍",
+        4 => "▌",
+        5 => "▋",
+        6 => "▊",
+        7 => "▉",
+        _ => "█",
+    }
+}
+
+fn mins_and_secs(secs: usize) -> String {
+    format!("  {:02}:{:02}  ", secs / 60, secs % 60)
 }

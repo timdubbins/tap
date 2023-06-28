@@ -1,0 +1,2 @@
+path:  /Users/tim/slsk/
+fuzzy: /Users/tim/slsk/
