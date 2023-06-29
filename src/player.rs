@@ -22,6 +22,7 @@ pub enum PlayerStatus {
 }
 
 pub struct Player {
+    pub path: PathBuf,
     pub playlist: Vec<AudioFile>,
     pub file: AudioFile,
     pub index: usize,
@@ -40,7 +41,7 @@ pub struct Size(pub usize, pub usize);
 
 impl Player {
     pub fn new(path: PathBuf) -> Result<(Self, Size), anyhow::Error> {
-        let (playlist, x) = Player::create_playlist(path)?;
+        let (playlist, x) = Player::create_playlist(path.clone())?;
         let y = std::cmp::min(45, playlist.len() + 3);
         let file = playlist
             .first()
@@ -55,6 +56,7 @@ impl Player {
         }
 
         let mut player = Self {
+            path: path,
             status: PlayerStatus::Stopped,
             last_started: Instant::now(),
             last_elapsed: Duration::default(),

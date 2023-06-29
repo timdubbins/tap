@@ -79,27 +79,33 @@ impl App {
     }
 
     fn init_player(&mut self, c: &mut Cursive) -> Result<(), anyhow::Error> {
+        c.set_user_data(PathBuf::new());
+
         if self.search_mode == SearchMode::Fuzzy {
             self.new_fuzzy_search(c)
         } else {
             let (player, size) = Player::new(self.path.clone())?;
             load_player((player, size), c);
         }
+
         self.is_first_run = false;
         Ok(())
     }
 
-    fn new_fuzzy_search(&mut self, c: &mut Cursive) {
+    fn new_fuzzy_search(&self, c: &mut Cursive) {
         if self.search_mode == SearchMode::NonFuzzy {
             return;
         }
 
         let fuzzy_path = get_fuzzy_path(&self);
+        let prev_path = c
+            .user_data::<PathBuf>()
+            .expect("user data should be set to the path of the current player");
         let mut path = self.path.clone();
         // Push an empty path to append a trailing slash.
         path.push("");
 
-        if fuzzy_path.eq(&path) {
+        if fuzzy_path.eq(&path) || fuzzy_path.eq(prev_path) {
             if self.is_first_run {
                 std::process::exit(1);
             } else {
@@ -116,8 +122,13 @@ impl App {
 
         while count < 10 {
             let random_path = get_random_path(&self, dir_count);
+            let prev_path = c
+                .user_data::<PathBuf>()
+                .expect("user data should be set to the path of the current player");
 
-            if let Ok((player, size)) = Player::new(random_path) {
+            if random_path.eq(prev_path) {
+                count += 1
+            } else if let Ok((player, size)) = Player::new(random_path) {
                 load_player((player, size), c);
                 break;
             } else {
@@ -128,6 +139,7 @@ impl App {
 }
 
 fn load_player((player, size): (Player, Size), c: &mut Cursive) {
+    c.set_user_data(player.path.clone());
     c.pop_layer();
     c.add_layer(
         PlayerView::new(player)
