@@ -26,6 +26,7 @@ pub struct Player {
     pub playlist: Vec<AudioFile>,
     pub file: AudioFile,
     pub index: usize,
+    pub is_muted: bool,
     pub status: PlayerStatus,
     pub numbers_pressed: Vec<usize>,
     can_reach: Arc<AtomicBool>,
@@ -63,6 +64,7 @@ impl Player {
             index: 0,
             numbers_pressed: vec![],
             can_reach: Arc::new(AtomicBool::new(false)),
+            is_muted: false,
             playlist,
             file,
             indices,
@@ -246,9 +248,11 @@ impl Player {
 
     pub fn toggle_mute(&mut self) {
         if self.sink.volume() == 0.0 {
-            self.sink.set_volume(1.0)
+            self.sink.set_volume(1.0);
+            self.is_muted = false;
         } else {
-            self.sink.set_volume(0.0)
+            self.sink.set_volume(0.0);
+            self.is_muted = true;
         }
     }
 

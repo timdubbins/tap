@@ -7,8 +7,7 @@ const GREEN: Color = Color::Rgb(181, 189, 104); // #b5bd68
 const YELLOW: Color = Color::Rgb(240, 198, 116); // #f0c674
 const BLUE: Color = Color::Rgb(129, 162, 190); // #81a2be
 const MAGENTA: Color = Color::Rgb(178, 148, 187); // #b294bb
-
-// const CYAN: Color = Color::Rgb(138, 190, 183); #8abeb7
+const CYAN: Color = Color::Rgb(138, 190, 183); // #8abeb7
 
 pub fn white() -> ColorStyle {
     ColorStyle::new(WHITE, BLACK)
@@ -33,6 +32,6 @@ pub fn magenta() -> ColorStyle {
     ColorStyle::new(MAGENTA, BLACK)
 }
 
-// pub fn cyan() -> ColorStyle {
-//     ColorStyle::new(CYAN, BLACK)
-// }
+pub fn cyan() -> ColorStyle {
+    ColorStyle::new(CYAN, BLACK)
+}

@@ -16,10 +16,13 @@ impl PlayerView {
     }
 
     fn player_status(&self) -> (&'static str, ColorStyle) {
-        match self.player.status {
-            PlayerStatus::Paused => ("|", white()),
-            PlayerStatus::Playing => (">", yellow()),
-            PlayerStatus::Stopped => (".", red()),
+        match self.player.is_muted {
+            true => ("m", cyan()),
+            false => match self.player.status {
+                PlayerStatus::Paused => ("|", white()),
+                PlayerStatus::Playing => (">", yellow()),
+                PlayerStatus::Stopped => (".", red()),
+            },
         }
     }
 
@@ -89,11 +92,12 @@ impl View for PlayerView {
                 }
 
                 if i == self.player.index {
-                    // Draw the active row, including the player status.
+                    // Draw the player status.
                     let (symbol, color) = self.player_status();
                     printer.with_color(color, |printer| {
                         printer.print((3, i + 1 - y_offset), symbol)
                     });
+                    //Draw the active row.
                     printer.with_color(white(), |printer| {
                         printer.print(
                             (6, i + 1 - y_offset),
