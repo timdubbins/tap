@@ -51,7 +51,7 @@ impl App {
         // Set style and background color.
         cursive
             .load_toml(include_str!("assets/style.toml"))
-            .unwrap();
+            .expect("style.toml should be located in assets directory");
 
         // Initialize the player and player view.
         app.init_player(&mut cursive)?;
@@ -59,6 +59,11 @@ impl App {
         // Create a new player instance from a random selection.
         cursive.set_on_pre_event(Event::Char('r'), move |c: &mut Cursive| {
             app_clone.new_random_search(c);
+        });
+
+        // Create a new player instance from the previous selection.
+        cursive.set_on_pre_event(Event::Char('R'), move |c: &mut Cursive| {
+            previous_search(c);
         });
 
         // Create a new player instance from a fuzzy selection.
@@ -79,7 +84,8 @@ impl App {
     }
 
     fn init_player(&mut self, c: &mut Cursive) -> Result<(), anyhow::Error> {
-        c.set_user_data(PathBuf::new());
+        // Add dummy data to user data (required when calling `load_player`).
+        c.set_user_data(vec![PathBuf::new()]);
 
         if self.search_mode == SearchMode::Fuzzy {
             self.new_fuzzy_search(c)
@@ -87,6 +93,15 @@ impl App {
             let (player, size) = Player::new(self.path.clone())?;
             load_player((player, size), c);
         }
+
+        // Replace the dummy user data with a copy of the initial path.
+        // This ensures we have only valid paths in user data (required
+        // when calling `previous_selection` before making a selection).
+        c.with_user_data(|paths: &mut Vec<PathBuf>| {
+            let p = paths.last().expect("path set on init");
+            paths.push(p.clone());
+            paths.remove(0);
+        });
 
         self.is_first_run = false;
         Ok(())
@@ -98,14 +113,17 @@ impl App {
         }
 
         let fuzzy_path = get_fuzzy_path(&self);
-        let prev_path = c
-            .user_data::<PathBuf>()
-            .expect("user data should be set to the path of the current player");
+        let curr_path = c
+            .user_data::<Vec<PathBuf>>()
+            .expect("user data should be set on init")
+            .last()
+            .expect("current path is the last entry");
+
         let mut path = self.path.clone();
         // Push an empty path to append a trailing slash.
         path.push("");
 
-        if fuzzy_path.eq(&path) || fuzzy_path.eq(prev_path) {
+        if fuzzy_path.eq(&path) || fuzzy_path.eq(curr_path) {
             if self.is_first_run {
                 std::process::exit(1);
             } else {
@@ -122,11 +140,13 @@ impl App {
 
         while count < 10 {
             let random_path = get_random_path(&self, dir_count);
-            let prev_path = c
-                .user_data::<PathBuf>()
-                .expect("user data should be set to the path of the current player");
+            let curr_path = c
+                .user_data::<Vec<PathBuf>>()
+                .expect("user data should be set on init")
+                .last()
+                .expect("current path is the last entry");
 
-            if random_path.eq(prev_path) {
+            if random_path.eq(curr_path) {
                 count += 1
             } else if let Ok((player, size)) = Player::new(random_path) {
                 load_player((player, size), c);
@@ -139,7 +159,12 @@ impl App {
 }
 
 fn load_player((player, size): (Player, Size), c: &mut Cursive) {
-    c.set_user_data(player.path.clone());
+    c.with_user_data(|paths: &mut Vec<PathBuf>| {
+        paths.push(player.path.clone());
+        if paths.len() > 2 {
+            paths.remove(0);
+        }
+    });
     c.pop_layer();
     c.add_layer(
         PlayerView::new(player)
@@ -147,6 +172,19 @@ fn load_player((player, size): (Player, Size), c: &mut Cursive) {
             .max_width(std::cmp::max(size.0, 53))
             .fixed_height(size.1),
     );
+}
+
+fn previous_search(c: &mut Cursive) {
+    let prev_path = c
+        .user_data::<Vec<PathBuf>>()
+        .expect("user data should be set on init")
+        .first()
+        .expect("previous path is at index 0 in user data");
+
+    let (player, size) =
+        Player::new(prev_path.clone()).expect("player created from this path previously");
+
+    load_player((player, size), c);
 }
 
 #[derive(Clone, Copy, PartialEq)]
