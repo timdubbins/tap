@@ -63,7 +63,7 @@ quit | `q`
 ```bash
 > brew install timdubbins/tap/tap
 > tap --version
-0.1.1
+0.2.0
 ```
 </details>
 
@@ -76,19 +76,19 @@ such as <a href="https://github.com/Jguer/yay">yay</a>:</summary>
 ```bash
 > yay -S tap
 > tap --version
-0.1.1
+0.2.0
 ```
 </details>
 
 <details>
-<summary>If you're a <b>Debian</b> user (or a user of a Debian derivative like <b>Ubuntu</b> then tap can be installed using a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases">tap release</a>.</summary>
+<summary>If you're a <b>Debian</b> user (or a user of a Debian derivative like <b>Ubuntu</b> then tap can be installed using a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.2.0">tap release</a>.</summary>
 <br>
 
 ```bash
-> curl -LO https://github.com/timdubbins/tap/releases/download/v0.1.1/tap_v0.1.1_amd64.deb
-> sudo dpkg -i tap_0.1.1_amd64.deb
+> curl -LO https://github.com/timdubbins/tap/releases/download/v0.2.0/tap_v0.2.0_amd64.deb
+> sudo dpkg -i tap_v0.2.0_amd64.deb
 > tap --version
-0.1.1
+0.2.0
 ```
 </details>
 
@@ -101,11 +101,11 @@ such as <a href="https://github.com/Jguer/yay">yay</a>:</summary>
 > cd tap
 > cargo install --path .
 > tap --version
-0.1.1
+0.2.0
 ```
 </details>
 
-The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.1.1).
+The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.2.0).
 
 **2. Install [fzf](https://github.com/junegunn/fzf) or [skim](https://github.com/lotabout/skim) (optional).** fzf is a very popular (and useful!) fuzzy finder, and skim is a Rust alternative to fzf. Installing either program will enable fuzzy-finding in tap.
 
