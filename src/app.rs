@@ -156,6 +156,7 @@ impl App {
                 .expect("current path is the last entry in user data");
 
             if random_path.eq(curr_path) {
+                // Don't reload the same player, try a different path.
                 count += 1
             } else if let Ok((player, size)) = Player::new(random_path) {
                 load_player((player, size), c);
