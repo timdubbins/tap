@@ -84,7 +84,7 @@ impl App {
     }
 
     fn init_player(&mut self, c: &mut Cursive) -> Result<(), anyhow::Error> {
-        // Add dummy data to user data (required when calling `load_player`).
+        // Add dummy user data so we can load the initial player.
         c.set_user_data(vec![PathBuf::new()]);
 
         if self.search_mode == SearchMode::Fuzzy {
@@ -94,9 +94,9 @@ impl App {
             load_player((player, size), c);
         }
 
-        // Replace the dummy user data with a copy of the initial path.
-        // This ensures we have only valid paths in user data (required
-        // when calling `previous_selection` before making a selection).
+        // Replace the dummy user data with a copy of the initial player path.
+        // Now selecting a previous player will reselect the current player
+        // until a new selection is made.
         c.with_user_data(|paths: &mut Vec<PathBuf>| {
             let p = paths.last().expect("path set on init");
             paths.push(p.clone());
@@ -108,7 +108,7 @@ impl App {
     }
 
     fn new_fuzzy_search(&self, c: &mut Cursive) {
-        if self.search_mode == SearchMode::NonFuzzy {
+        if self.search_mode != SearchMode::Fuzzy {
             return;
         }
 
@@ -117,7 +117,7 @@ impl App {
             .user_data::<Vec<PathBuf>>()
             .expect("user data should be set on init")
             .last()
-            .expect("current path is the last entry");
+            .expect("current path is the last entry in user data");
 
         let mut path = self.path.clone();
         // Push an empty path to append a trailing slash.
@@ -125,8 +125,13 @@ impl App {
 
         if fuzzy_path.eq(&path) || fuzzy_path.eq(curr_path) {
             if self.is_first_run {
+                // We are here if the initial fuzzy selection was escaped so
+                // we can exit early.
                 std::process::exit(1);
             } else {
+                // We are here if the fuzzy selection was escaped or the
+                // the new selection matched the current selection. We redraw
+                // the screen as the player will not be changed.
                 c.clear()
             }
         } else if let Ok((player, size)) = Player::new(fuzzy_path) {
@@ -135,6 +140,10 @@ impl App {
     }
 
     fn new_random_search(&self, c: &mut Cursive) {
+        if self.search_mode == SearchMode::NoSearch {
+            return;
+        }
+
         let dir_count = get_dir_count(&self);
         let mut count = 0;
 
@@ -144,7 +153,7 @@ impl App {
                 .user_data::<Vec<PathBuf>>()
                 .expect("user data should be set on init")
                 .last()
-                .expect("current path is the last entry");
+                .expect("current path is the last entry in user data");
 
             if random_path.eq(curr_path) {
                 count += 1
@@ -190,15 +199,19 @@ fn previous_search(c: &mut Cursive) {
 #[derive(Clone, Copy, PartialEq)]
 pub enum SearchMode {
     Fuzzy,
-    NonFuzzy,
+    Random,
+    NoSearch,
 }
 
 impl SearchMode {
     pub fn get_from(path: &PathBuf) -> Self {
         let fuzzy_available = env_var_includes(&["fzf"]) || env_var_includes(&["sk"]);
-        match has_child_dir(path) && fuzzy_available {
-            true => SearchMode::Fuzzy,
-            false => SearchMode::NonFuzzy,
+        match has_child_dir(path) {
+            true => match fuzzy_available {
+                true => SearchMode::Fuzzy,
+                false => SearchMode::Random,
+            },
+            false => SearchMode::NoSearch,
         }
     }
 }
