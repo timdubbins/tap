@@ -3,6 +3,8 @@ use std::path::PathBuf;
 use anyhow::bail;
 use clap::Parser;
 
+use crate::utils::remove_trailing_slash;
+
 #[derive(Parser)]
 #[command(author, version, about)]
 pub struct Args {
@@ -24,11 +26,15 @@ impl Args {
             bail!("{:?} doesn't exist.", path)
         }
 
-        let path_string = match path.clone().into_os_string().into_string() {
+        // We remove trailing slashes from the path in order
+        // to provide consistent behavior between OSs.
+        let p = remove_trailing_slash(path)?;
+
+        let s = match p.clone().into_os_string().into_string() {
             Ok(s) => s,
             Err(_) => bail!("Couldn't convert path arg to string."),
         };
 
-        Ok((path, path_string))
+        Ok((p, s))
     }
 }
