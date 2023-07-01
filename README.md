@@ -109,7 +109,7 @@ The binaries for each release are also available [here](https://github.com/timdu
 
 **2. Install [fzf](https://github.com/junegunn/fzf) or [skim](https://github.com/lotabout/skim) (optional).** fzf is a very popular (and useful!) fuzzy finder, and skim is a Rust alternative to fzf. Installing either program will enable fuzzy-finding in tap.
 
-**3. Install [fd]() (optional).** fd is a fast alternative to find and tap will use fd if it's installed on your machine.
+**3. Install [fd](https://github.com/sharkdp/fd) (optional).** fd is a fast alternative to find and tap will use fd if it's installed on your machine.
 
 ### Building
 
