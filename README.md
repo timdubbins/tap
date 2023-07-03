@@ -10,11 +10,12 @@ tap is an audio player for the terminal, written in Rust. It's a fast, minimal p
 > tap [path]
 ```
 
-The path argument is optional. If it is omitted the current directory is used. Running the above command will:
+The path argument is optional. If it is omitted the current directory is used. Then:
 
-- open and play the file(s) if path is an audio file or a directory containing audio files (i.e. an album).
+- if path is an audio file or a directory containing audio files (i.e. an album), tap will open and play the file(s).
 
-- open a fuzzy search, allowing you to select an album to play, if path is a directory that contains subdirectories (such as your root music folder). Playback starts on selection and you can return to search mode by pressing `TAB`.
+
+- if path is a directory that contains subdirectories (such as your root music folder), tap will open a fuzzy search, allowing you to select an album to play. Playback starts on selection and you can return to search mode by pressing `TAB`.
 
 **Tip**: Create an `alias` that provides a default path to your root music folder. Do this by putting something like the following in your shell config (for zsh users this could be in your .zshrc) and then source or restart your shell:
 
