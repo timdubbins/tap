@@ -17,13 +17,13 @@ pub fn get_dir_count(app: &App) -> i32 {
     let arg = match (app.search_dir, app.fd_available) {
         (SearchDir::CurrentDir, true) => String::from("fd -t d --min-depth 1 | wc -l"),
         (SearchDir::CurrentDir, false) => {
-            String::from(r"find . -type d -mindepth 1 \( -name '.?*' -prune -o -print \) | wc -l")
+            String::from(r"find . -mindepth 1 -type d \( -name '.?*' -prune -o -print \) | wc -l")
         }
         (SearchDir::PathArg, true) => {
             format!("fd . '{}' -t d --min-depth 1 | wc -l", app.path_string,)
         }
         (SearchDir::PathArg, false) => format!(
-            r"find '{}' -type d -mindepth 1 \( -name '.?*' -prune -o -print \) | wc -l",
+            r"find '{}' -mindepth 1 -type d \( -name '.?*' -prune -o -print \) | wc -l",
             app.path_string,
         ),
     };
@@ -50,7 +50,7 @@ pub fn get_random_path(app: &App, dir_count: i32) -> PathBuf {
             format!("fd -t d --min-depth 1 --absolute-path | sed -n '{}p'", rand)
         }
         (SearchDir::CurrentDir, false) => format!(
-            r"find . -type d -mindepth 1 \( -name '.?*' -prune -o -print \) | sed -n '{}p'",
+            r"find . -mindepth 1 -type d \( -name '.?*' -prune -o -print \) | sed -n '{}p'",
             rand
         ),
         (SearchDir::PathArg, true) => format!(
@@ -58,7 +58,7 @@ pub fn get_random_path(app: &App, dir_count: i32) -> PathBuf {
             app.path_string, rand
         ),
         (SearchDir::PathArg, false) => format!(
-            r"find '{}' -type d -mindepth 1 \( -name '.?*' -prune -o -print \) | sed -n '{}'p",
+            r"find '{}' -mindepth 1 -type d \( -name '.?*' -prune -o -print \) | sed -n '{}'p",
             app.path_string, rand
         ),
     };
@@ -87,7 +87,7 @@ pub fn get_fuzzy_path(app: &App) -> PathBuf {
             format!("fd -t d --min-depth 1 | {}", fuzzy_cmd)
         }
         (SearchDir::CurrentDir, false) => format!(
-            r"find . -type d -mindepth 1 \( -name '.?*' -prune -o -print \) | sed -n 's|^./||p' | sort | {}",
+            r"find . -mindepth 1 -type d \( -name '.?*' -prune -o -print \) | sed -n 's|^./||p' | sort | {}",
             fuzzy_cmd
         ),
         (SearchDir::PathArg, true) => format!(
@@ -95,7 +95,7 @@ pub fn get_fuzzy_path(app: &App) -> PathBuf {
             app.path_string, app.path_string, fuzzy_cmd
         ),
         (SearchDir::PathArg, false) => format!(
-            "find '{}' -type d -mindepth 1 | sed -n 's|^{}/||p' | sort | {}",
+            "find '{}' -mindepth 1 -type d | sed -n 's|^{}/||p' | sort | {}",
             app.path_string, app.path_string, fuzzy_cmd
         ),
     };
