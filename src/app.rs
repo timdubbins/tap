@@ -56,17 +56,17 @@ impl App {
         // Initialize the player and player view.
         app.init_player(&mut cursive)?;
 
-        // Create a new player instance from a random selection.
+        // Create a new player from a random selection.
         cursive.set_on_pre_event(Event::Char('r'), move |c: &mut Cursive| {
             app_clone.new_random_search(c);
         });
 
-        // Create a new player instance from the previous selection.
+        // Create a new player from the previous selection.
         cursive.set_on_pre_event(Event::Char('R'), move |c: &mut Cursive| {
             previous_search(c);
         });
 
-        // Create a new player instance from a fuzzy selection.
+        // Create a new player from a fuzzy selection.
         cursive.set_on_pre_event(Event::Key(Key::Tab), move |c: &mut Cursive| {
             app.new_fuzzy_search(c)
         });

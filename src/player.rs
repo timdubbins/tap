@@ -48,8 +48,8 @@ impl Player {
             .first()
             .expect("playlist should not be empty")
             .clone();
-        let (_stream, _stream_handle) = OutputStream::try_default().unwrap();
-        let sink = Sink::try_new(&_stream_handle).unwrap();
+        let (_stream, _stream_handle) = OutputStream::try_default()?;
+        let sink = Sink::try_new(&_stream_handle)?;
         let mut indices = HashMap::new();
 
         for (i, f) in playlist.iter().enumerate() {
