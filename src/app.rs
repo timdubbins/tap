@@ -12,28 +12,35 @@ use crate::utils::*;
 
 #[derive(Clone)]
 pub struct App {
+    pub fd_available: bool,
+    pub fuzzy_mode: FuzzyMode,
     pub path: PathBuf,
     pub path_string: String,
     pub search_dir: SearchDir,
-    pub search_mode: SearchMode,
-    pub fd_available: bool,
-    pub fuzzy_cmd: String,
+    pub searchable: bool,
     is_first_run: bool,
 }
 
 impl App {
     fn try_new() -> Result<Self, anyhow::Error> {
         let (path, path_string) = Args::parse_path()?;
-        let search_dir = SearchDir::get_from(&path);
-        let search_mode = SearchMode::get_from(&path);
+        let searchable = has_child_dirs(&path);
+        let fuzzy_mode = FuzzyMode::get(searchable);
+
+        if searchable && fuzzy_mode == FuzzyMode::None {
+            anyhow::bail!(
+                "{:?} contains subdirectories and requires a fuzzy-finder to run. Install either `fzf` or `skim` to enable fuzzy-finding.",
+                path
+            )
+        }
 
         let app = Self {
+            fd_available: env_var_includes(&["fd"]),
+            fuzzy_mode: FuzzyMode::get(searchable),
+            search_dir: SearchDir::get(&path)?,
             path: path,
             path_string: path_string,
-            search_dir: search_dir,
-            search_mode: search_mode,
-            fd_available: env_var_includes(&["fd"]),
-            fuzzy_cmd: get_fuzzy_cmd(),
+            searchable,
             is_first_run: true,
         };
 
@@ -87,7 +94,7 @@ impl App {
         // Add dummy user data so we can load the initial player.
         c.set_user_data(vec![PathBuf::new()]);
 
-        if self.search_mode == SearchMode::Fuzzy {
+        if self.fuzzy_mode != FuzzyMode::None {
             self.new_fuzzy_search(c)
         } else {
             let (player, size) = Player::new(self.path.clone())?;
@@ -108,7 +115,7 @@ impl App {
     }
 
     fn new_fuzzy_search(&self, c: &mut Cursive) {
-        if self.search_mode != SearchMode::Fuzzy {
+        if self.fuzzy_mode == FuzzyMode::None {
             return;
         }
 
@@ -140,7 +147,7 @@ impl App {
     }
 
     fn new_random_search(&self, c: &mut Cursive) {
-        if self.search_mode == SearchMode::NoSearch {
+        if !self.searchable {
             return;
         }
 
@@ -197,23 +204,23 @@ fn previous_search(c: &mut Cursive) {
     load_player((player, size), c);
 }
 
-#[derive(Clone, Copy, PartialEq)]
-pub enum SearchMode {
-    Fuzzy,
-    Random,
-    NoSearch,
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum FuzzyMode {
+    FZF,
+    SK,
+    None,
 }
 
-impl SearchMode {
-    pub fn get_from(path: &PathBuf) -> Self {
-        let fuzzy_available = env_var_includes(&["fzf"]) || env_var_includes(&["sk"]);
-        match has_child_dir(path) {
-            true => match fuzzy_available {
-                true => SearchMode::Fuzzy,
-                false => SearchMode::Random,
-            },
-            false => SearchMode::NoSearch,
+impl FuzzyMode {
+    pub fn get(searchable: bool) -> Self {
+        if searchable {
+            if env_var_includes(&["fzf"]) {
+                return FuzzyMode::FZF;
+            } else if env_var_includes(&["sk"]) {
+                return FuzzyMode::SK;
+            }
         }
+        FuzzyMode::None
     }
 }
 
@@ -224,12 +231,11 @@ pub enum SearchDir {
 }
 
 impl SearchDir {
-    pub fn get_from(path: &PathBuf) -> Self {
-        match *path
-            == std::env::current_dir().expect("current directory should exist and be accessible")
-        {
-            true => SearchDir::CurrentDir,
-            false => SearchDir::PathArg,
+    pub fn get(path: &PathBuf) -> Result<Self, anyhow::Error> {
+        if std::env::current_dir()?.eq(path) {
+            return Ok(SearchDir::CurrentDir);
+        } else {
+            return Ok(SearchDir::PathArg);
         }
     }
 }

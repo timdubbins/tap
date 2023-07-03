@@ -16,12 +16,21 @@ pub fn env_var_includes(programs: &[&str]) -> bool {
     false
 }
 
-pub fn has_child_dir(path: &PathBuf) -> bool {
+// Returns true if the path has at least two children.
+pub fn has_child_dirs(path: &PathBuf) -> bool {
+    let mut has_child_dir = false;
+
     if path.is_dir() {
         for entry in path.read_dir().expect("directory should not be empty") {
             if let Ok(entry) = entry {
                 if entry.path().is_dir() {
-                    return true;
+                    if has_child_dir {
+                        // The second child is found.
+                        return true;
+                    } else {
+                        // The first child is found.
+                        has_child_dir = true;
+                    }
                 }
             }
         }

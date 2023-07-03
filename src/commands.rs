@@ -4,22 +4,13 @@ use std::process::{Command, ExitStatus};
 
 use rand::Rng;
 
-use crate::app::{App, SearchDir};
-use crate::utils::env_var_includes;
+use crate::app::{App, FuzzyMode, SearchDir};
 
 // FZF prefix to set colors.
 const FZF_CMD: &'static str = "fzf --color bg+:#131415,bg:#131415,border:#b294bb,spinner:#cc6666,hl:#c5c8c6,fg:#81a2be,header:#b5bd68,info:#b294bb,pointer:#f0c674,marker:#8abeb7,fg+:#c5c8c6,preview-bg:#D9D9D9,prompt:#616161,hl+:#b9ca4a";
 
 // Skim prefix to set colors.
 const SK_CMD: &'static str = "sk --color dark,border:#b294bb,spinner:#cc6666,hl:#c5c8c6,fg:#81a2be,header:#b5bd68,info:#b294bb,pointer:#f0c674,marker:#8abeb7,fg+:#c5c8c6,prompt:#616161,hl+:#b9ca4a";
-
-pub fn get_fuzzy_cmd() -> String {
-    if env_var_includes(&["fzf"]) {
-        FZF_CMD.into()
-    } else {
-        SK_CMD.into()
-    }
-}
 
 // Gets the number of subdirectories.
 pub fn get_dir_count(app: &App) -> i32 {
@@ -29,10 +20,10 @@ pub fn get_dir_count(app: &App) -> i32 {
             String::from(r"find . -type d -mindepth 1 \( -name '.?*' -prune -o -print \) | wc -l")
         }
         (SearchDir::PathArg, true) => {
-            format!("fd . {} -t d --min-depth 1 | wc -l", app.path_string,)
+            format!("fd . '{}' -t d --min-depth 1 | wc -l", app.path_string,)
         }
         (SearchDir::PathArg, false) => format!(
-            r"find {} -type d -mindepth 1 \( -name '.?*' -prune -o -print \) | wc -l",
+            r"find '{}' -type d -mindepth 1 \( -name '.?*' -prune -o -print \) | wc -l",
             app.path_string,
         ),
     };
@@ -63,11 +54,11 @@ pub fn get_random_path(app: &App, dir_count: i32) -> PathBuf {
             rand
         ),
         (SearchDir::PathArg, true) => format!(
-            "fd . {} -t d --min-depth 1 | sed -n '{}p'",
+            "fd . '{}' -t d --min-depth 1 | sed -n '{}p'",
             app.path_string, rand
         ),
         (SearchDir::PathArg, false) => format!(
-            r"find {} -type d -mindepth 1 \( -name '.?*' -prune -o -print \) | sed -n '{}'p",
+            r"find '{}' -type d -mindepth 1 \( -name '.?*' -prune -o -print \) | sed -n '{}'p",
             app.path_string, rand
         ),
     };
@@ -85,21 +76,27 @@ pub fn get_random_path(app: &App, dir_count: i32) -> PathBuf {
 
 // Gets the path of a subdirectory chosen via fuzzy selection.
 pub fn get_fuzzy_path(app: &App) -> PathBuf {
+    let fuzzy_cmd = match app.fuzzy_mode {
+        FuzzyMode::FZF => FZF_CMD.into(),
+        FuzzyMode::SK => SK_CMD.into(),
+        _ => "",
+    };
+
     let arg = match (app.search_dir, app.fd_available) {
         (SearchDir::CurrentDir, true) => {
-            format!("fd -t d --min-depth 1 | {}", app.fuzzy_cmd)
+            format!("fd -t d --min-depth 1 | {}", fuzzy_cmd)
         }
         (SearchDir::CurrentDir, false) => format!(
             r"find . -type d -mindepth 1 \( -name '.?*' -prune -o -print \) | sed -n 's|^./||p' | sort | {}",
-            app.fuzzy_cmd
+            fuzzy_cmd
         ),
         (SearchDir::PathArg, true) => format!(
-            "fd . {} -t d --min-depth 1 | sed -n 's|^{}/||p' | {}",
-            app.path_string, app.path_string, app.fuzzy_cmd
+            "fd . '{}' -t d --min-depth 1 | sed -n 's|^{}/||p' | {}",
+            app.path_string, app.path_string, fuzzy_cmd
         ),
         (SearchDir::PathArg, false) => format!(
-            "find {} -type d -mindepth 1 | sed -n 's|^{}/||p' | sort | {}",
-            app.path_string, app.path_string, app.fuzzy_cmd
+            "find '{}' -type d -mindepth 1 | sed -n 's|^{}/||p' | sort | {}",
+            app.path_string, app.path_string, fuzzy_cmd
         ),
     };
 
