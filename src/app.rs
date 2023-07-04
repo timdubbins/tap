@@ -18,7 +18,6 @@ pub struct App {
     pub path_string: String,
     pub search_dir: SearchDir,
     pub searchable: bool,
-    is_first_run: bool,
 }
 
 impl App {
@@ -41,86 +40,83 @@ impl App {
             path: path,
             path_string: path_string,
             searchable,
-            is_first_run: true,
         };
 
         Ok(app)
     }
 
     pub fn run() -> Result<(), anyhow::Error> {
-        let mut app = App::try_new()?;
+        let app = App::try_new()?;
 
         // Clone for use in pre-event callback.
         let app_clone = app.clone();
 
-        let mut cursive = cursive::default();
+        let mut siv = cursive::default();
 
         // Set style and background color.
-        cursive
-            .load_toml(include_str!("assets/style.toml"))
+        siv.load_toml(include_str!("assets/style.toml"))
             .expect("style.toml should be located in assets directory");
 
         // Initialize the player and player view.
-        app.init_player(&mut cursive)?;
+        app.init_player(&mut siv)?;
 
         // Create a new player from a random selection.
-        cursive.set_on_pre_event(Event::Char('r'), move |c: &mut Cursive| {
-            app_clone.new_random_search(c);
+        siv.set_on_pre_event(Event::Char('r'), move |s: &mut Cursive| {
+            app_clone.new_random_search(s);
         });
 
         // Create a new player from the previous selection.
-        cursive.set_on_pre_event(Event::Char('-'), move |c: &mut Cursive| {
-            previous_search(c);
+        siv.set_on_pre_event(Event::Char('-'), move |s: &mut Cursive| {
+            previous_search(s);
         });
 
         // Create a new player from a fuzzy selection.
-        cursive.set_on_pre_event(Event::Key(Key::Tab), move |c: &mut Cursive| {
-            app.new_fuzzy_search(c)
+        siv.set_on_pre_event(Event::Key(Key::Tab), move |s: &mut Cursive| {
+            app.new_fuzzy_search(false, s)
         });
 
         // Quit the app.
-        cursive.set_on_pre_event(Event::Char('q'), move |c: &mut Cursive| c.quit());
+        siv.set_on_pre_event(Event::Char('q'), move |s: &mut Cursive| s.quit());
 
         // Set fps to lowest value that looks steady.
-        cursive.set_fps(16);
-        cursive.run();
+        siv.set_fps(16);
+        siv.run();
 
         clear_terminal()?;
 
         Ok(())
     }
 
-    fn init_player(&mut self, c: &mut Cursive) -> Result<(), anyhow::Error> {
+    fn init_player(&self, s: &mut Cursive) -> Result<(), anyhow::Error> {
         // Add dummy user data so we can load the initial player.
-        c.set_user_data(vec![PathBuf::new()]);
+        s.set_user_data(vec![PathBuf::new()]);
 
         if self.fuzzy_mode != FuzzyMode::None {
-            self.new_fuzzy_search(c)
+            self.new_fuzzy_search(true, s)
         } else {
             let (player, size) = Player::new(self.path.clone())?;
-            load_player((player, size), c);
+            load_player((player, size), s);
         }
 
         // Replace the dummy user data with a copy of the initial player path.
         // Now selecting a previous player will reselect the current player
         // until a new selection is made.
-        c.with_user_data(|paths: &mut Vec<PathBuf>| {
+        s.with_user_data(|paths: &mut Vec<PathBuf>| {
             let p = paths.last().expect("path set on init");
             paths.push(p.clone());
             paths.remove(0);
         });
 
-        self.is_first_run = false;
         Ok(())
     }
 
-    fn new_fuzzy_search(&self, c: &mut Cursive) {
+    fn new_fuzzy_search(&self, is_first_run: bool, s: &mut Cursive) {
         if self.fuzzy_mode == FuzzyMode::None {
             return;
         }
 
         let fuzzy_path = get_fuzzy_path(&self);
-        let curr_path = c
+        let curr_path = s
             .user_data::<Vec<PathBuf>>()
             .expect("user data should be set on init")
             .last()
@@ -131,7 +127,7 @@ impl App {
         path.push("");
 
         if fuzzy_path.eq(&path) || fuzzy_path.eq(curr_path) {
-            if self.is_first_run {
+            if is_first_run {
                 // We are here if the initial fuzzy selection was escaped so
                 // we can exit early.
                 std::process::exit(1);
@@ -139,14 +135,14 @@ impl App {
                 // We are here if the fuzzy selection was escaped or the
                 // the new selection matched the current selection. We redraw
                 // the screen as the player will not be changed.
-                c.clear()
+                s.clear()
             }
         } else if let Ok((player, size)) = Player::new(fuzzy_path) {
-            load_player((player, size), c)
+            load_player((player, size), s)
         }
     }
 
-    fn new_random_search(&self, c: &mut Cursive) {
+    fn new_random_search(&self, s: &mut Cursive) {
         if !self.searchable {
             return;
         }
@@ -156,7 +152,7 @@ impl App {
 
         while count < 10 {
             let random_path = get_random_path(&self, dir_count);
-            let curr_path = c
+            let curr_path = s
                 .user_data::<Vec<PathBuf>>()
                 .expect("user data should be set on init")
                 .last()
@@ -166,7 +162,7 @@ impl App {
                 // Don't reload the same player, try a different path.
                 count += 1
             } else if let Ok((player, size)) = Player::new(random_path) {
-                load_player((player, size), c);
+                load_player((player, size), s);
                 break;
             } else {
                 count += 1;
@@ -175,15 +171,15 @@ impl App {
     }
 }
 
-fn load_player((player, size): (Player, Size), c: &mut Cursive) {
-    c.with_user_data(|paths: &mut Vec<PathBuf>| {
+fn load_player((player, size): (Player, Size), s: &mut Cursive) {
+    s.with_user_data(|paths: &mut Vec<PathBuf>| {
         paths.push(player.path.clone());
         if paths.len() > 2 {
             paths.remove(0);
         }
     });
-    c.pop_layer();
-    c.add_layer(
+    s.pop_layer();
+    s.add_layer(
         PlayerView::new(player)
             .full_width()
             .max_width(std::cmp::max(size.0, 53))
@@ -191,8 +187,8 @@ fn load_player((player, size): (Player, Size), c: &mut Cursive) {
     );
 }
 
-fn previous_search(c: &mut Cursive) {
-    let prev_path = c
+fn previous_search(s: &mut Cursive) {
+    let prev_path = s
         .user_data::<Vec<PathBuf>>()
         .expect("user data should be set on init")
         .first()
@@ -201,7 +197,7 @@ fn previous_search(c: &mut Cursive) {
     let (player, size) =
         Player::new(prev_path.clone()).expect("player created from this path previously");
 
-    load_player((player, size), c);
+    load_player((player, size), s);
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
