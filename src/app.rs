@@ -69,7 +69,7 @@ impl App {
         });
 
         // Create a new player from the previous selection.
-        cursive.set_on_pre_event(Event::Char('R'), move |c: &mut Cursive| {
+        cursive.set_on_pre_event(Event::Char('-'), move |c: &mut Cursive| {
             previous_search(c);
         });
 

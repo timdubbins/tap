@@ -29,7 +29,7 @@ pub struct Player {
     pub is_muted: bool,
     pub status: PlayerStatus,
     pub numbers_pressed: Vec<usize>,
-    can_reach: Arc<AtomicBool>,
+    pub is_chord: Arc<AtomicBool>,
     indices: HashMap<u32, usize>,
     last_started: Instant,
     last_elapsed: Duration,
@@ -63,7 +63,7 @@ impl Player {
             last_elapsed: Duration::default(),
             index: 0,
             numbers_pressed: vec![],
-            can_reach: Arc::new(AtomicBool::new(false)),
+            is_chord: Arc::new(AtomicBool::new(false)),
             is_muted: false,
             playlist,
             file,
@@ -127,34 +127,44 @@ impl Player {
         }
     }
 
+    pub fn play_selection(&mut self) {
+        if self.select_track() {
+            self.play_or_pause()
+        }
+    }
+
     pub fn play_last_track(&mut self) {
-        self.stop();
-        self.index = self.playlist.len() - 1;
-        self.file = self.playlist[self.index].clone();
-        self.play_or_pause();
-        self.clear();
+        if self.select_last_track() {
+            self.play_or_pause();
+        }
+    }
+
+    pub fn play_first_track(&mut self) {
+        if self.select_first_track() {
+            self.play_or_pause()
+        }
     }
 
     fn clear(&mut self) {
         self.numbers_pressed.clear();
-        self.can_reach.store(false, Ordering::Relaxed)
+        self.is_chord.store(false, Ordering::Relaxed)
     }
 
-    pub fn select_track(&mut self) -> bool {
+    fn select_track(&mut self) -> bool {
         match self.numbers_pressed.is_empty() {
             true => {
-                if self.can_reach.load(Ordering::Relaxed) {
+                if self.is_chord.load(Ordering::Relaxed) {
                     self.select_first_track()
                 } else {
-                    // Set `can_reach` to true temporarily so that calling
+                    // Set `is_chord` to true temporarily so that calling
                     // this function twice in quick succession will allow
                     // us to run the 'if' block of this conditional. This
                     // is to simulate a double tap gesture.
-                    self.can_reach.store(true, Ordering::Relaxed);
-                    let _can_reach = self.can_reach.clone();
+                    self.is_chord.store(true, Ordering::Relaxed);
+                    let _is_chord = self.is_chord.clone();
                     task::spawn(async move {
                         task::sleep(Duration::from_millis(500)).await;
-                        _can_reach.store(false, Ordering::Relaxed)
+                        _is_chord.store(false, Ordering::Relaxed)
                     });
                     false
                 }
@@ -186,6 +196,14 @@ impl Player {
     fn select_first_track(&mut self) -> bool {
         self.stop();
         self.index = 0;
+        self.file = self.playlist[self.index].clone();
+        self.clear();
+        true
+    }
+
+    fn select_last_track(&mut self) -> bool {
+        self.stop();
+        self.index = self.playlist.len() - 1;
         self.file = self.playlist[self.index].clone();
         self.clear();
         true

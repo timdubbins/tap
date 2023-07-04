@@ -176,13 +176,16 @@ impl View for PlayerView {
             }
 
             Event::Key(Key::Enter) | Event::Char('g') => {
-                if self.player.select_track() {
-                    self.player.play_or_pause()
-                }
+                self.player.play_selection();
                 EventResult::Consumed(None)
             }
 
-            Event::Char('G') => {
+            Event::Char('[') | Event::Key(Key::Home) => {
+                self.player.play_first_track();
+                EventResult::Consumed(None)
+            }
+
+            Event::Char(']') | Event::Char('e') | Event::Key(Key::End) => {
                 self.player.play_last_track();
                 EventResult::Consumed(None)
             }
