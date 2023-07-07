@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::path::PathBuf;
 
 use cursive::event::{Event, EventResult, Key};
@@ -95,7 +96,7 @@ impl App {
 
     fn init_player(&self, s: &mut Cursive) -> Result<(), anyhow::Error> {
         // Add dummy user data so we can load the initial player.
-        s.set_user_data(vec![PathBuf::new()]);
+        s.set_user_data(VecDeque::from([PathBuf::new(), PathBuf::new()]));
 
         if self.fuzzy_mode != FuzzyMode::None {
             self.initial_fuzzy_search(s)
@@ -104,12 +105,9 @@ impl App {
             load_player((player, size), s);
         }
 
-        // Replace the dummy user data with a copy of the initial player path.
-        s.with_user_data(|paths: &mut Vec<PathBuf>| {
-            let p = paths.last().expect("path set on init");
-            paths.push(p.clone());
-            paths.remove(0);
-        });
+        // Replace the dummy user data with path of initial player.
+        let curr_path = current_path(s);
+        s.set_user_data(VecDeque::from([curr_path.clone(), curr_path]));
 
         Ok(())
     }
@@ -148,12 +146,7 @@ impl App {
         }
 
         let fuzzy_path = get_fuzzy_path(&self, second_path.clone(), anchor);
-        let curr_path = s
-            .user_data::<Vec<PathBuf>>()
-            .expect("user data should be set on init")
-            .last()
-            .expect("current path is the last entry in user data");
-
+        let curr_path = current_path(s);
         let mut search_root = match second_path {
             Some(p) => p,
             None => self.path.clone(),
@@ -162,7 +155,7 @@ impl App {
         search_root.push("");
 
         // Try to load a new player from the fuzzy path.
-        if fuzzy_path.eq(&search_root) || fuzzy_path.eq(curr_path) {
+        if fuzzy_path.eq(&search_root) || fuzzy_path.eq(&curr_path) {
             if is_first_run {
                 // Initial fuzzy search was escaped. This
                 // is not considered an error.
@@ -210,13 +203,8 @@ impl App {
         // Loop until we find a valid selection or we give up.
         while count < 10 {
             let random_path = get_random_path(&self, dir_count);
-            let curr_path = s
-                .user_data::<Vec<PathBuf>>()
-                .expect("user data should be set on init")
-                .last()
-                .expect("current path is the last entry in user data");
-
-            if random_path.eq(curr_path) {
+            let curr_path = current_path(s);
+            if random_path.eq(&curr_path) {
                 // Don't reload the same player, try a different path.
                 count += 1
             } else if let Ok((player, size)) = Player::new(random_path) {
@@ -279,13 +267,35 @@ fn search_events(event: &Event) -> Option<char> {
     }
 }
 
+// Gets path of previous player from user data.
+fn previous_path(s: &mut Cursive) -> PathBuf {
+    let prev_path = s
+        .user_data::<VecDeque<PathBuf>>()
+        .expect("user data is set on init")
+        .front()
+        .expect("previous path is at the start of the queue")
+        .to_owned();
+
+    prev_path
+}
+
+// Gets path of current player from user data.
+fn current_path(s: &mut Cursive) -> PathBuf {
+    let curr_path = s
+        .user_data::<VecDeque<PathBuf>>()
+        .expect("user data is set on init")
+        .back()
+        .expect("player path is appended when player is created")
+        .to_owned();
+
+    curr_path
+}
+
 // Updates the user data and player view.
 fn load_player((player, size): (Player, Size), s: &mut Cursive) {
-    s.with_user_data(|paths: &mut Vec<PathBuf>| {
-        paths.push(player.path.clone());
-        if paths.len() > 2 {
-            paths.remove(0);
-        }
+    s.with_user_data(|history: &mut VecDeque<PathBuf>| {
+        history.push_back(player.path.clone());
+        history.pop_front();
     });
     s.pop_layer();
     s.add_layer(
@@ -298,12 +308,7 @@ fn load_player((player, size): (Player, Size), s: &mut Cursive) {
 
 // Selects and loads the previous player.
 fn previous_selection(s: &mut Cursive) {
-    let prev_path = s
-        .user_data::<Vec<PathBuf>>()
-        .expect("user data should be set on init")
-        .first()
-        .expect("previous path is at index 0 in user data");
-
+    let prev_path = previous_path(s);
     let (player, size) =
         Player::new(prev_path.clone()).expect("player created from this path previously");
 
