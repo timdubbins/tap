@@ -1,4 +1,4 @@
-use std::io::Error;
+use std::io::{Error, Write};
 use std::path::PathBuf;
 use std::process::{Command, ExitStatus};
 
@@ -75,29 +75,59 @@ pub fn get_random_path(app: &App, dir_count: i32) -> PathBuf {
 }
 
 // Gets the path of a subdirectory chosen via fuzzy selection.
-pub fn get_fuzzy_path(app: &App) -> PathBuf {
+pub fn get_fuzzy_path(app: &App, second_path: Option<PathBuf>, start: Option<String>) -> PathBuf {
     let fuzzy_cmd = match app.fuzzy_mode {
         FuzzyMode::FZF => FZF_CMD.into(),
         FuzzyMode::SK => SK_CMD.into(),
         _ => "",
     };
 
-    let arg = match (app.search_dir, app.fd_available) {
-        (SearchDir::CurrentDir, true) => {
-            format!("fd -t d --min-depth 1 | {}", fuzzy_cmd)
-        }
-        (SearchDir::CurrentDir, false) => format!(
-            r"find . -mindepth 1 -type d \( -name '.?*' -prune -o -print \) | sed -n 's|^./||p' | sort | {}",
-            fuzzy_cmd
-        ),
-        (SearchDir::PathArg, true) => format!(
-            "fd . '{}' -t d --min-depth 1 | sed -n 's|^{}/||p' | {}",
-            app.path_string, app.path_string, fuzzy_cmd
-        ),
-        (SearchDir::PathArg, false) => format!(
-            "find '{}' -mindepth 1 -type d | sed -n 's|^{}/||p' | sort | {}",
-            app.path_string, app.path_string, fuzzy_cmd
-        ),
+    let path = match second_path {
+        Some(p) => p.into_os_string().into_string().unwrap(),
+        None => app.path.clone().into_os_string().into_string().unwrap(),
+    };
+
+    let arg = match start {
+        Some(s) => match (app.search_dir, app.fd_available) {
+            (SearchDir::CurrentDir, true) => {
+                format!("fd '^{}' -t d --max-depth 1 | {}", s, fuzzy_cmd)
+            }
+            (SearchDir::CurrentDir, false) => format!(
+                r"find . -maxdepth 1 -name '[{}{}]*' -type d \( -name '.?*' -prune -o -print \) | sed -n 's|^./||p' | sort | {}",
+                s,
+                s.to_uppercase(),
+                fuzzy_cmd
+            ),
+            (SearchDir::PathArg, true) => format!(
+                "fd '^{}' '{}' -t d --max-depth 1 | sed -n 's|^{}/||p' | {}",
+                s, path, path, fuzzy_cmd
+            ),
+            (SearchDir::PathArg, false) => format!(
+                "find {} -maxdepth 1 -name '[{}{}]*' -type d | sed -n 's|^{}/||p' | sort | {}",
+                path,
+                s,
+                s.to_uppercase(),
+                path,
+                fuzzy_cmd
+            ),
+        },
+        None => match (app.search_dir, app.fd_available) {
+            (SearchDir::CurrentDir, true) => {
+                format!("fd -t d --min-depth 1 | {}", fuzzy_cmd)
+            }
+            (SearchDir::CurrentDir, false) => format!(
+                r"find . -mindepth 1 -type d \( -name '.?*' -prune -o -print \) | sed -n 's|^./||p' | sort | {}",
+                fuzzy_cmd
+            ),
+            (SearchDir::PathArg, true) => format!(
+                "fd . '{}' -t d --min-depth 1 | sed -n 's|^{}/||p' | {}",
+                path, path, fuzzy_cmd
+            ),
+            (SearchDir::PathArg, false) => format!(
+                "find '{}' -mindepth 1 -type d | sed -n 's|^{}/||p' | sort | {}",
+                path, path, fuzzy_cmd
+            ),
+        },
     };
 
     let output = Command::new("/bin/bash")
@@ -110,8 +140,12 @@ pub fn get_fuzzy_path(app: &App) -> PathBuf {
         .unwrap();
 
     let stdout = String::from_utf8(output.stdout).unwrap();
+    // FIXME - remove after debugging
+    let mut buffer = std::fs::File::create("log.txt").unwrap();
+    buffer.write_all(stdout.as_bytes()).unwrap();
+
     let relative_path = PathBuf::from(stdout.replace("\n", ""));
-    let mut path = app.path.clone();
+    let mut path = PathBuf::from(path);
 
     path.push(relative_path);
     path

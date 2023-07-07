@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use cursive::event::{Event, Key};
+use cursive::event::{Event, EventResult, Key};
 use cursive::view::Resizable;
 use cursive::Cursive;
 
@@ -28,8 +28,9 @@ impl App {
 
         if searchable && fuzzy_mode == FuzzyMode::None {
             anyhow::bail!(
-                "{:?} contains subdirectories and requires a fuzzy-finder to run. Install either `fzf` or `skim` to enable fuzzy-finding.",
-                path
+                "'{}' contains subdirectories and requires a fuzzy-finder to run. \
+                Install either `fzf` or `skim` to enable fuzzy-finding.",
+                path.display()
             )
         }
 
@@ -48,9 +49,7 @@ impl App {
     pub fn run() -> Result<(), anyhow::Error> {
         let app = App::try_new()?;
 
-        // Clone for use in pre-event callback.
-        let app_clone = app.clone();
-
+        // The cursive root.
         let mut siv = cursive::default();
 
         // Set style and background color.
@@ -60,30 +59,37 @@ impl App {
         // Initialize the player and player view.
         app.init_player(&mut siv)?;
 
-        // Create a new player from a random selection.
-        siv.set_on_pre_event(Event::Char('r'), move |s: &mut Cursive| {
-            app_clone.new_random_search(s);
-        });
-
-        // Create a new player from the previous selection.
-        siv.set_on_pre_event(Event::Char('-'), move |s: &mut Cursive| {
-            previous_search(s);
-        });
-
-        // Create a new player from a fuzzy selection.
-        siv.set_on_pre_event(Event::Key(Key::Tab), move |s: &mut Cursive| {
-            app.new_fuzzy_search(false, s)
+        // Tries to create a new player and player view from `search_events`.
+        // Replaces the old player and player view on success.
+        siv.set_on_pre_event_inner(is_search_event, move |e: &Event| {
+            let c = search_events(e);
+            let app = app.clone();
+            Some(EventResult::with_cb(move |s| {
+                if let Some(c) = c {
+                    if c.is_alphabetic() {
+                        let anchor = Some(c.into());
+                        app.fuzzy_search_with_anchor(anchor, s)
+                    } else if c.eq(&'0') {
+                        app.fuzzy_search(s)
+                    } else if c.eq(&'1') {
+                        app.random_selection(s)
+                    } else if c.eq(&'2') {
+                        previous_selection(s)
+                    }
+                }
+            }))
         });
 
         // Quit the app.
-        siv.set_on_pre_event(Event::Char('q'), move |s: &mut Cursive| s.quit());
+        siv.set_on_pre_event(Event::Char('q'), |s: &mut Cursive| s.quit());
 
-        // Set fps to lowest value that looks steady.
+        // Set to lowest value that looks steady.
         siv.set_fps(16);
+
+        // Start the event loop.
         siv.run();
 
         clear_terminal()?;
-
         Ok(())
     }
 
@@ -92,15 +98,13 @@ impl App {
         s.set_user_data(vec![PathBuf::new()]);
 
         if self.fuzzy_mode != FuzzyMode::None {
-            self.new_fuzzy_search(true, s)
+            self.initial_fuzzy_search(s)
         } else {
             let (player, size) = Player::new(self.path.clone())?;
             load_player((player, size), s);
         }
 
         // Replace the dummy user data with a copy of the initial player path.
-        // Now selecting a previous player will reselect the current player
-        // until a new selection is made.
         s.with_user_data(|paths: &mut Vec<PathBuf>| {
             let p = paths.last().expect("path set on init");
             paths.push(p.clone());
@@ -110,39 +114,92 @@ impl App {
         Ok(())
     }
 
-    fn new_fuzzy_search(&self, is_first_run: bool, s: &mut Cursive) {
+    // Runs a fuzzy search on all child directories. Attempts to
+    // descend into child directories if the selection contains
+    // subdirectories. Invalid selections are ignored.
+    fn fuzzy_search(&self, s: &mut Cursive) {
+        self._fuzzy_search(None, false, None, s)
+    }
+
+    // Runs a fuzzy search on top level directories that start
+    // with the `anchor` letter. Runs a second fuzzy search if
+    // the selection contains subdirectories. Invalid selections
+    // are ignored.
+    fn fuzzy_search_with_anchor(&self, anchor: Option<String>, s: &mut Cursive) {
+        self._fuzzy_search(None, false, anchor, s)
+    }
+
+    // Runs the initial fuzzy search. Exits the program if
+    // the selection is invalid.
+    fn initial_fuzzy_search(&self, s: &mut Cursive) {
+        self._fuzzy_search(None, true, None, s)
+    }
+
+    // Tries to load a new player from a fuzzy search.
+    fn _fuzzy_search(
+        &self,
+        second_path: Option<PathBuf>,
+        is_first_run: bool,
+        anchor: Option<String>,
+        s: &mut Cursive,
+    ) {
         if self.fuzzy_mode == FuzzyMode::None {
             return;
         }
 
-        let fuzzy_path = get_fuzzy_path(&self);
+        let fuzzy_path = get_fuzzy_path(&self, second_path.clone(), anchor);
         let curr_path = s
             .user_data::<Vec<PathBuf>>()
             .expect("user data should be set on init")
             .last()
             .expect("current path is the last entry in user data");
 
-        let mut path = self.path.clone();
+        let mut search_root = match second_path {
+            Some(p) => p,
+            None => self.path.clone(),
+        };
         // Push an empty path to append a trailing slash.
-        path.push("");
+        search_root.push("");
 
-        if fuzzy_path.eq(&path) || fuzzy_path.eq(curr_path) {
+        // Try to load a new player from the fuzzy path.
+        if fuzzy_path.eq(&search_root) || fuzzy_path.eq(curr_path) {
             if is_first_run {
-                // We are here if the initial fuzzy selection was escaped so
-                // we can exit early.
-                std::process::exit(1);
-            } else {
-                // We are here if the fuzzy selection was escaped or the
-                // the new selection matched the current selection. We redraw
-                // the screen as the player will not be changed.
-                s.clear()
+                // Initial fuzzy search was escaped. This
+                // is not considered an error.
+                std::process::exit(0);
             }
-        } else if let Ok((player, size)) = Player::new(fuzzy_path) {
-            load_player((player, size), s)
+        } else if has_child_dirs(&fuzzy_path) {
+            // The fuzzy_path contains subdirectories so we use
+            // it to spawn another fuzzy search, recursing until
+            // we find a leaf directory.
+            if let Ok(p) = remove_trailing_slash(fuzzy_path.clone()) {
+                self._fuzzy_search(Some(p), is_first_run, None, s);
+                return;
+            }
+        } else {
+            match Player::new(fuzzy_path) {
+                Ok((player, size)) => {
+                    load_player((player, size), s);
+                }
+                Err(e) => {
+                    if is_first_run {
+                        // The event loop has not been run so we can print
+                        // the error message without returning a result.
+                        eprintln!("[tap error]: {:#}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
         }
+
+        // We are here if the new player was loaded or the old
+        // player was resumed. In either case we need a redraw.
+        s.clear();
     }
 
-    fn new_random_search(&self, s: &mut Cursive) {
+    // Selects a child directory at random. Loads a new player
+    // with a valid selection. Invalid selections are ignored.
+    fn random_selection(&self, s: &mut Cursive) {
         if !self.searchable {
             return;
         }
@@ -150,6 +207,7 @@ impl App {
         let dir_count = get_dir_count(&self);
         let mut count = 0;
 
+        // Loop until we find a valid selection or we give up.
         while count < 10 {
             let random_path = get_random_path(&self, dir_count);
             let curr_path = s
@@ -171,6 +229,57 @@ impl App {
     }
 }
 
+// Returns true if a `search_event` has been triggered.
+fn is_search_event(event: &Event) -> bool {
+    search_events(event) != None
+}
+
+// Creates a mapping of events to `search_events`. This allows
+// us to match on the `search_events` from an inner callback
+// without needing multiple clones of `app`.
+fn search_events(event: &Event) -> Option<char> {
+    // '0' : fuzzy_search
+    // '1' : random_selection
+    // '2' : previous_selection
+    // 'a...z' : fuzzy_search_with_anchor
+    match event {
+        Event::Key(Key::Tab) => Some('0'),
+        Event::Char(_) => match event {
+            Event::Char('r') => Some('1'),
+            Event::Char('-') => Some('2'),
+            Event::Char('A') => Some('a'),
+            Event::Char('B') => Some('b'),
+            Event::Char('C') => Some('c'),
+            Event::Char('D') => Some('d'),
+            Event::Char('E') => Some('e'),
+            Event::Char('F') => Some('f'),
+            Event::Char('G') => Some('g'),
+            Event::Char('H') => Some('h'),
+            Event::Char('I') => Some('i'),
+            Event::Char('J') => Some('j'),
+            Event::Char('K') => Some('k'),
+            Event::Char('L') => Some('l'),
+            Event::Char('M') => Some('m'),
+            Event::Char('N') => Some('n'),
+            Event::Char('O') => Some('o'),
+            Event::Char('P') => Some('p'),
+            Event::Char('Q') => Some('q'),
+            Event::Char('R') => Some('r'),
+            Event::Char('S') => Some('s'),
+            Event::Char('T') => Some('t'),
+            Event::Char('U') => Some('u'),
+            Event::Char('V') => Some('v'),
+            Event::Char('W') => Some('w'),
+            Event::Char('X') => Some('x'),
+            Event::Char('Y') => Some('y'),
+            Event::Char('Z') => Some('z'),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+// Updates the user data and player view.
 fn load_player((player, size): (Player, Size), s: &mut Cursive) {
     s.with_user_data(|paths: &mut Vec<PathBuf>| {
         paths.push(player.path.clone());
@@ -187,7 +296,8 @@ fn load_player((player, size): (Player, Size), s: &mut Cursive) {
     );
 }
 
-fn previous_search(s: &mut Cursive) {
+// Selects and loads the previous player.
+fn previous_selection(s: &mut Cursive) {
     let prev_path = s
         .user_data::<Vec<PathBuf>>()
         .expect("user data should be set on init")
