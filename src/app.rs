@@ -112,28 +112,26 @@ impl App {
         Ok(())
     }
 
-    // Runs a fuzzy search on all child directories. Attempts to
-    // descend into child directories if the selection contains
-    // subdirectories. Invalid selections are ignored.
+    // Runs a fuzzy search on all child directories.
+    // Invalid selections are ignored.
     fn fuzzy_search(&self, s: &mut Cursive) {
         self._fuzzy_search(None, false, None, s)
     }
 
     // Runs a fuzzy search on top level directories that start
-    // with the `anchor` letter. Runs a second fuzzy search if
-    // the selection contains subdirectories. Invalid selections
-    // are ignored.
+    // with the `anchor` letter. Invalid selections are ignored.
     fn fuzzy_search_with_anchor(&self, anchor: Option<String>, s: &mut Cursive) {
         self._fuzzy_search(None, false, anchor, s)
     }
 
-    // Runs the initial fuzzy search. Exits the program if
-    // the selection is invalid.
+    // Runs the initial fuzzy search.
+    // Exits the program if the selection is invalid.
     fn initial_fuzzy_search(&self, s: &mut Cursive) {
         self._fuzzy_search(None, true, None, s)
     }
 
-    // Tries to load a new player from a fuzzy search.
+    // Tries to load a new player from a fuzzy search. Selections that
+    // contain two or more children are fuzzy searched on.
     fn _fuzzy_search(
         &self,
         second_path: Option<PathBuf>,
@@ -162,9 +160,8 @@ impl App {
                 std::process::exit(0);
             }
         } else if has_child_dirs(&fuzzy_path) {
-            // The fuzzy_path contains subdirectories so we use
-            // it to spawn another fuzzy search, recursing until
-            // we find a leaf directory.
+            // Descend the directory levels recursively until
+            // the selection contains less than two children.
             if let Ok(p) = remove_trailing_slash(fuzzy_path.clone()) {
                 self._fuzzy_search(Some(p), is_first_run, None, s);
                 return;

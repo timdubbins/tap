@@ -336,7 +336,6 @@ impl Player {
         }
 
         can_decode(&audio_files.first())?;
-
         audio_files.sort();
 
         Ok((audio_files, width))
@@ -348,6 +347,7 @@ fn valid_ext(p: &PathBuf) -> bool {
     FORMATS.contains(&ext)
 }
 
+// Returns true if the first file in audio_files can be decoded.
 fn can_decode(audio_files: &Option<&AudioFile>) -> Result<(), anyhow::Error> {
     let path = audio_files.expect("audio_files not empty").path.as_path();
     let f = match File::open(path) {
