@@ -48,7 +48,7 @@ pub fn remove_trailing_slash(p: PathBuf) -> Result<PathBuf, anyhow::Error> {
                 s.pop();
                 Ok(PathBuf::from(s))
             }
-            Err(_) => bail!("Couldn't remove trailing slash from {:?}", p),
+            Err(_) => bail!("Couldn't remove trailing slash from '{}'", p.display()),
         }
     } else {
         Ok(p)

@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{fs::File, io::Write, path::PathBuf};
 
 use anyhow::bail;
 use clap::Parser;
@@ -23,7 +23,7 @@ impl Args {
         };
 
         if !path.exists() {
-            bail!("{:?} doesn't exist.", path)
+            bail!("'{}' doesn't exist.", path.display())
         }
 
         // We remove trailing slashes from the path in order
@@ -31,10 +31,12 @@ impl Args {
         let p = remove_trailing_slash(path)?;
 
         let s = match p.clone().into_os_string().into_string() {
-            Ok(s) => s,
-            Err(_) => bail!("Couldn't convert path arg to string."),
+            Ok(s) => s.replace(" ", r"\ "),
+            Err(_) => bail!("Couldn't convert '{}' to string.", p.display()),
         };
 
+        let mut file = File::create("foo.txt")?;
+        file.write_all(s.as_bytes())?;
         Ok((p, s))
     }
 }
