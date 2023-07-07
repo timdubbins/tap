@@ -94,16 +94,17 @@ impl Player {
                 self.status = PlayerStatus::Paused;
             }
 
-            // TODO - find a way to propagate these error through `EventResult`.
-            // Possibly show an error and skip the file instead of crashing.
+            // TODO - is panicking the only way we can return an error
+            // message here? should we skip unplayable tracks?
             PlayerStatus::Stopped => {
-                let f = match File::open(self.file.path.as_path()) {
+                let p = &self.file.path;
+                let f = match File::open(p.as_path()) {
                     Ok(f) => f,
-                    Err(_) => panic!("Could not open {:?}.", self.file.path.as_path()),
+                    Err(_) => panic!("Could not open '{}'.", p.display()),
                 };
                 let s = match Decoder::new(BufReader::new(f)) {
                     Ok(s) => s,
-                    Err(_) => panic!("Could not decode {:?}.", self.file.path.as_path()),
+                    Err(_) => panic!("Could not decode '{}'.", p.display()),
                 };
 
                 self.sink.append(s);
@@ -285,7 +286,7 @@ impl Player {
         let mut dir_empty = true;
 
         // The error we get if we can't create an audio file.
-        let mut audio_file_err: Option<anyhow::Error> = None;
+        let mut error: Option<anyhow::Error> = None;
 
         if path.is_dir() {
             for entry in path.read_dir().expect("valid directory") {
@@ -306,7 +307,7 @@ impl Player {
                                 audio_files.push(f)
                             }
                             // Save the error in case the playlist is empty.
-                            Err(e) => audio_file_err = Some(e),
+                            Err(e) => error = Some(e),
                         }
                     }
                 }
@@ -326,13 +327,15 @@ impl Player {
 
         if audio_files.is_empty() {
             match dir_empty {
-                true => bail!("{:?} is empty.", path),
-                false => match audio_file_err {
+                true => bail!("'{}' is empty.", path.display()),
+                false => match error {
                     Some(e) => bail!(e),
-                    None => bail!("no valid files found in {:?}.", path),
+                    None => bail!("No valid files found in '{}'.", path.display()),
                 },
             }
         }
+
+        can_decode(&audio_files.first())?;
 
         audio_files.sort();
 
@@ -343,4 +346,18 @@ impl Player {
 fn valid_ext(p: &PathBuf) -> bool {
     let ext = p.extension().unwrap_or_default().to_str().unwrap();
     FORMATS.contains(&ext)
+}
+
+fn can_decode(audio_files: &Option<&AudioFile>) -> Result<(), anyhow::Error> {
+    let path = audio_files.expect("audio_files not empty").path.as_path();
+    let f = match File::open(path) {
+        Ok(f) => f,
+        Err(_) => bail!("Could not open '{}'.", path.display()),
+    };
+    let _ = match Decoder::new(BufReader::new(f)) {
+        Ok(s) => s,
+        Err(_) => bail!("Could not decode '{}'.", path.display()),
+    };
+
+    Ok(())
 }
