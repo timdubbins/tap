@@ -2,6 +2,7 @@ use std::{os::unix::prelude::OsStrExt, path::PathBuf};
 
 use anyhow::bail;
 
+// Returns true if the `programs` are on user's PATH variable.
 pub fn env_var_includes(programs: &[&str]) -> bool {
     if let Ok(path) = std::env::var("PATH") {
         for sub_str in path.split(":") {
@@ -40,6 +41,7 @@ pub fn has_child_dirs(path: &PathBuf) -> bool {
     false
 }
 
+// Returns the PathBuf on success.
 pub fn remove_trailing_slash(p: PathBuf) -> Result<PathBuf, anyhow::Error> {
     if has_trailing_slash(&p) {
         match p.clone().into_os_string().into_string() {
