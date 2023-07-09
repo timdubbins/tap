@@ -1,4 +1,4 @@
-use std::{fs::File, io::Write, path::PathBuf};
+use std::path::PathBuf;
 
 use anyhow::bail;
 use clap::Parser;
@@ -13,7 +13,7 @@ pub struct Args {
 }
 
 impl Args {
-    pub fn parse_path() -> Result<(PathBuf, String), anyhow::Error> {
+    pub fn parse_path() -> Result<PathBuf, anyhow::Error> {
         let path = match Args::parse().second_path {
             Some(p) => p,
             None => match Args::parse().path {
@@ -30,13 +30,6 @@ impl Args {
         // to provide consistent behavior between OSs.
         let p = remove_trailing_slash(path)?;
 
-        let s = match p.clone().into_os_string().into_string() {
-            Ok(s) => s.replace(" ", r"\ "),
-            Err(_) => bail!("Couldn't convert '{}' to string.", p.display()),
-        };
-
-        let mut file = File::create("foo.txt")?;
-        file.write_all(s.as_bytes())?;
-        Ok((p, s))
+        Ok(p)
     }
 }

@@ -14,20 +14,18 @@ use crate::utils::*;
 #[derive(Clone)]
 pub struct App {
     pub fd_available: bool,
-    pub fuzzy_mode: FuzzyMode,
+    pub fuzzy_mode: Option<FuzzyMode>,
     pub path: PathBuf,
-    pub path_string: String,
-    pub search_dir: SearchDir,
     pub searchable: bool,
 }
 
 impl App {
     fn try_new() -> Result<Self, anyhow::Error> {
-        let (path, path_string) = Args::parse_path()?;
+        let path = Args::parse_path()?;
         let searchable = has_child_dirs(&path);
         let fuzzy_mode = FuzzyMode::get(searchable);
 
-        if searchable && fuzzy_mode == FuzzyMode::None {
+        if searchable && fuzzy_mode.is_none() {
             anyhow::bail!(
                 "'{}' contains subdirectories and requires a fuzzy-finder to run. \
                 Install either `fzf` or `skim` to enable fuzzy-finding.",
@@ -38,9 +36,7 @@ impl App {
         let app = Self {
             fd_available: env_var_includes(&["fd"]),
             fuzzy_mode: FuzzyMode::get(searchable),
-            search_dir: SearchDir::get(&path)?,
             path: path,
-            path_string: path_string,
             searchable,
         };
 
@@ -69,7 +65,7 @@ impl App {
                 if let Some(c) = c {
                     if c.is_alphabetic() {
                         let anchor = Some(c.into());
-                        app.fuzzy_search_with_anchor(anchor, s)
+                        app.filtered_fuzzy_search(anchor, s)
                     } else if c.eq(&'0') {
                         app.fuzzy_search(s)
                     } else if c.eq(&'1') {
@@ -98,7 +94,7 @@ impl App {
         // Add dummy user data so we can load the initial player.
         s.set_user_data(VecDeque::from([PathBuf::new(), PathBuf::new()]));
 
-        if self.fuzzy_mode != FuzzyMode::None {
+        if self.fuzzy_mode.is_some() {
             self.initial_fuzzy_search(s)
         } else {
             let (player, size) = Player::new(self.path.clone())?;
@@ -120,7 +116,7 @@ impl App {
 
     // Runs a fuzzy search on top level directories that start
     // with the `anchor` letter. Invalid selections are ignored.
-    fn fuzzy_search_with_anchor(&self, anchor: Option<String>, s: &mut Cursive) {
+    fn filtered_fuzzy_search(&self, anchor: Option<String>, s: &mut Cursive) {
         self._fuzzy_search(None, false, anchor, s)
     }
 
@@ -139,7 +135,7 @@ impl App {
         anchor: Option<String>,
         s: &mut Cursive,
     ) {
-        if self.fuzzy_mode == FuzzyMode::None {
+        if self.fuzzy_mode.is_none() {
             return;
         }
 
@@ -268,9 +264,9 @@ fn search_events(event: &Event) -> Option<char> {
 fn previous_path(s: &mut Cursive) -> PathBuf {
     let prev_path = s
         .user_data::<VecDeque<PathBuf>>()
-        .expect("user data is set on init")
+        .expect("user data should be set on init")
         .front()
-        .expect("previous path is at the start of the queue")
+        .expect("previous path should be at the start of the queue")
         .to_owned();
 
     prev_path
@@ -280,9 +276,9 @@ fn previous_path(s: &mut Cursive) -> PathBuf {
 fn current_path(s: &mut Cursive) -> PathBuf {
     let curr_path = s
         .user_data::<VecDeque<PathBuf>>()
-        .expect("user data is set on init")
+        .expect("user data should be set on init")
         .back()
-        .expect("player path is appended when player is created")
+        .expect("player path should be appended when player is created")
         .to_owned();
 
     curr_path
@@ -307,43 +303,30 @@ fn load_player((player, size): (Player, Size), s: &mut Cursive) {
 fn previous_selection(s: &mut Cursive) {
     let prev_path = previous_path(s);
     let (player, size) =
-        Player::new(prev_path.clone()).expect("player created from this path previously");
+        Player::new(prev_path.clone()).expect("path has been validated with the previous player");
 
     load_player((player, size), s);
 }
 
+// The fuzzy-search utilities supported by tap.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum FuzzyMode {
+    // https://github.com/junegunn/fzf
     FZF,
+    // https://github.com/lotabout/skim
     SK,
-    None,
 }
 
 impl FuzzyMode {
-    pub fn get(searchable: bool) -> Self {
+    // Gets the `fuzzy_mode` that is available.
+    fn get(searchable: bool) -> Option<Self> {
         if searchable {
             if env_var_includes(&["fzf"]) {
-                return FuzzyMode::FZF;
+                return Some(FuzzyMode::FZF);
             } else if env_var_includes(&["sk"]) {
-                return FuzzyMode::SK;
+                return Some(FuzzyMode::SK);
             }
         }
-        FuzzyMode::None
-    }
-}
-
-#[derive(Clone, Copy, PartialEq)]
-pub enum SearchDir {
-    CurrentDir,
-    PathArg,
-}
-
-impl SearchDir {
-    pub fn get(path: &PathBuf) -> Result<Self, anyhow::Error> {
-        if std::env::current_dir()?.eq(path) {
-            return Ok(SearchDir::CurrentDir);
-        } else {
-            return Ok(SearchDir::PathArg);
-        }
+        None
     }
 }
