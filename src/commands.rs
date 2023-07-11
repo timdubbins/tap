@@ -14,7 +14,7 @@ const SK_CMD: &'static str = "sk --color dark,border:#b294bb,spinner:#cc6666,hl:
 
 // Gets the number of subdirectories.
 pub fn get_dir_count(app: &App) -> i32 {
-    // The list all child directories, excluding hidden directories.
+    // Command to list all child directories, excluding hidden directories.
     let find_dirs = find_dirs(app.fd_available, false);
 
     // Command to count number of lines.
@@ -131,7 +131,6 @@ fn find_dirs(fd_available: bool, is_printed: bool) -> String {
     }
 }
 
-// Tries to clear the current terminal by printing blank lines.
 pub fn clear_terminal() -> Result<ExitStatus, Error> {
     Command::new("cls")
         .status()

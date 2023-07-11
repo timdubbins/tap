@@ -91,8 +91,11 @@ impl App {
     }
 
     fn init_player(&self, s: &mut Cursive) -> Result<(), anyhow::Error> {
-        // Add dummy user data so we can load the initial player.
+        // Add dummy user data so we can load initial player.
         s.set_user_data(VecDeque::from([PathBuf::new(), PathBuf::new()]));
+
+        // Add dummy view, also required to load initial player.
+        s.add_layer(cursive::views::DummyView);
 
         if self.fuzzy_mode.is_some() {
             self.initial_fuzzy_search(s)
@@ -123,6 +126,7 @@ impl App {
     // Runs the initial fuzzy search.
     // Exits the program if the selection is invalid.
     fn initial_fuzzy_search(&self, s: &mut Cursive) {
+        s.add_layer(cursive::views::TextView::new("").full_screen());
         self._fuzzy_search(None, true, None, s)
     }
 
@@ -154,6 +158,10 @@ impl App {
                 // Initial fuzzy search was escaped. This
                 // is not considered an error.
                 std::process::exit(0);
+            } else {
+                // Subsequent fuzzy search was escaped. We resume the
+                // current player which requires redrawing the screen.
+                s.clear();
             }
         } else if has_child_dirs(&fuzzy_path) {
             // Descend the directory levels recursively until
@@ -177,10 +185,6 @@ impl App {
                 }
             }
         }
-
-        // We are here if the new player was loaded or the old
-        // player was resumed. In either case we need a redraw.
-        s.clear();
     }
 
     // Selects a child directory at random. Loads a new player
@@ -286,17 +290,25 @@ fn current_path(s: &mut Cursive) -> PathBuf {
 
 // Updates the user data and player view.
 fn load_player((player, size): (Player, Size), s: &mut Cursive) {
-    s.with_user_data(|history: &mut VecDeque<PathBuf>| {
-        history.push_back(player.path.clone());
-        history.pop_front();
-    });
-    s.pop_layer();
+    let path = player.path.clone();
+
+    // Add the new player view.
     s.add_layer(
         PlayerView::new(player)
             .full_width()
             .max_width(std::cmp::max(size.0, 53))
             .fixed_height(size.1),
     );
+
+    // Remove the previous player view.
+    s.screen_mut()
+        .remove_layer(cursive::views::LayerPosition::FromFront(1));
+
+    // Keep a reference to the current and previous player.
+    s.with_user_data(|history: &mut VecDeque<PathBuf>| {
+        history.push_back(path);
+        history.pop_front();
+    });
 }
 
 // Selects and loads the previous player.

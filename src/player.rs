@@ -29,7 +29,7 @@ pub struct Player {
     pub is_muted: bool,
     pub status: PlayerStatus,
     pub numbers_pressed: Vec<usize>,
-    pub is_chord: Arc<AtomicBool>,
+    pub previous_key: Arc<AtomicBool>,
     indices: HashMap<u32, usize>,
     last_started: Instant,
     last_elapsed: Duration,
@@ -63,7 +63,7 @@ impl Player {
             last_elapsed: Duration::default(),
             index: 0,
             numbers_pressed: vec![],
-            is_chord: Arc::new(AtomicBool::new(false)),
+            previous_key: Arc::new(AtomicBool::new(false)),
             is_muted: false,
             playlist,
             file,
@@ -148,24 +148,24 @@ impl Player {
 
     fn clear(&mut self) {
         self.numbers_pressed.clear();
-        self.is_chord.store(false, Ordering::Relaxed)
+        self.previous_key.store(false, Ordering::Relaxed)
     }
 
     fn select_track(&mut self) -> bool {
         match self.numbers_pressed.is_empty() {
             true => {
-                if self.is_chord.load(Ordering::Relaxed) {
+                if self.previous_key.load(Ordering::Relaxed) {
                     self.select_first_track()
                 } else {
-                    // Set `is_chord` to true temporarily so that calling
+                    // Set `previous_key` to true temporarily so that calling
                     // this function twice in quick succession will allow
                     // us to run the 'if' block of this conditional. This
-                    // is to simulate a double tap gesture.
-                    self.is_chord.store(true, Ordering::Relaxed);
-                    let _is_chord = self.is_chord.clone();
+                    // is to model a double tap gesture.
+                    self.previous_key.store(true, Ordering::Relaxed);
+                    let _previous_key = self.previous_key.clone();
                     task::spawn(async move {
                         task::sleep(Duration::from_millis(500)).await;
-                        _is_chord.store(false, Ordering::Relaxed)
+                        _previous_key.store(false, Ordering::Relaxed)
                     });
                     false
                 }
@@ -275,6 +275,8 @@ impl Player {
         }
     }
 
+    // Tries to create a playlist from the given path. Returns the list
+    // and the required width for the player on success.
     pub fn create_playlist(path: PathBuf) -> Result<(Vec<AudioFile>, usize), anyhow::Error> {
         // The list of files to use in the player.
         let mut audio_files = vec![];
@@ -288,8 +290,11 @@ impl Player {
         // The error we get if we can't create an audio file.
         let mut error: Option<anyhow::Error> = None;
 
+        // Add valid files to the audio_files list, updating the
+        // width value on each entry. If we find a directory use
+        // it to build the list instead of the current path.
         if path.is_dir() {
-            for entry in path.read_dir().expect("valid directory") {
+            for entry in path.read_dir()? {
                 dir_empty = false;
                 if let Ok(entry) = entry {
                     let path = entry.path();
@@ -325,6 +330,8 @@ impl Player {
             }
         }
 
+        // Give an appropriate error if we fail to
+        // find any valid files.
         if audio_files.is_empty() {
             match dir_empty {
                 true => bail!("'{}' is empty.", path.display()),
