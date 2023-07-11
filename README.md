@@ -66,7 +66,7 @@ If you're on <b>macOS</b> you can use <a href="https://brew.sh/">Homebrew</a>:
 ```bash
 > brew install timdubbins/tap/tap
 > tap --version
-0.2.1
+0.2.2
 ```
 
 If you're on <b>Arch</b> you can grab the <a href="https://aur.archlinux.org/packages/tap">AUR package</a>.
@@ -76,16 +76,16 @@ such as <a href="https://github.com/Jguer/yay">yay</a>:
 ```bash
 > yay -S tap
 > tap --version
-0.2.1
+0.2.2
 ```
 
-If you're a <b>Debian</b> user (or a user of a Debian derivative like <b>Ubuntu</b> then tap can be installed using a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.2.1">tap release</a>.
+If you're a <b>Debian</b> user (or a user of a Debian derivative like <b>Ubuntu</b> then tap can be installed using a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.2.2">tap release</a>.
 
 ```bash
-> curl -LO https://github.com/timdubbins/tap/releases/download/v0.2.1/tap_v0.2.1_amd64.deb
-> sudo dpkg -i tap_v0.2.1_amd64.deb
+> curl -LO https://github.com/timdubbins/tap/releases/download/v0.2.2/tap_v0.2.2_amd64.deb
+> sudo dpkg -i tap_v0.2.2_amd64.deb
 > tap --version
-0.2.1
+0.2.2
 ```
 
 To compile from source, first you need a <a href="https://www.rust-lang.org/">Rust installation</a> (if you don't have one) and then you can use <a href="https://github.com/rust-lang/cargo">cargo</a>:
@@ -95,10 +95,10 @@ To compile from source, first you need a <a href="https://www.rust-lang.org/">Ru
 > cd tap
 > cargo install --path .
 > tap --version
-0.2.1
+0.2.2
 ```
 
-The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.2.1).
+The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.2.2).
 </details>
 
 2. <b>Install [fzf](https://github.com/junegunn/fzf) or [skim](https://github.com/lotabout/skim) (optional).</b> fzf is a very popular fuzzy finder and skim is a Rust alternative to fzf.<br><i>Installing either program will enable fuzzy-finding in tap.</i>
