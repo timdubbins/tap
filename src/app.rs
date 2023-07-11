@@ -231,6 +231,8 @@ fn search_events(event: &Event) -> Option<char> {
         Event::Key(Key::Tab) => Some('0'),
         Event::Char(_) => match event {
             Event::Char('r') => Some('1'),
+            Event::Char('=') => Some('1'),
+            Event::Char('b') => Some('2'),
             Event::Char('-') => Some('2'),
             Event::Char('A') => Some('a'),
             Event::Char('B') => Some('b'),

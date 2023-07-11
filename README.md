@@ -35,15 +35,17 @@ Passing in a second path argument will overide the path provided in the alias, s
 
 Command | Keybinding
 ---|---
-new fuzzy search | `TAB`
-random selection | `r`
-previous selection | `R`
-play or pause | `p` or `SPACE`
+fuzzy search | `TAB`
+filtered search | `A...Z`
+cancel search | `ESC`
+previous selection | `-` or `b`
+random selection | `=` or `r`
+play or pause | `SPACE` or `p`
 stop | `.` or `s`
 next | `j` or `DOWN` or `l` or `RIGHT`
 previous | `k` or `UP` or `h` or `LEFT`
-go to first track | `gg`
-go to last track | `G`
+go to first track | `[` or `gg`
+go to last track | `]` or `e`
 go to track number | `0...9` + `g` or `ENTER`
 toggle mute | `m`
 quit | `q`
@@ -99,9 +101,9 @@ To compile from source, first you need a <a href="https://www.rust-lang.org/">Ru
 The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.2.1).
 </details>
 
-2. <b>Install [fzf](https://github.com/junegunn/fzf) or [skim](https://github.com/lotabout/skim) (optional).</b> fzf is a very popular fuzzy finder and skim is a Rust alternative to fzf. Installing either program will enable fuzzy-finding in tap.
+2. <b>Install [fzf](https://github.com/junegunn/fzf) or [skim](https://github.com/lotabout/skim) (optional).</b> fzf is a very popular fuzzy finder and skim is a Rust alternative to fzf.<br><i>Installing either program will enable fuzzy-finding in tap.</i>
 
-3. <b>Install [fd](https://github.com/sharkdp/fd) (optional).</b> fd is a fast alternative to find. tap will use fd if it's installed on your machine.
+3. <b>Install [fd](https://github.com/sharkdp/fd) (optional).</b> fd is a fast alternative to the find command.<br><i>Installing fd will enable faster searching in tap.</i>
 
 ### Building
 
