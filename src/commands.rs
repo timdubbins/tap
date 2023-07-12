@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::process::{Command, ExitStatus};
 
 use rand::Rng;
+use walkdir::{DirEntry, WalkDir};
 
 use crate::app::{App, FuzzyMode};
 
@@ -12,53 +13,81 @@ const FZF_CMD: &'static str = "fzf --color bg+:#131415,bg:#131415,border:#b294bb
 // Command to run sk with the defined colors.
 const SK_CMD: &'static str = "sk --color dark,border:#b294bb,spinner:#cc6666,hl:#c5c8c6,fg:#81a2be,header:#b5bd68,info:#b294bb,pointer:#f0c674,marker:#8abeb7,fg+:#c5c8c6,prompt:#616161,hl+:#b9ca4a";
 
-// Gets the number of subdirectories.
-pub fn get_dir_count(app: &App) -> i32 {
-    // Command to list all child directories, excluding hidden directories.
-    let find_dirs = find_dirs(app.fd_available, false);
+fn is_non_hidden_dir(entry: &walkdir::DirEntry) -> bool {
+    is_dir(entry) && !is_hidden(entry)
+}
 
-    // Command to count number of lines.
-    let line_count: &'static str = "wc -l";
+// Returns true if the entry is a directory.
+fn is_dir(entry: &walkdir::DirEntry) -> bool {
+    entry.file_type().is_dir()
+}
 
-    let output = Command::new("/bin/bash")
-        .arg("-c")
-        .arg(format!("{} | {}", find_dirs, line_count))
-        .current_dir(&app.path)
-        .output()
-        .expect("process should execute");
+// Returns true if the entry is hidden.
+fn is_hidden(entry: &walkdir::DirEntry) -> bool {
+    entry
+        .file_name()
+        .to_str()
+        .map(|s| s.starts_with("."))
+        .unwrap_or(false)
+}
 
-    let output_string = String::from_utf8(output.stdout).unwrap();
-    let replaced = output_string.replace("\n", "");
-    let trimmed = replaced.trim();
-
-    trimmed.parse::<i32>().expect("should be a numeric string")
+// Returns an array of all child directories, relative to `path`,
+// excluding hidden directories.
+pub fn get_entries(path: &PathBuf) -> Vec<DirEntry> {
+    WalkDir::new(path)
+        .min_depth(1)
+        .into_iter()
+        .filter_entry(is_non_hidden_dir)
+        .map(Result::unwrap)
+        .collect()
 }
 
 // Gets the path of a random subdirectory.
-pub fn get_random_path(app: &App, dir_count: i32) -> PathBuf {
-    // A random number in range [1...`number of child directories`].
-    let line = rand::thread_rng().gen_range(1..dir_count);
+pub fn get_random_path(app: &App) -> PathBuf {
+    let entries = app.entries.as_ref().unwrap();
+    let target = rand::thread_rng().gen_range(0..entries.len() - 1);
 
-    // Command to print the absolute paths of all child directories,
-    // excluding hidden directories.
-    let find_dirs = match app.fd_available {
-        true => format!("fd -t d --min-depth 1 --absolute-path"),
-        false => format!(r"find ~+ -mindepth 1 -type d \( -name '.?*' -prune -o -print \)"),
-    };
+    entries[target].to_owned().into_path()
+}
 
-    // Command to restrict lines printed to line number `line`.
-    let print_line = format!("sed -n '{}p'", line);
+pub fn get_string(entries: &Vec<DirEntry>) -> String {
+    entries
+        .into_iter()
+        .map(|e| {
+            e.file_name()
+                .to_os_string()
+                .into_string()
+                .unwrap()
+                .to_owned()
+        })
+        .collect::<Vec<String>>()
+        .join("\n")
+}
 
-    let output = Command::new("/bin/bash")
+pub fn _get_fuzzy_path(app: &App, second_path: Option<PathBuf>, anchor: Option<String>) -> PathBuf {
+    let string = app.entries_string.as_ref().unwrap();
+    let process = Command::new("/bin/bash")
         .arg("-c")
-        .arg(format!("{} | {}", find_dirs, print_line))
+        .arg(format!(
+            "printf \"{}\" | cat -n | fzf --with-nth 2.. | awk '{{print $1}}'",
+            string
+        ))
         .current_dir(&app.path)
-        .output()
-        .expect("process should execute");
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .expect("process should execute")
+        .wait_with_output()
+        .expect("wait should succeed on child");
 
-    let stdout = String::from_utf8(output.stdout).unwrap();
+    let output = String::from_utf8(process.stdout).unwrap();
+    let trimmed = output.replace("\n", "");
+    let index = trimmed
+        .parse::<usize>()
+        .expect("should be a numeric string")
+        - 1;
+    let entries = app.entries.to_owned().unwrap();
 
-    PathBuf::from(stdout.replace("\n", ""))
+    entries[index].path().into()
 }
 
 // Gets the path of a subdirectory chosen via fuzzy selection.

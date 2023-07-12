@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use cursive::event::{Event, EventResult, Key};
 use cursive::view::Resizable;
 use cursive::Cursive;
+use walkdir::DirEntry;
 
 use crate::args::Args;
 use crate::commands::*;
@@ -17,6 +18,8 @@ pub struct App {
     pub fuzzy_mode: Option<FuzzyMode>,
     pub path: PathBuf,
     pub searchable: bool,
+    pub entries: Option<Vec<DirEntry>>,
+    pub entries_string: Option<String>,
 }
 
 impl App {
@@ -33,11 +36,22 @@ impl App {
             )
         }
 
+        let (entries, entries_string) = match searchable {
+            true => {
+                let entries = get_entries(&path);
+                let entries_string = get_string(&entries);
+                (Some(entries), Some(entries_string))
+            }
+            false => (None, None),
+        };
+
         let app = Self {
             fd_available: env_var_includes(&["fd"]),
             fuzzy_mode: FuzzyMode::get(searchable),
             path: path,
             searchable,
+            entries: entries,
+            entries_string: entries_string,
         };
 
         Ok(app)
@@ -143,7 +157,7 @@ impl App {
             return;
         }
 
-        let fuzzy_path = get_fuzzy_path(&self, second_path.clone(), anchor);
+        let fuzzy_path = _get_fuzzy_path(&self, second_path.clone(), anchor);
         let curr_path = current_path(s);
         let mut search_root = match second_path {
             Some(p) => p,
@@ -194,12 +208,13 @@ impl App {
             return;
         }
 
-        let dir_count = get_dir_count(&self);
+        // let dir_count = get_dir_count(&self);
         let mut count = 0;
 
         // Loop until we find a valid selection or we give up.
         while count < 10 {
-            let random_path = get_random_path(&self, dir_count);
+            // let random_path = get_random_path(&self, dir_count);
+            let random_path = get_random_path(&self);
             let curr_path = current_path(s);
             if random_path.eq(&curr_path) {
                 // Don't reload the same player, try a different path.
@@ -223,6 +238,7 @@ fn is_search_event(event: &Event) -> bool {
 // us to match on the `search_events` from an inner callback
 // without needing multiple clones of `app`.
 fn search_events(event: &Event) -> Option<char> {
+    // search_events:
     // '0' : fuzzy_search
     // '1' : random_selection
     // '2' : previous_selection

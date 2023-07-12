@@ -18,6 +18,7 @@
         "SIGTERM",
         "SIGTSTP",
         "SIGWINCH",
-        "timdubbins"
+        "timdubbins",
+        "walkdir"
     ]
 }
