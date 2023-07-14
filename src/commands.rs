@@ -38,7 +38,7 @@ pub fn get_entries(path: &PathBuf) -> Vec<DirEntry> {
         .min_depth(1)
         .into_iter()
         .filter_entry(is_non_hidden_dir)
-        .map(Result::unwrap)
+        .filter_map(|e| e.ok())
         .collect()
 }
 
@@ -54,11 +54,8 @@ pub fn get_string(entries: &Vec<DirEntry>) -> String {
     entries
         .into_iter()
         .map(|e| {
-            e.file_name()
-                .to_os_string()
-                .into_string()
-                .unwrap()
-                .to_owned()
+            e.file_name().to_os_string().into_string().unwrap()
+            // .to_owned()
         })
         .collect::<Vec<String>>()
         .join("\n")
@@ -69,7 +66,7 @@ pub fn _get_fuzzy_path(app: &App, second_path: Option<PathBuf>, anchor: Option<S
     let process = Command::new("/bin/bash")
         .arg("-c")
         .arg(format!(
-            "printf \"{}\" | cat -n | fzf --with-nth 2.. | awk '{{print $1}}'",
+            "printf {} | cat -n | fzf --with-nth 2.. | awk '{{print $1}}'",
             string
         ))
         .current_dir(&app.path)
