@@ -14,12 +14,11 @@ use crate::utils::*;
 
 #[derive(Clone)]
 pub struct App {
-    pub fd_available: bool,
     pub fuzzy_mode: Option<FuzzyMode>,
     pub path: PathBuf,
     pub searchable: bool,
-    pub entries: Option<Vec<DirEntry>>,
-    pub entries_string: Option<String>,
+    pub dirs: Option<Vec<DirEntry>>,
+    pub search_string: Option<String>,
 }
 
 impl App {
@@ -36,22 +35,21 @@ impl App {
             )
         }
 
-        let (entries, entries_string) = match searchable {
+        let (dirs, search_string) = match searchable {
             true => {
-                let entries = get_entries(&path);
-                let entries_string = get_string(&entries);
-                (Some(entries), Some(entries_string))
+                let dirs = dirs(&path);
+                let search_string = search_string(&dirs);
+                (Some(dirs), Some(search_string))
             }
             false => (None, None),
         };
 
         let app = Self {
-            fd_available: env_var_includes(&["fd"]),
             fuzzy_mode: FuzzyMode::get(searchable),
             path: path,
             searchable,
-            entries: entries,
-            entries_string: entries_string,
+            dirs: dirs,
+            search_string: search_string,
         };
 
         Ok(app)
@@ -157,17 +155,11 @@ impl App {
             return;
         }
 
-        let fuzzy_path = _get_fuzzy_path(&self, second_path.clone(), anchor);
+        let fuzzy_path = fuzzy_path(&self, second_path.clone(), anchor);
         let curr_path = current_path(s);
-        let mut search_root = match second_path {
-            Some(p) => p,
-            None => self.path.clone(),
-        };
-        // Push an empty path to append a trailing slash.
-        search_root.push("");
 
         // Try to load a new player from the fuzzy path.
-        if fuzzy_path.eq(&search_root) || fuzzy_path.eq(&curr_path) {
+        if fuzzy_path.eq(&self.path) || fuzzy_path.eq(&curr_path) {
             if is_first_run {
                 // Initial fuzzy search was escaped. This
                 // is not considered an error.
@@ -214,7 +206,7 @@ impl App {
         // Loop until we find a valid selection or we give up.
         while count < 10 {
             // let random_path = get_random_path(&self, dir_count);
-            let random_path = get_random_path(&self);
+            let random_path = random_path(&self);
             let curr_path = current_path(s);
             if random_path.eq(&curr_path) {
                 // Don't reload the same player, try a different path.

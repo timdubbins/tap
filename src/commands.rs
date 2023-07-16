@@ -1,39 +1,16 @@
 use std::io::Error;
 use std::path::PathBuf;
-use std::process::{Command, ExitStatus};
+use std::process::{Command, ExitStatus, Stdio};
 
 use rand::Rng;
 use walkdir::{DirEntry, WalkDir};
 
 use crate::app::{App, FuzzyMode};
+use crate::theme::{FZF_THEME, SK_THEME};
 
-// Command to run fzf with the defined colors.
-const FZF_CMD: &'static str = "fzf --color bg+:#131415,bg:#131415,border:#b294bb,spinner:#cc6666,hl:#c5c8c6,fg:#81a2be,header:#b5bd68,info:#b294bb,pointer:#f0c674,marker:#8abeb7,fg+:#c5c8c6,preview-bg:#D9D9D9,prompt:#616161,hl+:#b9ca4a";
-
-// Command to run sk with the defined colors.
-const SK_CMD: &'static str = "sk --color dark,border:#b294bb,spinner:#cc6666,hl:#c5c8c6,fg:#81a2be,header:#b5bd68,info:#b294bb,pointer:#f0c674,marker:#8abeb7,fg+:#c5c8c6,prompt:#616161,hl+:#b9ca4a";
-
-fn is_non_hidden_dir(entry: &walkdir::DirEntry) -> bool {
-    is_dir(entry) && !is_hidden(entry)
-}
-
-// Returns true if the entry is a directory.
-fn is_dir(entry: &walkdir::DirEntry) -> bool {
-    entry.file_type().is_dir()
-}
-
-// Returns true if the entry is hidden.
-fn is_hidden(entry: &walkdir::DirEntry) -> bool {
-    entry
-        .file_name()
-        .to_str()
-        .map(|s| s.starts_with("."))
-        .unwrap_or(false)
-}
-
-// Returns an array of all child directories, relative to `path`,
+// Gets an array of all child directories, relative to `path`,
 // excluding hidden directories.
-pub fn get_entries(path: &PathBuf) -> Vec<DirEntry> {
+pub fn dirs(path: &PathBuf) -> Vec<DirEntry> {
     WalkDir::new(path)
         .min_depth(1)
         .into_iter()
@@ -43,122 +20,151 @@ pub fn get_entries(path: &PathBuf) -> Vec<DirEntry> {
 }
 
 // Gets the path of a random subdirectory.
-pub fn get_random_path(app: &App) -> PathBuf {
-    let entries = app.entries.as_ref().unwrap();
+pub fn random_path(app: &App) -> PathBuf {
+    let entries = app.dirs.as_ref().unwrap();
     let target = rand::thread_rng().gen_range(0..entries.len() - 1);
 
     entries[target].to_owned().into_path()
 }
 
-pub fn get_string(entries: &Vec<DirEntry>) -> String {
+// Concatenates the directory file names, delimited by the
+// newline character.
+pub fn search_string(entries: &Vec<DirEntry>) -> String {
     entries
         .into_iter()
         .map(|e| {
-            e.file_name().to_os_string().into_string().unwrap()
-            // .to_owned()
+            e.file_name()
+                .to_os_string()
+                .into_string()
+                .unwrap_or_default()
         })
         .collect::<Vec<String>>()
         .join("\n")
 }
 
-pub fn _get_fuzzy_path(app: &App, second_path: Option<PathBuf>, anchor: Option<String>) -> PathBuf {
-    let string = app.entries_string.as_ref().unwrap();
-    let process = Command::new("/bin/bash")
-        .arg("-c")
-        .arg(format!(
-            "printf {} | cat -n | fzf --with-nth 2.. | awk '{{print $1}}'",
-            string
-        ))
-        .current_dir(&app.path)
-        .stdout(std::process::Stdio::piped())
-        .spawn()
-        .expect("process should execute")
-        .wait_with_output()
-        .expect("wait should succeed on child");
-
-    let output = String::from_utf8(process.stdout).unwrap();
-    let trimmed = output.replace("\n", "");
-    let index = trimmed
-        .parse::<usize>()
-        .expect("should be a numeric string")
-        - 1;
-    let entries = app.entries.to_owned().unwrap();
-
-    entries[index].path().into()
-}
-
-// Gets the path of a subdirectory chosen via fuzzy selection.
-pub fn get_fuzzy_path(app: &App, second_path: Option<PathBuf>, anchor: Option<String>) -> PathBuf {
-    // The directory to use as the search root.
-    let search_dir = match second_path {
-        Some(p) => p,
-        None => app.path.clone(),
+// Gets the fuzzy selected path. If none is selected we return the original path.
+pub fn fuzzy_path(app: &App, second_path: Option<PathBuf>, anchor: Option<String>) -> PathBuf {
+    // The directories to include in the fuzzy search.
+    let (search_string, dirs) = match second_path.clone() {
+        Some(second_path) => {
+            // The directories to search on, filtered to only those
+            // that include `second_path` as a path component.
+            let dirs = dirs(&second_path);
+            (search_string(&dirs), dirs)
+        }
+        None => match anchor {
+            // The directories to search on, filtered to only direct
+            // descendants that start with `letter`.
+            Some(letter) => {
+                let dirs = dirs_with_anchor(letter, app.dirs.to_owned().unwrap());
+                (search_string(&dirs), dirs)
+            }
+            None => (
+                // All directories available to search on.
+                app.search_string.to_owned().unwrap(),
+                app.dirs.to_owned().unwrap(),
+            ),
+        },
     };
 
-    // The list of directories to fuzzy search on.
-    let find_dirs = match anchor {
-        Some(anchor) => find_dirs_with_prefix(anchor, app.fd_available),
-        None => find_dirs(app.fd_available, true),
-    };
-
-    // The available fuzzy command.
-    let fuzzy_cmd = if app.fuzzy_mode == Some(FuzzyMode::FZF) {
-        FZF_CMD
+    // The fuzzy search command and options.
+    let (fuzz_cmd, fuzz_theme, fuzz_nth) = if app.fuzzy_mode == Some(FuzzyMode::FZF) {
+        ("fzf", FZF_THEME, "--with-nth=2..")
     } else {
-        SK_CMD
+        ("sk", SK_THEME, "--with-nth=3..")
     };
 
-    let output = Command::new("/bin/bash")
-        .arg("-c")
-        .arg(format!("{} | {}", find_dirs, fuzzy_cmd))
-        .current_dir(&search_dir)
+    // Print the directories to search on.
+    let print = Command::new("printf")
+        .arg(search_string)
         .stdout(std::process::Stdio::piped())
         .spawn()
         .expect("process should execute")
+        .stdout
+        .expect("failed to open print stdout");
+
+    // Prepend line numbers to the output.
+    let cat = Command::new("cat")
+        .arg("-n")
+        .stdin(Stdio::from(print))
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("failed to start cat")
+        .stdout
+        .expect("failed to open cat stdout");
+
+    // Launch the relevant fuzzy utility to enable the directories
+    // to be selected on. The line numbers are excluded from
+    // being printed.
+    let fuzz = Command::new(fuzz_cmd)
+        .arg(fuzz_theme)
+        .arg(fuzz_nth)
+        .stdin(Stdio::from(cat))
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("failed to start fzf")
+        .stdout
+        .expect("failed to open fuzz output");
+
+    // Output the line number from the selection.
+    let awk = Command::new("awk")
+        .arg("{{print $1}}")
+        .stdin(Stdio::from(fuzz))
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("awk failed to start")
         .wait_with_output()
-        .expect("wait should succeed on child");
+        .expect("failed to open awk stdout");
 
-    let stdout = String::from_utf8(output.stdout).unwrap();
-    let component = PathBuf::from(stdout.replace("\n", ""));
-    let mut path = PathBuf::from(search_dir);
+    let output = String::from_utf8(awk.stdout).expect("failed to open stdout");
+    let trimmed = output.replace("\n", "");
 
-    path.push(component);
-    path
-}
-
-// Command to return a sorted list of all child directories, excluding
-// hidden directories, that start with the letter `anchor`.
-fn find_dirs_with_prefix(anchor: String, fd_available: bool) -> String {
-    match fd_available {
-        true => format!("fd '^{}' -t d --max-depth 1 | sort", anchor),
-        false => format!(
-            r"find . -maxdepth 1 -name '[{}{}]*' -type d \( -name '.?*' -prune -o -print \) \
-            | sed -n 's|^./||p' | sort",
-            anchor,
-            anchor.to_uppercase(),
-        ),
-    }
-}
-
-// Command to list all child directories, excluding hidden directories.
-fn find_dirs(fd_available: bool, is_printed: bool) -> String {
-    // Command to remove the './' prefix from each directory.
-    let formatting = match is_printed {
-        true => " | sed -n 's|^./||p'",
-        false => "",
+    return match trimmed.parse::<usize>() {
+        Ok(line_num) => {
+            // On successful output we map the line number to the
+            // corresponding path in `dirs` and return the path.
+            let index = line_num - 1;
+            dirs[index].path().into()
+        }
+        // If not successful return the initial path.
+        Err(_) => app.path.to_owned(),
     };
-
-    match fd_available {
-        true => format!("fd -t d --min-depth 1"),
-        false => format!(
-            r"find . -mindepth 1 -type d \( -name '.?*' -prune -o -print \){}",
-            formatting,
-        ),
-    }
 }
 
 pub fn clear_terminal() -> Result<ExitStatus, Error> {
     Command::new("cls")
         .status()
         .or_else(|_| Command::new("clear").status())
+}
+
+// Whether the entry is a directory or not. Excludes hidden directories.
+fn is_non_hidden_dir(entry: &walkdir::DirEntry) -> bool {
+    entry.file_type().is_dir()
+        && !entry
+            .file_name()
+            .to_str()
+            .map(|s| s.starts_with("."))
+            .unwrap_or(false)
+}
+
+// Whether or not the entry is a direct descendant and starts with
+// the case-insensitive `letter`.
+fn starts_with(letter: String, entry: &DirEntry) -> bool {
+    let binding = letter.to_uppercase();
+    let (lowercase, uppercase) = (letter.as_str(), binding.as_str());
+
+    entry.depth() == 1
+        && entry
+            .file_name()
+            .to_str()
+            .map(|s| s.starts_with(lowercase) || s.starts_with(uppercase))
+            .unwrap_or(false)
+}
+
+// Gets all the directories that satisfy the are direct descendants
+// of `dirs` and start with the case-insensitive `letter`.
+fn dirs_with_anchor(letter: String, dirs: Vec<DirEntry>) -> Vec<DirEntry> {
+    dirs.into_iter()
+        .filter(|e| starts_with(letter.clone(), &e))
+        .collect()
 }
