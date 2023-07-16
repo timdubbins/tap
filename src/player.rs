@@ -94,8 +94,9 @@ impl Player {
                 self.status = PlayerStatus::Paused;
             }
 
-            // TODO - is panicking the only way we can return an error
-            // message here? should we skip unplayable tracks?
+            // Panics on error as we currently don't have a good way to
+            // handle these errors. Most of these errors *should*
+            // be caught when creating the playlist.
             PlayerStatus::Stopped => {
                 let p = &self.file.path;
                 let f = match File::open(p.as_path()) {
@@ -354,7 +355,7 @@ fn valid_ext(p: &PathBuf) -> bool {
     FORMATS.contains(&ext)
 }
 
-// Returns true if the first file in audio_files can be decoded.
+// Returns `Ok` if the first file in audio_files can be decoded.
 fn can_decode(audio_files: &Option<&AudioFile>) -> Result<(), anyhow::Error> {
     let path = audio_files.expect("audio_files not empty").path.as_path();
     let f = match File::open(path) {
