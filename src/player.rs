@@ -11,9 +11,12 @@ use async_std::task;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
 use crate::audio_file::AudioFile;
+use crate::utils::concatenate;
 
+// The list of valid file extensions.
 const FORMATS: &'static [&'static str] = &["aac", "flac", "mp3", "m4a", "ogg", "wav", "wma"];
 
+// The status of the player.
 #[derive(PartialEq)]
 pub enum PlayerStatus {
     Paused,
@@ -21,24 +24,39 @@ pub enum PlayerStatus {
     Stopped,
 }
 
+// A generic structure to hold x, y axis values.
+pub struct Size(pub usize, pub usize);
+
 pub struct Player {
+    // The path used to create the playlist.
     pub path: PathBuf,
+    // The list of audio files for the player.
     pub playlist: Vec<AudioFile>,
+    // The current audio file.
     pub file: AudioFile,
+    // The index of the current audio file.
     pub index: usize,
+    // Whether the player is muted or not.
     pub is_muted: bool,
+    // Whether the player is playing, paused or stopped.
     pub status: PlayerStatus,
+    // The list of numbers from last keyboard input,
     pub numbers_pressed: Vec<usize>,
+    // Whether or not a double-tap event was registered.
     pub previous_key: Arc<AtomicBool>,
+    // The map of audio track numbers to file indices.
     indices: HashMap<u32, usize>,
+    // The instant that playback last started or resumed.
     last_started: Instant,
+    // The instant that the player was paused. Reset when player is stopped.
     last_elapsed: Duration,
+    // Handle to audio sink.
     sink: Sink,
+    // The open flow of audio data.
     _stream: OutputStream,
+    // Handle to stream.
     _stream_handle: OutputStreamHandle,
 }
-
-pub struct Size(pub usize, pub usize);
 
 impl Player {
     pub fn new(path: PathBuf) -> Result<(Self, Size), anyhow::Error> {
@@ -78,6 +96,13 @@ impl Player {
         Ok((player, Size(x, y)))
     }
 
+    // Whether the player is playing or not.
+    fn is_playing(&self) -> bool {
+        self.status == PlayerStatus::Playing
+    }
+
+    // Toggles between playing and pausing playback.
+    // Starts playback if stopped, resumes if paused.
     pub fn play_or_pause(&mut self) {
         self.clear();
 
@@ -147,37 +172,43 @@ impl Player {
         }
     }
 
+    // Removes the stored keyboard inputs.
     fn clear(&mut self) {
         self.numbers_pressed.clear();
         self.previous_key.store(false, Ordering::Relaxed)
     }
 
+    // Selects a track to play based on stored keyboard input.
+    // Returns true if a track was selected.
     fn select_track(&mut self) -> bool {
-        match self.numbers_pressed.is_empty() {
-            true => {
-                if self.previous_key.load(Ordering::Relaxed) {
-                    self.select_first_track()
-                } else {
-                    // Set `previous_key` to true temporarily so that calling
-                    // this function twice in quick succession will allow
-                    // us to run the 'if' block of this conditional. This
-                    // is to model a double tap gesture.
-                    self.previous_key.store(true, Ordering::Relaxed);
-                    let _previous_key = self.previous_key.clone();
-                    task::spawn(async move {
-                        task::sleep(Duration::from_millis(500)).await;
-                        _previous_key.store(false, Ordering::Relaxed)
-                    });
-                    false
-                }
-            }
-            false => self.select_track_number(),
+        if self.numbers_pressed.is_empty() {
+            self.select_track_double_tap()
+        } else {
+            self.select_track_number()
         }
     }
 
+    // Selects the first track when called twice in quick succession.
+    // This is to model a double tap gesture.
+    fn select_track_double_tap(&mut self) -> bool {
+        if self.previous_key.load(Ordering::Relaxed) {
+            self.select_first_track()
+        } else {
+            // Set `previous_key` to true temporarily to gain access
+            // to the 'if' block of this conditional.
+            self.previous_key.store(true, Ordering::Relaxed);
+            let _previous_key = self.previous_key.clone();
+            task::spawn(async move {
+                task::sleep(Duration::from_millis(500)).await;
+                _previous_key.store(false, Ordering::Relaxed)
+            });
+            false
+        }
+    }
+
+    // Select the track to play from the stored keyboard input.
     fn select_track_number(&mut self) -> bool {
-        // The `numbers_pressed` array concatenated to a single value, i.e. `[0, 1, 2]` -> `12`.
-        let track_number = self.numbers_pressed.iter().fold(0, |acc, x| acc * 10 + x) as u32;
+        let track_number = concatenate(&self.numbers_pressed) as u32;
 
         match self.indices.get(&track_number) {
             Some(i) => {
@@ -245,9 +276,10 @@ impl Player {
         }
     }
 
+    // The time elapsed during playback.
     pub fn elapsed(&self) -> Duration {
         self.last_elapsed
-            + if self.status == PlayerStatus::Playing {
+            + if self.is_playing() {
                 Instant::now() - self.last_started
             } else {
                 Duration::default()
@@ -255,7 +287,7 @@ impl Player {
     }
 
     pub fn poll_sink(&mut self) {
-        if self.status == PlayerStatus::Playing && self.sink.empty() {
+        if self.is_playing() && self.sink.empty() {
             if self.index < self.playlist.len() - 1 {
                 self.next();
                 self.last_elapsed = Duration::default();

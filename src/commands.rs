@@ -21,10 +21,10 @@ pub fn dirs(path: &PathBuf) -> Vec<DirEntry> {
 
 // Gets the path of a random subdirectory.
 pub fn random_path(app: &App) -> PathBuf {
-    let entries = app.dirs.as_ref().unwrap();
-    let target = rand::thread_rng().gen_range(0..entries.len() - 1);
+    let dirs = &app.dirs;
+    let target = rand::thread_rng().gen_range(0..dirs.len() - 1);
 
-    entries[target].to_owned().into_path()
+    dirs[target].to_owned().into_path()
 }
 
 // Concatenates the directory file names, delimited by the
@@ -56,13 +56,13 @@ pub fn fuzzy_path(app: &App, second_path: Option<PathBuf>, anchor: Option<String
             // The directories to search on, filtered to only direct
             // descendants that start with `letter`.
             Some(letter) => {
-                let dirs = dirs_with_anchor(letter, app.dirs.to_owned().unwrap());
+                let dirs = dirs_with_anchor(letter, &app.dirs);
                 (search_string(&dirs), dirs)
             }
             None => (
                 // All directories available to search on.
-                app.search_string.to_owned().unwrap(),
-                app.dirs.to_owned().unwrap(),
+                app.search_string.to_owned(),
+                app.dirs.to_owned(),
             ),
         },
     };
@@ -93,8 +93,8 @@ pub fn fuzzy_path(app: &App, second_path: Option<PathBuf>, anchor: Option<String
         .stdout
         .expect("failed to open cat stdout");
 
-    // Launch the relevant fuzzy utility to enable the directories
-    // to be selected on. The line numbers are excluded from
+    // Launch the fuzzy utility to enable the directories to
+    // be selected on. The line numbers are excluded from
     // being printed.
     let fuzz = Command::new(fuzz_cmd)
         .arg(fuzz_theme)
@@ -163,8 +163,9 @@ fn starts_with(letter: String, entry: &DirEntry) -> bool {
 
 // Gets all the directories that satisfy the are direct descendants
 // of `dirs` and start with the case-insensitive `letter`.
-fn dirs_with_anchor(letter: String, dirs: Vec<DirEntry>) -> Vec<DirEntry> {
-    dirs.into_iter()
+fn dirs_with_anchor(letter: String, dirs: &Vec<DirEntry>) -> Vec<DirEntry> {
+    dirs.to_owned()
+        .into_iter()
         .filter(|e| starts_with(letter.clone(), &e))
         .collect()
 }

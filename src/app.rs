@@ -14,11 +14,20 @@ use crate::utils::*;
 
 #[derive(Clone)]
 pub struct App {
-    pub fuzzy_mode: Option<FuzzyMode>,
+    // The initial path, which can be either a file / directory
+    // to play, or a directory to search on.
     pub path: PathBuf,
+    // Whether or not path can be used to search on.
     pub searchable: bool,
-    pub dirs: Option<Vec<DirEntry>>,
-    pub search_string: Option<String>,
+    // The list of directories we can search on.
+    // Empty if searchable is false.
+    pub dirs: Vec<DirEntry>,
+    // The list of directories we can search on, joined by the
+    // newline character. Used as the input for fuzzy searching.
+    // Empty if searchable is false.
+    pub search_string: String,
+    // The fuzzy program to use, if available.
+    pub fuzzy_mode: Option<FuzzyMode>,
 }
 
 impl App {
@@ -39,17 +48,17 @@ impl App {
             true => {
                 let dirs = dirs(&path);
                 let search_string = search_string(&dirs);
-                (Some(dirs), Some(search_string))
+                (dirs, search_string)
             }
-            false => (None, None),
+            false => (vec![], String::from("")),
         };
 
         let app = Self {
             fuzzy_mode: FuzzyMode::get(searchable),
-            path: path,
+            path,
             searchable,
-            dirs: dirs,
-            search_string: search_string,
+            dirs,
+            search_string,
         };
 
         Ok(app)
@@ -340,7 +349,8 @@ pub enum FuzzyMode {
 }
 
 impl FuzzyMode {
-    // Gets the `fuzzy_mode` that is available.
+    // Gets fuzzy program that is available. Selects "fzf" if both
+    // "fzf" and "sk" are installed. None if neither is installed.
     fn get(searchable: bool) -> Option<Self> {
         if searchable {
             if env_var_includes(&["fzf"]) {

@@ -41,6 +41,11 @@ pub fn has_child_dirs(path: &PathBuf) -> bool {
     false
 }
 
+// Maps the array to a single value, i.e. `[0, 1, 2]` -> `12`.
+pub fn concatenate(arr: &Vec<usize>) -> usize {
+    arr.iter().fold(0, |acc, x| acc * 10 + x)
+}
+
 // Returns the PathBuf on success.
 pub fn remove_trailing_slash(p: PathBuf) -> Result<PathBuf, anyhow::Error> {
     if has_trailing_slash(&p) {
@@ -57,6 +62,7 @@ pub fn remove_trailing_slash(p: PathBuf) -> Result<PathBuf, anyhow::Error> {
     }
 }
 
+// Whether or not the last character is a slash.
 fn has_trailing_slash(p: &PathBuf) -> bool {
     p.as_os_str().as_bytes().last() == Some(&b'/')
 }

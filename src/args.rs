@@ -13,6 +13,9 @@ pub struct Args {
 }
 
 impl Args {
+    // Returns a sanitized, non-empty path on success. If two
+    // paths are supplied the second is used. If no path is
+    // supplied the current directory is used.
     pub fn parse_path() -> Result<PathBuf, anyhow::Error> {
         let path = match Args::parse().second_path {
             Some(p) => p,
