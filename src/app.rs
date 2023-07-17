@@ -14,17 +14,13 @@ use crate::utils::*;
 
 #[derive(Clone)]
 pub struct App {
-    // The initial path, which can be either a file / directory
-    // to play, or a directory to search on.
+    // The initial path to play or search on.
     pub path: PathBuf,
-    // Whether or not path can be used to search on.
+    // Whether or not `path` can be used to search on.
     pub searchable: bool,
-    // The list of directories we can search on.
-    // Empty if searchable is false.
+    // The list of directories that are descendants of `path`.
     pub dirs: Vec<DirEntry>,
-    // The list of directories we can search on, joined by the
-    // newline character. Used as the input for fuzzy searching.
-    // Empty if searchable is false.
+    // The string of paths from `dirs`, with one path per line.
     pub search_string: String,
     // The fuzzy program to use, if available.
     pub fuzzy_mode: Option<FuzzyMode>,
