@@ -46,7 +46,7 @@ pub struct Player {
     pub previous_key: Arc<AtomicBool>,
     // The map of audio track numbers to file indices.
     indices: HashMap<u32, usize>,
-    // The instant that playback last started or resumed.
+    // The instant that playback started or resumed.
     last_started: Instant,
     // The instant that the player was paused. Reset when player is stopped.
     last_elapsed: Duration,
@@ -101,44 +101,43 @@ impl Player {
         self.status == PlayerStatus::Playing
     }
 
-    // Toggles between playing and pausing playback.
-    // Starts playback if stopped, resumes if paused.
+    pub fn resume(&mut self) {
+        self.sink.play();
+        self.status = PlayerStatus::Playing;
+        self.last_started = Instant::now();
+    }
+
+    pub fn pause(&mut self) {
+        self.last_elapsed = self.elapsed();
+        self.sink.pause();
+        self.status = PlayerStatus::Paused;
+    }
+
+    pub fn play(&mut self) {
+        let p = &self.file.path;
+        let f = match File::open(p.as_path()) {
+            Ok(f) => f,
+            Err(_) => panic!("Could not open '{}'", p.display()),
+        };
+        let s = match Decoder::new(BufReader::new(f)) {
+            Ok(s) => s,
+            Err(_) => panic!("Could not decode '{}", p.display()),
+        };
+
+        self.sink.append(s);
+        self.sink.play();
+        self.status = PlayerStatus::Playing;
+        self.last_started = Instant::now();
+    }
+
     pub fn play_or_pause(&mut self) {
         self.clear();
 
         match self.status {
-            PlayerStatus::Paused => {
-                self.sink.play();
-                self.status = PlayerStatus::Playing;
-                self.last_started = Instant::now();
-            }
-
-            PlayerStatus::Playing => {
-                self.last_elapsed = self.elapsed();
-                self.sink.pause();
-                self.status = PlayerStatus::Paused;
-            }
-
-            // Panics on error as we currently don't have a good way to
-            // handle these errors. Most of these errors *should*
-            // be caught when creating the playlist.
-            PlayerStatus::Stopped => {
-                let p = &self.file.path;
-                let f = match File::open(p.as_path()) {
-                    Ok(f) => f,
-                    Err(_) => panic!("Could not open '{}'.", p.display()),
-                };
-                let s = match Decoder::new(BufReader::new(f)) {
-                    Ok(s) => s,
-                    Err(_) => panic!("Could not decode '{}'.", p.display()),
-                };
-
-                self.sink.append(s);
-                self.sink.play();
-                self.status = PlayerStatus::Playing;
-                self.last_started = Instant::now();
-            }
-        }
+            PlayerStatus::Paused => self.resume(),
+            PlayerStatus::Playing => self.pause(),
+            PlayerStatus::Stopped => self.play(),
+        };
     }
 
     pub fn stop(&mut self) {
@@ -313,13 +312,10 @@ impl Player {
     pub fn create_playlist(path: PathBuf) -> Result<(Vec<AudioFile>, usize), anyhow::Error> {
         // The list of files to use in the player.
         let mut audio_files = vec![];
-
         // The width of the player view.
         let mut width = 0;
-
         // The state of the current directory.
         let mut dir_empty = true;
-
         // The error we get if we can't create an audio file.
         let mut error: Option<anyhow::Error> = None;
 
@@ -387,9 +383,9 @@ fn valid_ext(p: &PathBuf) -> bool {
     FORMATS.contains(&ext)
 }
 
-// Returns `Ok` if the first file in audio_files can be decoded.
-fn can_decode(audio_files: &Option<&AudioFile>) -> Result<(), anyhow::Error> {
-    let path = audio_files.expect("audio_files not empty").path.as_path();
+// Returns `Ok` if the audio file can be decoded.
+fn can_decode(audio_file: &Option<&AudioFile>) -> Result<(), anyhow::Error> {
+    let path = audio_file.expect("audio_files not empty").path.as_path();
     let f = match File::open(path) {
         Ok(f) => f,
         Err(_) => bail!("Could not open '{}'.", path.display()),

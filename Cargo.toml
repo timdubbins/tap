@@ -1,8 +1,8 @@
 [package]
 name = "tap"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Tim Dubbins <timdubbins@gmail.com>"]
-description = "An audio player for the terminal, written in Rust"
+description = "An audio player for the terminal, with fuzzy-finding."
 documentation = "https://github.com/timdubbins/tap"
 homepage = "https://github.com/timdubbins/tap"
 repository = "https://github.com/timdubbins/tap"
@@ -21,7 +21,10 @@ anyhow = "1.0"
 async-std = "1.12.0"
 clap = { version = "4.1.8", features = ["derive"] }
 cursive = { version = "0.20", features = ["ncurses-backend", "toml"] }
+fuzzy-matcher = "*"
 lofty = "0.14.0"
 rand = "0.8.5"
 rodio = { git = "https://github.com/timdubbins/rodio", features = ["symphonia-all"], default-features = false }
+unicode-segmentation = "1.10.1"
+unicode-width = "0.1.5"
 walkdir = "2.0"

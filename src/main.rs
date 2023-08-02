@@ -1,7 +1,9 @@
 mod app;
 mod args;
 mod audio_file;
-mod commands;
+mod error_view;
+mod fuzzy;
+mod fuzzy_view;
 mod player;
 mod player_view;
 mod theme;

@@ -2,5 +2,5 @@ shadow  = false
 borders = "simple"
 
 [colors]
-	background = "#1d1f21"			# black
+	background = "#1d1f21"		# black
 	view       = "#1d1f21"    	# black

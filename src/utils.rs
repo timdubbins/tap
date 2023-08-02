@@ -1,21 +1,7 @@
-use std::{os::unix::prelude::OsStrExt, path::PathBuf};
+use std::{ops::Range, os::unix::prelude::OsStrExt, path::PathBuf};
 
 use anyhow::bail;
-
-// Returns true if the `programs` are on user's PATH variable.
-pub fn env_var_includes(programs: &[&str]) -> bool {
-    if let Ok(path) = std::env::var("PATH") {
-        for sub_str in path.split(":") {
-            for prog in programs {
-                let p_str = format!("{}/{}", sub_str, prog);
-                if std::fs::metadata(p_str).is_ok() {
-                    return true;
-                }
-            }
-        }
-    }
-    false
-}
+use rand::{thread_rng, Rng};
 
 // Returns true if the path has at least two children.
 pub fn has_child_dirs(path: &PathBuf) -> bool {
@@ -44,6 +30,11 @@ pub fn has_child_dirs(path: &PathBuf) -> bool {
 // Maps the array to a single value, i.e. `[0, 1, 2]` -> `12`.
 pub fn concatenate(arr: &Vec<usize>) -> usize {
     arr.iter().fold(0, |acc, x| acc * 10 + x)
+}
+
+// Generates a random unsigned int in the given range.
+pub fn random(range: Range<usize>) -> usize {
+    thread_rng().gen_range(range)
 }
 
 // Returns the PathBuf on success.
