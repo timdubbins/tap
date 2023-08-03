@@ -264,87 +264,93 @@ impl View for FuzzyView {
     fn draw(&self, p: &Printer) {
         // The size of the screen we can draw on.
         let (w, h) = (p.size.x, p.size.y);
-        // The last row we can draw on.
-        let query_row = h - 1;
-        // The first row of the list.
-        let start_row = h - 3;
-        // The number of visible rows.
-        let visible = std::cmp::min(self.matches - self.offset, h - 2);
 
-        for y in 0..visible {
-            let index = y + self.offset;
-            // The items are drawn in ascending order, starting on third row from bottom.
-            let row = start_row - y;
-            // Only draw items that have matches.
-            if self.items[index].weight != 0 {
-                // Set the color depending on whether row is currently selected or not.
-                let (primary, highlight) = if row == start_row + self.offset - self.selected {
-                    // Draw the symbol to show the currently selected item.
-                    p.with_color(theme::yellow(), |p| p.print((0, row), ">"));
-                    // The colors for the currently selected row.
-                    (theme::white(), theme::green())
-                } else {
-                    // The colors for the not selected row.
-                    (theme::blue(), theme::white())
-                };
-                // Draw the item's display name.
-                p.with_color(primary, |p| {
-                    p.print((2, row), self.items[index].display.as_str())
-                });
-                // Draw the fuzzy matched indices in a highlighting color.
-                for x in &self.items[index].indices {
-                    let mut chars = self.items[index].display.chars();
-                    p.with_effect(Effect::Bold, |p| {
-                        p.with_color(highlight, |p| {
-                            p.print(
-                                (x + 2, row),
-                                chars.nth(*x).unwrap_or_default().to_string().as_str(),
-                            )
-                        });
+        if h > 3 {
+            // The first row of the list.
+            let start_row = h - 3;
+            // The number of visible rows.
+            let visible = std::cmp::min(self.matches - self.offset, h - 2);
+
+            for y in 0..visible {
+                let index = y + self.offset;
+                // The items are drawn in ascending order, starting on third row from bottom.
+                let row = start_row - y;
+                // Only draw items that have matches.
+                if self.items[index].weight != 0 {
+                    // Set the color depending on whether row is currently selected or not.
+                    let (primary, highlight) = if row == start_row + self.offset - self.selected {
+                        // Draw the symbol to show the currently selected item.
+                        p.with_color(theme::yellow(), |p| p.print((0, row), ">"));
+                        // The colors for the currently selected row.
+                        (theme::white(), theme::green())
+                    } else {
+                        // The colors for the not selected row.
+                        (theme::blue(), theme::white())
+                    };
+                    // Draw the item's display name.
+                    p.with_color(primary, |p| {
+                        p.print((2, row), self.items[index].display.as_str())
                     });
+                    // Draw the fuzzy matched indices in a highlighting color.
+                    for x in &self.items[index].indices {
+                        let mut chars = self.items[index].display.chars();
+                        p.with_effect(Effect::Bold, |p| {
+                            p.with_color(highlight, |p| {
+                                p.print(
+                                    (x + 2, row),
+                                    chars.nth(*x).unwrap_or_default().to_string().as_str(),
+                                )
+                            });
+                        });
+                    }
                 }
             }
+
+            // Draw the page count.
+            p.with_color(theme::grey(), |p| {
+                let page = self.selected / start_row;
+                let pages = self.matches / start_row;
+                let digits = page.checked_ilog10().unwrap_or(0) as usize
+                    + pages.checked_ilog10().unwrap_or(0) as usize
+                    + 2;
+                let column = self.size.x - digits - 2;
+                p.print((column, 0), format!(" {}/{}", page, pages).as_str());
+            });
         }
 
-        // Draw the match count and some borders.
-        p.with_color(theme::magenta(), |p| {
-            let lines = std::cmp::min(self.matches / 4, h / 4);
-            p.print_vline((w - 1, query_row - 1 - lines), lines, "│");
-            p.print_hline((2, query_row - 1), w - 3, "─");
-            p.print((2, query_row - 1), &self.count());
-        });
+        if h > 1 {
+            // The last row we can draw on.
+            let query_row = h - 1;
 
-        // Draw the page count.
-        p.with_color(theme::grey(), |p| {
-            let page = self.selected / (self.size.y - 3);
-            let pages = self.matches / (self.size.y - 3);
-            let digits = page.checked_ilog10().unwrap_or(0) as usize
-                + pages.checked_ilog10().unwrap_or(0) as usize
-                + 2;
-            let column = self.size.x - digits - 2;
-            p.print((column, 0), format!(" {}/{}", page, pages).as_str());
-        });
-
-        // Draw the text input area that shows the query.
-        p.with_color(theme::white_reversed(), |p| {
-            p.with_effect(Effect::Reverse, |p| {
-                p.print_hline((0, query_row), w, " ");
-                p.print((2, query_row), &self.query);
+            // Draw the match count and some borders.
+            p.with_color(theme::magenta(), |p| {
+                let lines = std::cmp::min(self.matches / 4, h / 4);
+                p.print_vline((w - 1, query_row - 1 - lines), lines, "│");
+                p.print_hline((2, query_row - 1), w - 3, "─");
+                p.print((2, query_row - 1), &self.count());
             });
 
-            let c = if self.cursor == self.query.len() {
-                "_"
-            } else {
-                &self.query[self.cursor..]
-                    .graphemes(true)
-                    .next()
-                    .expect("should find a char")
-            };
-            let offset = self.query[..self.cursor].width();
-            p.print((offset + 2, query_row), c);
-        });
-        // Draw the symbol to show the start of the text input area.
-        p.with_color(theme::grey(), |p| p.print((0, query_row), ">"));
+            // Draw the text input area that shows the query.
+            p.with_color(theme::white_reversed(), |p| {
+                p.with_effect(Effect::Reverse, |p| {
+                    p.print_hline((0, query_row), w, " ");
+                    p.print((2, query_row), &self.query);
+                });
+
+                let c = if self.cursor == self.query.len() {
+                    "_"
+                } else {
+                    &self.query[self.cursor..]
+                        .graphemes(true)
+                        .next()
+                        .expect("should find a char")
+                };
+                let offset = self.query[..self.cursor].width();
+                p.print((offset + 2, query_row), c);
+            });
+            // Draw the symbol to show the start of the text input area.
+            p.with_color(theme::grey(), |p| p.print((0, query_row), ">"));
+        }
     }
 
     // Keybindings for the fuzzy view.
