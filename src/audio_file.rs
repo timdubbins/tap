@@ -13,7 +13,6 @@ pub struct AudioFile {
     pub year: Option<u32>,
     pub track: u32,
     pub duration: usize,
-    pub x_offset: usize,
 }
 
 impl AudioFile {
@@ -45,7 +44,6 @@ impl AudioFile {
             title: tag.title().as_deref().unwrap_or("None").trim().to_string(),
             year: tag.year(),
             track: tag.track().unwrap_or(0),
-            x_offset: 4 + artist.chars().count(),
             artist,
             path,
             duration,

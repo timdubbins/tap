@@ -197,7 +197,7 @@ impl View for PlayerView {
                 printer.with_color(green(), |printer| printer.print((2, 0), &f.artist.as_str()));
                 printer.with_effect(Effect::Italic, |printer| {
                     printer.with_color(yellow(), |printer| {
-                        printer.print((f.x_offset, 0), &self.album_and_year().as_str())
+                        printer.print((f.artist.len() + 4, 0), &self.album_and_year().as_str())
                     })
                 })
             });
