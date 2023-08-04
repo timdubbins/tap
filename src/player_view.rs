@@ -6,19 +6,31 @@ use cursive::event::{Event, EventResult, Key, MouseButton, MouseEvent};
 use cursive::theme::{ColorStyle, Effect};
 use cursive::traits::View;
 use cursive::view::Resizable;
-use cursive::{Cursive, Printer};
+use cursive::{Cursive, Printer, XY};
 
 use crate::app::remove_layers_to_top;
 use crate::player::{Player, PlayerStatus, Size};
 use crate::theme::*;
 
 pub struct PlayerView {
+    // The currently loaded player.
     player: Player,
+    // The last track index selected by mouse input, if any.
+    selected: Option<usize>,
+    // The vertical offset required to show relevant playlist rows.
+    offset: usize,
+    // The size of the view.
+    size: XY<usize>,
 }
 
 impl PlayerView {
     pub fn new(player: Player) -> Self {
-        Self { player }
+        Self {
+            player,
+            selected: None,
+            offset: 0,
+            size: XY { x: 0, y: 0 },
+        }
     }
 
     pub fn load((player, size): (Player, Size), siv: &mut Cursive) {
@@ -66,7 +78,8 @@ impl PlayerView {
         }
     }
 
-    fn y_offset(&self, available_y: usize) -> usize {
+    fn update_offset(&self) -> usize {
+        let available_y = self.size.y;
         let needs_offset = self.player.index > 0 && available_y < self.player.playlist.len() + 2;
         let index = self.player.index;
 
@@ -88,46 +101,55 @@ impl PlayerView {
             false => 0,
         }
     }
+
+    fn mouse_select(&mut self, m_off_y: usize, event: Event) -> EventResult {
+        let m_pos_y = event.mouse_position().unwrap_or_default().y;
+
+        // Restrict values to visible rows of the playlist.
+        if m_pos_y <= m_off_y || m_pos_y >= m_off_y + self.size.y - 2 {
+            return EventResult::Consumed(None);
+        }
+
+        // The mouse selected track index.
+        let selected = self.offset + m_pos_y - m_off_y - 1;
+
+        if selected == self.player.index {
+            self.player.play_or_pause();
+        } else if Some(selected) == self.selected {
+            self.player.select_track_index(selected);
+        } else {
+            self.selected = Some(selected);
+        }
+
+        EventResult::Consumed(None)
+    }
 }
 
 impl View for PlayerView {
     fn draw(&self, p: &Printer) {
-        // The file currently loaded in the player.
-        let f = &self.player.file;
         // The size of the screen we can draw on.
         let (w, h) = (p.size.x, p.size.y);
-        // The last row we can draw on.
-        let last_row = h - 1;
+        // The file currently loaded in the player.
+        let f = &self.player.file;
         // The start of the duration column.
-        let dur_col = w - 9;
+        let column = if w > 9 { w - 9 } else { 0 };
+        // The length of the progress bar.
+        let length = if w > 16 { w - 16 } else { 0 };
         // The time elapsed since playback started.
         let elapsed = self.player.elapsed().as_secs() as usize;
+        // The values needed to draw the progress bar.
+        let (length, extra) = ratio(elapsed, f.duration, length);
 
-        // TODO - Event::Refresh is not sent when view is not in focus.
-        // This means Player::poll_sink is not called when a FuzzyView
-        // is loaded and so elapsed grows larger than duration when a
-        // track ends and we crash instead of playing the next track.
-        // This check prevents the crash but causes playback to pause
-        // until the PlayerView comes into focus again. Ideally we want
-        // to have the player continue playback as normal. To do this
-        // we will need to remove our dependence on Event::Refresh.
+        // This is to guard against a potential division by zero.
         if f.duration < elapsed {
             return;
         }
 
-        // The time remaining until playback completes.
-        let remaining = min(f.duration, f.duration - elapsed);
-        // The values needed to draw the progress bar.
-        let (length, extra) = ratio(elapsed, f.duration, w - 16);
-
         // Draw the playlist, with rows: 'Track, Title, Duration'.
         if h > 2 {
-            // The offset needed to make sure we show relevant rows.
-            let y_offset = self.y_offset(h);
-
             for (i, f) in self.player.playlist.iter().enumerate() {
                 // Skip rows that are not visible.
-                if i < y_offset {
+                if i < self.offset {
                     continue;
                 }
 
@@ -135,28 +157,28 @@ impl View for PlayerView {
                     // Draw the player status.
                     let (symbol, color, effect) = self.player_status();
                     p.with_color(color, |p| {
-                        p.with_effect(effect, |p| p.print((3, i + 1 - y_offset), symbol))
+                        p.with_effect(effect, |p| p.print((3, i + 1 - self.offset), symbol))
                     });
                     // Draw the active row.
                     p.with_color(white(), |p| {
                         p.print(
-                            (6, i + 1 - y_offset),
+                            (6, i + 1 - self.offset),
                             format!("{:02}  {}", f.track, f.title).as_str(),
                         );
                         p.print(
-                            (dur_col, i + 1 - y_offset),
+                            (column, i + 1 - self.offset),
                             mins_and_secs(f.duration).as_str(),
                         );
                     })
-                } else if i + 1 - y_offset < last_row {
+                } else if i + 2 - self.offset < h {
                     // Draw the inactive rows.
                     p.with_color(blue(), |p| {
                         p.print(
-                            (6, i + 1 - y_offset),
+                            (6, i + 1 - self.offset),
                             format!("{:02}  {}", f.track, f.title).as_str(),
                         );
                         p.print(
-                            (dur_col, i + 1 - y_offset),
+                            (column, i + 1 - self.offset),
                             mins_and_secs(f.duration).as_str(),
                         );
                     })
@@ -169,8 +191,8 @@ impl View for PlayerView {
             }
         }
 
-        // Draw the header: 'Artist, Album, Year'.
         if h > 1 {
+            // Draw the header: 'Artist, Album, Year'.
             p.with_effect(Effect::Bold, |printer| {
                 printer.with_color(green(), |printer| printer.print((2, 0), &f.artist.as_str()));
                 printer.with_effect(Effect::Italic, |printer| {
@@ -178,34 +200,40 @@ impl View for PlayerView {
                         printer.print((f.x_offset, 0), &self.album_and_year().as_str())
                     })
                 })
-            })
-        }
-
-        // Draw the elapsed and remaining playback times.
-        p.with_color(white(), |printer| {
-            printer.print((0, last_row), &mins_and_secs(elapsed));
-            printer.print((dur_col, last_row), mins_and_secs(remaining).as_str())
-        });
-
-        // Draw the fractional part of the progress bar.
-        p.with_color(magenta().invert(), |printer| {
-            printer.with_effect(Effect::Reverse, |printer| {
-                printer.print((length + 8, last_row), sub_block(extra));
             });
-        });
 
-        // Draw the solid part of the progress bar (preceding the fractional part).
-        p.cropped((length + 8, h)).with_color(magenta(), |printer| {
-            printer.print_hline((8, last_row), length, "█");
-        });
+            // The last row we can draw on.
+            let last_row = h - 1;
 
-        // Draw spaces to maintain consistent padding when resizing.
-        p.print((w - 2, 0), "  ");
-        p.print((w - 2, last_row), "  ");
+            // Draw the elapsed and remaining playback times.
+            p.with_color(white(), |printer| {
+                let remaining = min(f.duration, f.duration - elapsed);
+                printer.print((0, last_row), &mins_and_secs(elapsed));
+                printer.print((column, last_row), mins_and_secs(remaining).as_str())
+            });
+
+            // Draw the fractional part of the progress bar.
+            p.with_color(magenta().invert(), |printer| {
+                printer.with_effect(Effect::Reverse, |printer| {
+                    printer.print((length + 8, last_row), sub_block(extra));
+                });
+            });
+
+            // Draw the solid part of the progress bar (preceding the fractional part).
+            p.cropped((length + 8, h)).with_color(magenta(), |printer| {
+                printer.print_hline((8, last_row), length, "█");
+            });
+
+            // Draw spaces to maintain consistent padding when resizing.
+            p.print((w - 2, 0), "  ");
+            p.print((w - 2, last_row), "  ");
+        }
     }
 
-    fn layout(&mut self, _: cursive::Vec2) {
+    fn layout(&mut self, size: cursive::Vec2) {
         self.player.poll_sink();
+        self.size = size;
+        self.offset = self.update_offset();
     }
 
     // Keybindings for the player view.
@@ -217,14 +245,21 @@ impl View for PlayerView {
                 self.player.play_last_track()
             }
 
-            Event::Char('p')
-            | Event::Char(' ')
+            #[allow(unused_variables)]
+            Event::Mouse {
+                offset: XY { x, y },
+                event: MouseEvent::Press(MouseButton::Left),
+                ..
+            } => return self.mouse_select(y, event),
+
+            Event::Char('p') | Event::Char(' ') => self.player.play_or_pause(),
+
+            Event::Char('s')
+            | Event::Char('.')
             | Event::Mouse {
                 event: MouseEvent::Press(MouseButton::Right),
                 ..
-            } => self.player.play_or_pause(),
-
-            Event::Char('s') | Event::Char('.') => self.player.stop(),
+            } => self.player.stop(),
 
             Event::Char('j')
             | Event::Char('l')
@@ -266,6 +301,7 @@ impl View for PlayerView {
             _ => return EventResult::Ignored,
         }
 
+        self.selected = None;
         EventResult::Consumed(None)
     }
 }

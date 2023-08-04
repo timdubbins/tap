@@ -205,6 +205,14 @@ impl Player {
         }
     }
 
+    pub fn select_track_index(&mut self, index: usize) {
+        self.stop();
+        self.index = index;
+        self.file = self.playlist[self.index].clone();
+        self.clear();
+        self.play();
+    }
+
     // Select the track to play from the stored keyboard input.
     fn select_track_number(&mut self) -> bool {
         let track_number = concatenate(&self.numbers_pressed) as u32;

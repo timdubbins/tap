@@ -1,4 +1,4 @@
-use cursive::event::{Event, EventResult, Key, MouseEvent};
+use cursive::event::{Event, EventResult, Key, MouseButton, MouseEvent};
 use cursive::theme::Effect;
 use cursive::view::{Resizable, View};
 use cursive::views::LayerPosition;
@@ -254,6 +254,22 @@ impl FuzzyView {
             }
         })
     }
+
+    fn mouse_select(&mut self, event: Event) -> EventResult {
+        let mouse_y = event.mouse_position().unwrap_or_default().y;
+        let available_y = self.size.y - 2;
+
+        if mouse_y < 1 || mouse_y > available_y {
+            return EventResult::Consumed(None);
+        }
+
+        if available_y + self.offset - mouse_y == self.selected {
+            return self.on_select();
+        } else {
+            self.selected = available_y + self.offset - mouse_y;
+            EventResult::Consumed(None)
+        }
+    }
 }
 
 impl View for FuzzyView {
@@ -358,7 +374,17 @@ impl View for FuzzyView {
         match event {
             Event::Char(ch) => self.insert(ch),
             Event::Key(Key::Enter) => return self.on_select(),
-            Event::Key(Key::Esc) => return on_cancel(),
+
+            Event::Key(Key::Esc)
+            | Event::Mouse {
+                event: MouseEvent::Press(MouseButton::Right),
+                ..
+            } => return on_cancel(),
+
+            Event::Mouse {
+                event: MouseEvent::Press(MouseButton::Left),
+                ..
+            } => return self.mouse_select(event),
 
             Event::Key(Key::Down)
             | Event::Mouse {
