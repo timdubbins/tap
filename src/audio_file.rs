@@ -53,18 +53,16 @@ impl AudioFile {
     }
 }
 
-// Order by Artist -> Album -> Track -> Title
+// Order by Album -> Track / Title
 impl PartialOrd for AudioFile {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        if self.artist == other.artist {
-            if self.album == other.album {
-                if self.track == other.track {
-                    return Some(self.title.cmp(&other.title));
-                }
-                return Some(self.track.cmp(&other.track));
-            }
-            return Some(self.album.cmp(&other.album));
-        }
-        Some(self.artist.cmp(&other.artist))
+        Some(
+            self.album
+                .cmp(&other.album)
+                .then(match self.track == other.track {
+                    true => self.title.cmp(&other.title),
+                    false => self.track.cmp(&other.track),
+                }),
+        )
     }
 }
