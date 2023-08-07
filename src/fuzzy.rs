@@ -1,8 +1,8 @@
-use std::path::PathBuf;
+use std::{cmp::Ordering, path::PathBuf};
 
 use walkdir::{DirEntry, WalkDir};
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq, Ord)]
 pub struct FuzzyItem {
     // The path of the directory entry.
     pub path: PathBuf,
@@ -47,6 +47,13 @@ impl FuzzyItem {
     }
 }
 
+// Use alphabetical ordering.
+impl PartialOrd for FuzzyItem {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.key.cmp(&other.key))
+    }
+}
+
 // Gets an array of all child directories, relative to `path`,
 // excluding hidden directories.
 pub fn get_items(path: &PathBuf) -> Vec<FuzzyItem> {
@@ -75,11 +82,20 @@ fn is_non_hidden_dir(entry: &walkdir::DirEntry) -> bool {
             .unwrap_or(false)
 }
 
-// Gets all the directories that satisfy the are direct descendants
-// of `dirs` and start with the case-insensitive `key`.
+// Gets all items with `depth` of 1 and start with `key`.
 pub fn filtered_items(key: char, items: Vec<FuzzyItem>) -> Vec<FuzzyItem> {
     items
         .into_iter()
         .filter(|e| e.depth == 1 && e.key == key)
         .collect()
+}
+
+// Gets all items with `depth` of 1, sorted by `key`.
+pub fn sorted_items(items: Vec<FuzzyItem>) -> Vec<FuzzyItem> {
+    let mut items = items
+        .into_iter()
+        .filter(|e| e.depth == 1)
+        .collect::<Vec<FuzzyItem>>();
+    items.sort();
+    items
 }

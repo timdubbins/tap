@@ -249,6 +249,7 @@ impl FuzzyView {
             } else {
                 match Player::new(selected.to_owned()) {
                     Ok(player) => PlayerView::load(player, siv),
+                    // Err(e) => self.error = Some(e.to_string()),
                     Err(e) => ErrorView::load(siv, e),
                 }
             }
@@ -347,7 +348,7 @@ impl View for FuzzyView {
             });
 
             // Draw the text input area that shows the query.
-            p.with_color(theme::white_reversed(), |p| {
+            p.with_color(theme::inverted(), |p| {
                 p.with_effect(Effect::Reverse, |p| {
                     p.print_hline((0, query_row), w, " ");
                     p.print((2, query_row), &self.query);
@@ -398,9 +399,9 @@ impl View for FuzzyView {
                 ..
             } => self.move_up(),
 
-            Event::Key(Key::PageUp) | Event::CtrlChar('l') => self.page_up(),
-            Event::Key(Key::PageDown) | Event::CtrlChar('h') => self.page_down(),
-            Event::Ctrl(Key::PageUp) | Event::Ctrl(Key::PageDown) => self.random_page(),
+            Event::Key(Key::PageUp) | Event::CtrlChar('h') => self.page_up(),
+            Event::Key(Key::PageDown) | Event::CtrlChar('l') => self.page_down(),
+            Event::CtrlChar('z') => self.random_page(),
             Event::Key(Key::Backspace) => self.backspace(),
             Event::Key(Key::Del) => self.delete(),
             Event::Key(Key::Left) => self.move_left(),

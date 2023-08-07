@@ -41,14 +41,17 @@ impl App {
         // Load the initial fuzzy search.
         FuzzyView::load(items.to_owned(), &mut siv);
 
-        // Register the inner callbacks for fuzzy matching, filtered search,
-        // selecting the previous player and selecting a random player.
+        // Register the inner callbacks for fuzzy matching, filtered search, sorted
+        // search, selecting the previous player and selecting a random player.
         siv.set_on_pre_event_inner(trigger(), move |event: &Event| {
             let key = inner_cb(event).expect("trigger ensures chars only");
 
             let items = match key.is_alphabetic() {
                 true => filtered_items(key, items.to_owned()),
-                false => items.to_owned(),
+                false => match key.eq(&'3') {
+                    true => sorted_items(items.to_owned()),
+                    false => items.to_owned(),
+                },
             };
 
             Some(EventResult::with_cb(move |siv| {
@@ -90,6 +93,8 @@ fn inner_cb(event: &Event) -> Option<char> {
             Event::Char('A'..='Z') => Some(*c),
             _ => None,
         },
+        // '3' -> sorted search
+        Event::CtrlChar('s') => Some('3'),
         _ => None,
     }
 }
