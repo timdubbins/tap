@@ -45,7 +45,7 @@ impl ErrorView {
                 Event::Char(_)
                     | Event::Key(_)
                     | Event::Mouse {
-                        event: MouseEvent::Press(_),
+                        event: MouseEvent::WheelUp | MouseEvent::WheelDown | MouseEvent::Press(_),
                         ..
                     }
             )
