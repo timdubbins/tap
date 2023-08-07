@@ -8,13 +8,12 @@ use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
-use crate::app::{curr_path, pop_layers_to_bottom};
-use crate::error_view::ErrorView;
+use crate::app::curr_path;
 use crate::fuzzy::*;
 use crate::player::Player;
-use crate::player_view::PlayerView;
 use crate::theme;
 use crate::utils::{has_child_dirs, random};
+use crate::views::{error_view::ErrorView, player_view::PlayerView, utils::pop_layers_to_bottom};
 
 #[derive(Clone)]
 pub struct FuzzyView {

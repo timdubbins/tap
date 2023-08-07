@@ -8,10 +8,9 @@ use cursive::traits::View;
 use cursive::view::Resizable;
 use cursive::{Cursive, Printer, XY};
 
-use crate::app::remove_layers_to_top;
-use crate::keys_view::KeysView;
 use crate::player::{Player, PlayerStatus, Size};
 use crate::theme::*;
+use crate::views::{keys_view::KeysView, utils::*};
 
 pub struct PlayerView {
     // The currently loaded player.

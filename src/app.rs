@@ -6,10 +6,9 @@ use cursive::Cursive;
 
 use crate::args::Args;
 use crate::fuzzy::*;
-use crate::fuzzy_view::FuzzyView;
 use crate::player::Player;
-use crate::player_view::PlayerView;
 use crate::utils::*;
+use crate::views::{fuzzy_view::FuzzyView, player_view::PlayerView};
 
 #[derive(Clone)]
 pub struct App {}
@@ -156,25 +155,4 @@ pub fn curr_path(siv: &mut Cursive) -> Option<PathBuf> {
         None => None,
     };
     curr_path
-}
-
-// Remove all layers from the StackView except the top layer.
-pub fn remove_layers_to_top(siv: &mut Cursive) {
-    let mut count = siv.screen().len();
-
-    while count > 1 {
-        siv.screen_mut()
-            .remove_layer(cursive::views::LayerPosition::FromBack(0));
-        count -= 1;
-    }
-}
-
-// Pop all layers from the StackView except the bottom layer.
-pub fn pop_layers_to_bottom(siv: &mut Cursive) {
-    let mut count = siv.screen().len();
-
-    while count > 1 {
-        siv.pop_layer();
-        count -= 1;
-    }
 }

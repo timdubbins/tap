@@ -1,13 +1,11 @@
 mod app;
 mod args;
 mod audio_file;
-mod error_view;
 mod fuzzy;
-mod fuzzy_view;
 mod player;
-mod player_view;
 mod theme;
 mod utils;
+mod views;
 
 use crate::app::App;
 
