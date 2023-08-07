@@ -8,7 +8,7 @@ use crate::args::Args;
 use crate::fuzzy::*;
 use crate::player::Player;
 use crate::utils::*;
-use crate::views::{fuzzy_view::FuzzyView, player_view::PlayerView};
+use crate::views::{FuzzyView, PlayerView};
 
 #[derive(Clone)]
 pub struct App {}

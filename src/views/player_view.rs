@@ -10,7 +10,7 @@ use cursive::{Cursive, Printer, XY};
 
 use crate::player::{Player, PlayerStatus, Size};
 use crate::theme::*;
-use crate::views::{keys_view::KeysView, utils::*};
+use crate::views::{utils::remove_layers_to_top, KeysView};
 
 pub struct PlayerView {
     // The currently loaded player.

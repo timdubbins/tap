@@ -12,8 +12,8 @@ use crate::app::curr_path;
 use crate::fuzzy::*;
 use crate::player::Player;
 use crate::theme;
-use crate::utils::{has_child_dirs, random};
-use crate::views::{error_view::ErrorView, player_view::PlayerView, utils::pop_layers_to_bottom};
+use crate::utils::*;
+use crate::views::{utils::pop_layers_to_bottom, ErrorView, PlayerView};
 
 #[derive(Clone)]
 pub struct FuzzyView {
