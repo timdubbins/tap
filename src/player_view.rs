@@ -278,16 +278,16 @@ impl View for PlayerView {
 
             Event::Char('m') => self.player.toggle_mute(),
 
-            Event::Char('0') => self.player.numbers_pressed.push(0),
-            Event::Char('1') => self.player.numbers_pressed.push(1),
-            Event::Char('2') => self.player.numbers_pressed.push(2),
-            Event::Char('3') => self.player.numbers_pressed.push(3),
-            Event::Char('4') => self.player.numbers_pressed.push(4),
-            Event::Char('5') => self.player.numbers_pressed.push(5),
-            Event::Char('6') => self.player.numbers_pressed.push(6),
-            Event::Char('7') => self.player.numbers_pressed.push(7),
-            Event::Char('8') => self.player.numbers_pressed.push(8),
-            Event::Char('9') => self.player.numbers_pressed.push(9),
+            Event::Char('0') => self.player.number_keys.push(0),
+            Event::Char('1') => self.player.number_keys.push(1),
+            Event::Char('2') => self.player.number_keys.push(2),
+            Event::Char('3') => self.player.number_keys.push(3),
+            Event::Char('4') => self.player.number_keys.push(4),
+            Event::Char('5') => self.player.number_keys.push(5),
+            Event::Char('6') => self.player.number_keys.push(6),
+            Event::Char('7') => self.player.number_keys.push(7),
+            Event::Char('8') => self.player.number_keys.push(8),
+            Event::Char('9') => self.player.number_keys.push(9),
 
             Event::Char('?') => {
                 return EventResult::with_cb(|siv| {

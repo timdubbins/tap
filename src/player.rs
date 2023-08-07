@@ -41,7 +41,7 @@ pub struct Player {
     // Whether the player is playing, paused or stopped.
     pub status: PlayerStatus,
     // The list of numbers from last keyboard input,
-    pub numbers_pressed: Vec<usize>,
+    pub number_keys: Vec<usize>,
     // Whether or not a double-tap event was registered.
     pub previous_key: Arc<AtomicBool>,
     // The map of audio track numbers to file indices.
@@ -80,7 +80,7 @@ impl Player {
             last_started: Instant::now(),
             last_elapsed: Duration::default(),
             index: 0,
-            numbers_pressed: vec![],
+            number_keys: vec![],
             previous_key: Arc::new(AtomicBool::new(false)),
             is_muted: false,
             playlist,
@@ -173,14 +173,14 @@ impl Player {
 
     // Removes the stored keyboard inputs.
     fn clear(&mut self) {
-        self.numbers_pressed.clear();
+        self.number_keys.clear();
         self.previous_key.store(false, Ordering::Relaxed)
     }
 
     // Selects a track to play based on stored keyboard input.
     // Returns true if a track was selected.
     fn select_track(&mut self) -> bool {
-        if self.numbers_pressed.is_empty() {
+        if self.number_keys.is_empty() {
             self.select_track_double_tap()
         } else {
             self.select_track_number()
@@ -215,7 +215,7 @@ impl Player {
 
     // Select the track to play from the stored keyboard input.
     fn select_track_number(&mut self) -> bool {
-        let track_number = concatenate(&self.numbers_pressed) as u32;
+        let track_number = concatenate(&self.number_keys) as u32;
 
         match self.indices.get(&track_number) {
             Some(i) => {
