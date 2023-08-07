@@ -9,6 +9,7 @@ use cursive::view::Resizable;
 use cursive::{Cursive, Printer, XY};
 
 use crate::app::remove_layers_to_top;
+use crate::keys_view::KeysView;
 use crate::player::{Player, PlayerStatus, Size};
 use crate::theme::*;
 
@@ -239,11 +240,8 @@ impl View for PlayerView {
     // Keybindings for the player view.
     fn on_event(&mut self, event: Event) -> EventResult {
         match event {
-            Event::Key(Key::Enter) | Event::Char('g') => self.player.play_selection(),
-            Event::Char('[') | Event::Key(Key::Home) => self.player.play_first_track(),
-            Event::Char(']') | Event::Char('e') | Event::Key(Key::End) => {
-                self.player.play_last_track()
-            }
+            Event::Char('g') => self.player.play_selection(),
+            Event::CtrlChar('g') => self.player.play_last_track(),
 
             #[allow(unused_variables)]
             Event::Mouse {
@@ -252,28 +250,27 @@ impl View for PlayerView {
                 ..
             } => return self.mouse_select(y, event),
 
-            Event::Char('p') | Event::Char(' ') => self.player.play_or_pause(),
+            Event::Char('h') | Event::Char(' ') | Event::Key(Key::Left) => {
+                self.player.play_or_pause()
+            }
 
-            Event::Char('s')
-            | Event::Char('.')
+            Event::Char('l')
+            | Event::Key(Key::Enter)
+            | Event::Key(Key::Right)
             | Event::Mouse {
                 event: MouseEvent::Press(MouseButton::Right),
                 ..
             } => self.player.stop(),
 
             Event::Char('j')
-            | Event::Char('l')
             | Event::Key(Key::Down)
-            | Event::Key(Key::Right)
             | Event::Mouse {
                 event: MouseEvent::WheelDown,
                 ..
             } => self.player.next(),
 
             Event::Char('k')
-            | Event::Char('h')
             | Event::Key(Key::Up)
-            | Event::Key(Key::Left)
             | Event::Mouse {
                 event: MouseEvent::WheelUp,
                 ..
@@ -292,8 +289,14 @@ impl View for PlayerView {
             Event::Char('8') => self.player.numbers_pressed.push(8),
             Event::Char('9') => self.player.numbers_pressed.push(9),
 
+            Event::Char('?') => {
+                return EventResult::with_cb(|siv| {
+                    KeysView::load(siv);
+                });
+            }
+
             Event::Char('q') => {
-                return EventResult::with_cb(move |siv| {
+                return EventResult::with_cb(|siv| {
                     siv.quit();
                 });
             }

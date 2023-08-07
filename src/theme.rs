@@ -10,7 +10,11 @@ const MAGENTA: Color = Color::Rgb(178, 148, 187); // #b294bb
 const CYAN: Color = Color::Rgb(138, 190, 183); // #8abeb7
 const GREY: Color = Color::Rgb(57, 54, 62); // #39363e
 
-pub fn white_reversed() -> ColorStyle {
+pub fn button() -> ColorStyle {
+    ColorStyle::new(BLACK, BLUE)
+}
+
+pub fn inverted() -> ColorStyle {
     ColorStyle::new(BLACK, WHITE)
 }
 
