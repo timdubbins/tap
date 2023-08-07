@@ -165,12 +165,6 @@ impl Player {
         }
     }
 
-    pub fn play_first_track(&mut self) {
-        if self.select_first_track() {
-            self.play_or_pause()
-        }
-    }
-
     // Removes the stored keyboard inputs.
     fn clear(&mut self) {
         self.number_keys.clear();

@@ -1,14 +1,10 @@
-use cursive::{
-    align::HAlign,
-    event::{Event, EventTrigger, MouseEvent},
-    utils::markup::StyledString,
-    view::Resizable,
-    views::{
-        Button, Dialog, DummyView, Layer, LinearLayout, ListView, OnEventView, PaddedView,
-        ScrollView, TextView,
-    },
-    Cursive, With,
+use cursive::event::{Event, EventTrigger, MouseEvent};
+use cursive::utils::markup::StyledString;
+use cursive::view::Resizable;
+use cursive::views::{
+    Dialog, DummyView, LinearLayout, ListView, OnEventView, PaddedView, ScrollView, TextView,
 };
+use cursive::Cursive;
 
 use crate::theme;
 
