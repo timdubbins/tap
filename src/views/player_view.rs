@@ -8,7 +8,7 @@ use cursive::traits::View;
 use cursive::view::Resizable;
 use cursive::{Cursive, Printer, XY};
 
-use crate::player::{Player, PlayerStatus, Size};
+use crate::player::{Player, PlayerStatus};
 use crate::theme::*;
 use crate::views::{utils::remove_layers_to_top, KeysView};
 
@@ -33,14 +33,14 @@ impl PlayerView {
         }
     }
 
-    pub fn load((player, size): (Player, Size), siv: &mut Cursive) {
+    pub fn load((player, size): (Player, XY<usize>), siv: &mut Cursive) {
         let path = player.path.to_owned();
 
         siv.add_layer(
             PlayerView::new(player)
                 .full_width()
-                .max_width(std::cmp::max(size.0, 53))
-                .fixed_height(size.1),
+                .max_width(std::cmp::max(size.x, 53))
+                .fixed_height(size.y),
         );
 
         remove_layers_to_top(siv);

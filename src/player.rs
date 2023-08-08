@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::bail;
 use async_std::task;
+use cursive::XY;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
 use crate::audio_file::AudioFile;
@@ -23,9 +24,6 @@ pub enum PlayerStatus {
     Playing,
     Stopped,
 }
-
-// A generic structure to hold x, y axis values.
-pub struct Size(pub usize, pub usize);
 
 pub struct Player {
     // The path used to create the playlist.
@@ -59,7 +57,7 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(path: PathBuf) -> Result<(Self, Size), anyhow::Error> {
+    pub fn new(path: PathBuf) -> Result<(Self, XY<usize>), anyhow::Error> {
         let (playlist, x) = Player::create_playlist(path.clone())?;
         let y = std::cmp::min(45, playlist.len() + 3);
         let file = playlist
@@ -93,7 +91,7 @@ impl Player {
 
         player.play_or_pause();
 
-        Ok((player, Size(x, y)))
+        Ok((player, XY { x, y }))
     }
 
     // Whether the player is playing or not.
