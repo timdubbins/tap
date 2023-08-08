@@ -26,7 +26,7 @@ impl App {
         siv.load_toml(include_str!("assets/style.toml"))
             .expect("style.toml should be located in assets directory");
 
-        // Set the refresh rate to a value that gives a steady tick.
+        // Set the refresh rate.
         siv.set_fps(15);
 
         // There are no items to search on so load `path` into the player and run.
