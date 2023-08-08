@@ -1,6 +1,6 @@
 # tap
 
-tap is an audio player for the terminal, written in Rust. It's a fast, minimal player that gives you access to the albums in your library through fuzzy finding shortcuts.
+tap is an audio player for the terminal, written in Rust. It gives you access to the albums in your library through fuzzy finding shortcuts.
 
 <img src="https://github.com/timdubbins/tap/blob/master/doc/tap_screenshot.png" width="650"/>
 
@@ -9,13 +9,9 @@ tap is an audio player for the terminal, written in Rust. It's a fast, minimal p
 ```bash
 > tap [path]
 ```
+Run tap in a directory that contains music folders to open a fuzzy finder, allowing you to select an album to play. Playback starts on selection and you can return to search mode by pressing `Tab`.
 
-The path argument is optional. If it is omitted the current directory is used. Then:
-
-- if path is an audio file or a directory containing audio files (i.e. an album), tap will open and play the file(s).
-
-
-- if path is a directory that contains subdirectories (such as your root music folder), tap will open a fuzzy search, allowing you to select an album to play. Playback starts on selection and you can return to search mode by pressing `TAB`.
+If you provide a path and the path is an audio file or folder of audio files, tap will open and play the file(s).
 
 **Tip**: Create an `alias` that provides a default path to your root music folder. Do this by putting something like the following in your shell config (for zsh users this could be in your .zshrc) and then source or restart your shell:
 
@@ -33,56 +29,115 @@ Passing in a second path argument will overide the path provided in the alias, s
 
 ## Bindings
 
-Command | Keybinding
----|---
-fuzzy search | `TAB`
-filtered search | `A...Z`
-cancel search | `ESC`
-previous selection | `-` or `b`
-random selection | `=` or `r`
-play or pause | `SPACE` or `p`
-stop | `.` or `s`
-next | `j` or `DOWN` or `l` or `RIGHT`
-previous | `k` or `UP` or `h` or `LEFT`
-go to first track | `[` or `gg`
-go to last track | `]` or `e`
-go to track number | `0...9` + `g` or `ENTER`
-toggle mute | `m`
-quit | `q`
+<details open>
+<summary><b>Keyboard</b></summary>
+<br>
 
-## Notes
+Global              | Keybinding    | Includes
+---                 |---            |---
+fuzzy search        | `Tab`         | <i>all albums</i>
+filtered search     | `A...Z`       | <i>artists beginning with ..</i>
+sorted search       | `Ctrl` + `s`  | <i>all artists, sorted alphabetically</i>
+previous selection  | `-`           |
+random selection    | `=`           |
 
-- The currently supported formats are: `aac`, `flac`, `mp3`, `m4a`, `ogg` and `wav`.
-- tap currently relies on metadata. If there is an issue with playback of a file it is possible that this is due to incorrect audio tags on the file.
+Player              | Keybinding
+---                 |---
+play or pause       | `h` or <kbd>&larr;</kbd> or `Space`
+next                | `j` or <kbd>&darr;</kbd>
+previous            | `k` or <kbd>&uarr;</kbd>
+stop                | `l` or <kbd>&rarr;</kbd> or `Enter`
+go to first track   | `gg`
+go to last track    | `Ctrl` + `g`
+go to track number  | `0...9` + `g`
+toggle mute         | `m`
+keys                | `?`
+quit                | `q`
+
+Fuzzy               | Keybinding
+---                 |---
+clear search        | `Ctrl` + `u`
+cancel search       | `Esc`
+page up             | `Ctrl` + `h` or `PgUp`
+page down           | `Ctrl` + `l` or `PgDn`
+random page         | `Ctrl` + `z`
+
+</details>
+
+<details>
+<summary><b>Mouse</b></summary>
+<br>
+
+Global              | Keybinding
+---                 |---
+fuzzy search        | `Middle Button`
+
+Player              | Keybinding
+---                 |---
+play or pause       | `Left Button`
+next / previous     | `Scroll`
+stop                | `Right Button`
+select              | `Left Button`
+
+Fuzzy               | Keybinding
+---                 |---
+cancel search       | `Right Button`
+scroll              | `Scroll`
+select              | `Left Button`
+
+</details>
 
 ## Installation
 
-If you're on <b>macOS</b> you can use <a href="https://brew.sh/">Homebrew</a>:
+<details>
+<summary><b>macOS</b></summary>
+<br>
+You can install with <a href="https://brew.sh/">Homebrew</a>:
 
 ```bash
 > brew install timdubbins/tap/tap
 > tap --version
-0.4.0
+0.4.1
 ```
 
-If you're on <b>Arch</b> you can grab the <a href="https://aur.archlinux.org/packages/tap">AUR package</a>.
-Or you can automate the install process with an <a href="https://wiki.archlinux.org/title/AUR_helpers">AUR helper</a>,
+</details>
+
+
+<details>
+<summary><b>Arch Linux</b></summary>
+<br>
+
+You can install with an <a href="https://wiki.archlinux.org/title/AUR_helpers">AUR helper</a>,
 such as <a href="https://github.com/Jguer/yay">yay</a>:
 
 ```bash
 > yay -S tap
 > tap --version
-0.4.0
+0.4.1
 ```
+The AUR package is available <a href="https://aur.archlinux.org/packages/tap">here</a>.
+<br>
+</details>
 
-If you're a <b>Debian</b> user (or a user of a Debian derivative like <b>Ubuntu</b> then tap can be installed using a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.4.0">tap release</a>.
+
+<details>
+<summary><b>Debian</b> (or a Debian derivative, such as <b>Ubuntu</b>)</summary>
+<br>
+
+You can install with a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.4.1">tap release</a>:
 
 ```bash
-> curl -LO https://github.com/timdubbins/tap/releases/download/v0.4.0/tap_v0.4.0_amd64.deb
-> sudo dpkg -i tap_v0.4.0_amd64.deb
+> curl -LO https://github.com/timdubbins/tap/releases/download/v0.4.1/tap_v0.4.1_amd64.deb
+> sudo dpkg -i tap_v0.4.1_amd64.deb
 > tap --version
-0.4.0
+0.4.1
 ```
+
+</details>
+
+<details>
+<summary><b>Rust</b></summary>
+<br>
 
 To compile from source, first you need a <a href="https://www.rust-lang.org/">Rust installation</a> (if you don't have one) and then you can use <a href="https://github.com/rust-lang/cargo">cargo</a>:
 
@@ -91,12 +146,19 @@ To compile from source, first you need a <a href="https://www.rust-lang.org/">Ru
 > cd tap
 > cargo install --path .
 > tap --version
-0.4.0
+0.4.1
 ```
 
-The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.4.0).
+</details>
 
-### Building
+The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.4.1).
+
+## Notes
+
+- The supported formats are: `aac`, `flac`, `mp3`, `m4a`, `ogg` and `wav`.
+- If there is an issue with playback of a file it is possible that this is due to incorrect audio tags on the file.
+
+## Building
 
 For Rust programmers, tap can be built in the usual manner with:
 ```bash
@@ -106,6 +168,7 @@ For Rust programmers, tap can be built in the usual manner with:
 ### Inspired by
 
 - [cmus](https://github.com/cmus/cmus) - popular console music player with many features
+- [fzf](https://github.com/junegunn/fzf) - command line fuzzy finder
 
 ### Made possible by
 
