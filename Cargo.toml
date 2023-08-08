@@ -1,12 +1,12 @@
 [package]
 name = "tap"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["Tim Dubbins <timdubbins@gmail.com>"]
 description = "An audio player for the terminal, with fuzzy-finding."
 documentation = "https://github.com/timdubbins/tap"
 homepage = "https://github.com/timdubbins/tap"
 repository = "https://github.com/timdubbins/tap"
-keywords = ["audio", "player"]
+keywords = ["audio", "player", "fuzzy", "finder", "cli"]
 categories = ["command-line-utilities"]
 license = "Unlicense OR MIT"
 edition = "2021"
