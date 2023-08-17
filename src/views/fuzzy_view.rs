@@ -29,6 +29,8 @@ pub struct FuzzyView {
     matches: usize,
     // The items to fuzzy search on.
     items: Vec<FuzzyItem>,
+    // The maximum number of `items` visible per page.
+    available_y: usize,
     // The size of the view.
     size: XY<usize>,
 }
@@ -42,12 +44,12 @@ impl FuzzyView {
             offset: 0,
             matches: items.len(),
             items,
+            available_y: 0,
             size: XY { x: 0, y: 0 },
         }
     }
 
     pub fn load(items: Vec<FuzzyItem>, siv: &mut Cursive) {
-        // let size = siv.screen_size();
         siv.add_layer(FuzzyView::new(items).full_screen())
     }
 
@@ -67,7 +69,7 @@ impl FuzzyView {
         if self.selected == self.matches - 1 {
             return;
         }
-        if self.selected - self.offset >= self.size.y - 3 {
+        if self.selected - self.offset >= self.available_y {
             self.offset += 1;
         }
         self.selected += 1;
@@ -78,11 +80,14 @@ impl FuzzyView {
         if self.matches == 0 {
             return;
         }
-        if self.selected + self.size.y - 3 <= self.matches - 1 {
-            self.offset += self.size.y - 3;
-            self.selected += self.size.y - 3;
+        if self.selected + self.available_y <= self.matches - 1 {
+            self.offset += self.available_y;
+            self.selected += self.available_y;
         } else {
             self.selected = self.matches - 1;
+            if self.offset + self.available_y < self.selected {
+                self.offset += self.available_y;
+            }
         }
     }
 
@@ -91,23 +96,27 @@ impl FuzzyView {
         if self.matches == 0 {
             return;
         }
-        if self.selected + self.offset > self.size.y - 3 {
-            self.offset -= self.size.y - 3;
-            self.selected -= self.size.y - 3;
+        if self.selected > self.available_y {
+            self.selected -= self.available_y
         } else {
             self.selected = 0;
+        }
+        if self.offset > self.available_y {
+            self.offset -= self.available_y
+        } else {
+            self.offset = 0;
         }
     }
 
     // Moves the selection to a random page.
     fn random_page(&mut self) {
-        if self.items.len() <= self.size.y - 3 {
+        if self.items.len() <= self.available_y {
             return;
         }
 
-        let pages = self.items.len() / (self.size.y - 3) + 1;
+        let pages = self.items.len() / (self.available_y) + 1;
         let page = random(0..pages);
-        let y = page * (self.size.y - 3);
+        let y = page * (self.available_y);
 
         if y == self.offset {
             self.random_page();
@@ -257,16 +266,17 @@ impl FuzzyView {
 
     fn mouse_select(&mut self, event: Event) -> EventResult {
         let mouse_y = event.mouse_position().unwrap_or_default().y;
-        let available_y = self.size.y - 2;
 
-        if mouse_y < 1 || mouse_y > available_y {
+        if mouse_y < 1 || mouse_y > self.available_y + 1 {
             return EventResult::Consumed(None);
         }
 
-        if available_y + self.offset - mouse_y == self.selected {
+        let next_selected = self.available_y + 1 + self.offset - mouse_y;
+
+        if next_selected == self.selected {
             return self.on_select();
         } else {
-            self.selected = available_y + self.offset - mouse_y;
+            self.selected = next_selected;
             EventResult::Consumed(None)
         }
     }
@@ -275,6 +285,7 @@ impl FuzzyView {
 impl View for FuzzyView {
     fn layout(&mut self, size: cursive::Vec2) {
         self.size = size;
+        self.available_y = if size.y > 2 { size.y - 3 } else { 0 };
     }
 
     fn draw(&self, p: &Printer) {
@@ -294,7 +305,7 @@ impl View for FuzzyView {
                 // Only draw items that have matches.
                 if self.items[index].weight != 0 {
                     // Set the color depending on whether row is currently selected or not.
-                    let (primary, highlight) = if row == start_row + self.offset - self.selected {
+                    let (primary, highlight) = if row + self.selected == start_row + self.offset {
                         // Draw the symbol to show the currently selected item.
                         p.with_color(theme::yellow(), |p| p.print((0, row), ">"));
                         // The colors for the currently selected row.
