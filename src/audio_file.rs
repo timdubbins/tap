@@ -4,6 +4,9 @@ use std::path::PathBuf;
 use anyhow::bail;
 use lofty::{Accessor, AudioFile as LoftyAudioFile, Probe, TaggedFileExt};
 
+// The list of valid file extensions.
+const FORMATS: &'static [&'static str] = &["aac", "flac", "mp3", "m4a", "ogg", "wav", "wma"];
+
 #[derive(Clone, Debug, Eq, PartialEq, Ord)]
 pub struct AudioFile {
     pub path: PathBuf,
@@ -65,4 +68,10 @@ impl PartialOrd for AudioFile {
                 }),
         )
     }
+}
+
+// Returns true if the file extension is a valid format.
+pub fn is_valid(p: &PathBuf) -> bool {
+    let ext = p.extension().unwrap_or_default().to_str().unwrap();
+    FORMATS.contains(&ext)
 }

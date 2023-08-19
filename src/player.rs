@@ -11,13 +11,9 @@ use async_std::task;
 use cursive::XY;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
-use crate::audio_file::AudioFile;
+use crate::audio_file::{is_valid, AudioFile};
 use crate::utils::concatenate;
 
-// The list of valid file extensions.
-const FORMATS: &'static [&'static str] = &["aac", "flac", "mp3", "m4a", "ogg", "wav", "wma"];
-
-// The status of the player.
 #[derive(PartialEq)]
 pub enum PlayerStatus {
     Paused,
@@ -73,7 +69,7 @@ impl Player {
         }
 
         let mut player = Self {
-            path: path,
+            path,
             status: PlayerStatus::Stopped,
             last_started: Instant::now(),
             last_elapsed: Duration::default(),
@@ -330,7 +326,7 @@ impl Player {
                     if path.is_dir() {
                         // Recurse into child directory.
                         return Player::create_playlist(path);
-                    } else if valid_ext(&path) {
+                    } else if is_valid(&path) {
                         match AudioFile::new(path) {
                             // Grow the playlist and update width.
                             Ok(f) => {
@@ -346,7 +342,7 @@ impl Player {
                     }
                 }
             }
-        } else if valid_ext(&path) {
+        } else if is_valid(&path) {
             dir_empty = false;
             match AudioFile::new(path.clone()) {
                 // Create the playlist that contains a single file.
@@ -376,11 +372,6 @@ impl Player {
 
         Ok((audio_files, width))
     }
-}
-
-fn valid_ext(p: &PathBuf) -> bool {
-    let ext = p.extension().unwrap_or_default().to_str().unwrap();
-    FORMATS.contains(&ext)
 }
 
 // Returns `Ok` if the audio file can be decoded.
