@@ -3,8 +3,6 @@ use std::path::PathBuf;
 use anyhow::bail;
 use clap::Parser;
 
-use crate::utils::remove_trailing_slash;
-
 #[derive(Parser)]
 #[command(author, version, about)]
 pub struct Args {
@@ -13,9 +11,6 @@ pub struct Args {
 }
 
 impl Args {
-    // Returns a sanitized, non-empty path on success. If two
-    // paths are supplied the second is used. If no path is
-    // supplied the current directory is used.
     pub fn parse_path() -> Result<PathBuf, anyhow::Error> {
         let path = match Args::parse().second_path {
             Some(p) => p,
@@ -29,10 +24,6 @@ impl Args {
             bail!("'{}' doesn't exist.", path.display())
         }
 
-        // We remove trailing slashes from the path in order
-        // to provide consistent behavior between OSs.
-        let p = remove_trailing_slash(path)?;
-
-        Ok(p)
+        Ok(path)
     }
 }
