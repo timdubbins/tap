@@ -33,10 +33,10 @@ impl KeysView {
                     .child(
                         Dialog::new().title("Player").content(
                             ListView::new()
-                                .child("play", TextView::new("`h` or `Left` or `Space`"))
-                                .child("next", TextView::new("`j` or `Down`"))
-                                .child("previous", TextView::new("`k` or `Up`"))
-                                .child("stop", TextView::new("`l` or `Right` or `Enter`"))
+                                .child("play", TextView::new("`h` or `←` or `Space`"))
+                                .child("next", TextView::new("`j` or `↓`"))
+                                .child("previous", TextView::new("`k` or `↑`"))
+                                .child("stop", TextView::new("`l` or `→` or `Enter`"))
                                 .child("go to first track", TextView::new("`gg`"))
                                 .child("go to last track", TextView::new("`Ctrl` + `g`"))
                                 .child("go to track number", TextView::new("`0...9` + `g`"))
