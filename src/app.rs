@@ -40,23 +40,24 @@ impl App {
         // Load the initial fuzzy search.
         FuzzyView::load(items.to_owned(), &mut siv);
 
-        // Register the inner callbacks for fuzzy matching, filtered search, sorted
-        // search, selecting the previous player and selecting a random player.
+        // Register the inner callbacks for fuzzy searching and selection.
         siv.set_on_pre_event_inner(trigger(), move |event: &Event| {
-            let key = inner_cb(event).expect("trigger ensures chars only");
+            let c = event.char().unwrap_or('0');
 
-            let items = match key.is_alphabetic() {
-                true => filtered_items(key, items.to_owned()),
-                false => match key.eq(&'3') {
-                    true => sorted_items(items.to_owned()),
-                    false => items.to_owned(),
+            let items = match c {
+                'A'..='Z' => key_items(c, items.to_owned()),
+                'a' => leaf_items(items.to_owned()),
+                's' => non_leaf_items(items.to_owned()),
+                _ => match event.f_num() {
+                    Some(depth) => depth_items(depth, items.to_owned()),
+                    None => items.to_owned(),
                 },
             };
 
             Some(EventResult::with_cb(move |siv| {
-                if key.eq(&'1') {
+                if c.eq(&'=') {
                     random_selection(&items, siv)
-                } else if key.eq(&'2') {
+                } else if c.eq(&'-') {
                     previous_selection(siv)
                 } else {
                     FuzzyView::load(items.to_owned(), siv)
@@ -69,37 +70,30 @@ impl App {
     }
 }
 
-// Whether or not an inner callback is triggered.
+// Trigger for inner callbacks.
 fn trigger() -> EventTrigger {
-    EventTrigger::from_fn(|event| inner_cb(event).is_some())
+    EventTrigger::from_fn(|event| {
+        matches!(
+            event,
+            Event::Key(Key::Tab)
+                | Event::Char('=')
+                | Event::Char('-')
+                | Event::Char('A'..='Z')
+                | Event::CtrlChar('a')
+                | Event::CtrlChar('s')
+                | Event::Key(Key::F1)
+                | Event::Key(Key::F2)
+                | Event::Key(Key::F3)
+                | Event::Key(Key::F4)
+                | Event::Mouse {
+                    event: MouseEvent::Press(MouseButton::Middle),
+                    ..
+                }
+        )
+    })
 }
 
-// Keybindings for the inner callbacks.
-fn inner_cb(event: &Event) -> Option<char> {
-    match event {
-        // '0' -> fuzzy search
-        Event::Key(Key::Tab)
-        | Event::Mouse {
-            event: MouseEvent::Press(MouseButton::Middle),
-            ..
-        } => Some('0'),
-        Event::Char(c) => match event {
-            // '1' -> random selection
-            Event::Char('=') => Some('1'),
-            // '2' -> previous selection
-            Event::Char('-') => Some('2'),
-            // 'A'..='Z' -> filtered search
-            Event::Char('A'..='Z') => Some(*c),
-            _ => None,
-        },
-        // '3' -> sorted search
-        Event::CtrlChar('s') => Some('3'),
-        _ => None,
-    }
-}
-
-// Selects a child directory at random. Loads a new player
-// with a valid selection. Invalid selections are ignored.
+// Selects and loads a leaf directory at random. Invalid selections are ignored.
 fn random_selection(items: &Vec<FuzzyItem>, siv: &mut Cursive) {
     let mut count = 0;
     let curr_path = curr_path(siv);
