@@ -1,6 +1,8 @@
 # tap
 
-tap is an audio player for the terminal. It gives you access to the albums in your library through fuzzy-finding shortcuts.
+tap is an audio player for the terminal. Jump to any album in your library with fuzzy-finder shortcuts!
+
+**Quick links:** [Bindings](#bindings), [Installation](#installation).
 
 <img src="https://github.com/timdubbins/tap/blob/master/doc/tap_screenshot.png" width="650"/>
 
@@ -11,9 +13,9 @@ tap is an audio player for the terminal. It gives you access to the albums in yo
 ```
 Run tap in a directory that contains music folders to open a fuzzy-finder, allowing you to select an album to play. Playback starts on selection and you can return to the fuzzy-finder by pressing `Tab`.
 
-Provide a path to an audio file or album to open and play the file(s) without the fuzzy-finder.
-
-**NB:** If path is omitted, the current directory is used. If a second path is provided it will override the first.
+- If path is omitted the current directory is used.
+- If a second path is provided it will override the first (useful for creating aliases).
+- If path is an audio file or album then a player will run without the fuzzy-finder.
 
 ## Bindings
 
