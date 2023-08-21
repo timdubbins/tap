@@ -131,7 +131,7 @@ You can install with a binary <code>.deb</code> file provided in each <a href="h
 <summary><b>Rust</b></summary>
 <br>
 
-To compile from source, first you need a <a href="https://www.rust-lang.org/">Rust installation</a> (if you don't have one) and then you can use <a href="https://github.com/rust-lang/cargo">cargo</a>:
+To compile from source, first you need a <a href="https://www.rust-lang.org/learn/get-started">Rust installation</a> (if you don't have one) and then you can use <a href="https://github.com/rust-lang/cargo">cargo</a>:
 
 ```bash
 > git clone https://github.com/timdubbins/tap
