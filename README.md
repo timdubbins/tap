@@ -1,6 +1,6 @@
 # tap
 
-tap is an audio player for the terminal, written in Rust. It gives you access to the albums in your library through fuzzy finding shortcuts.
+tap is an audio player for the terminal. It gives you access to the albums in your library through fuzzy-finding shortcuts.
 
 <img src="https://github.com/timdubbins/tap/blob/master/doc/tap_screenshot.png" width="650"/>
 
@@ -9,23 +9,11 @@ tap is an audio player for the terminal, written in Rust. It gives you access to
 ```bash
 > tap [path]
 ```
-Run tap in a directory that contains music folders to open a fuzzy finder, allowing you to select an album to play. Playback starts on selection and you can return to search mode by pressing `Tab`.
+Run tap in a directory that contains music folders to open a fuzzy-finder, allowing you to select an album to play. Playback starts on selection and you can return to the fuzzy-finder by pressing `Tab`.
 
-If you provide a path and the path is an audio file or folder of audio files, tap will open and play the file(s).
+Provide a path to an audio file or album to open and play the file(s) without the fuzzy-finder.
 
-**Tip**: Create an `alias` that provides a default path to your root music folder. Do this by putting something like the following in your shell config (for zsh users this could be in your .zshrc) and then source or restart your shell:
-
-``` bash
-alias tap="tap ~/path/to/my_music"
-```
-
-Passing in a second path argument will overide the path provided in the alias, so we now have the following behaviour:
-``` bash
-> tap                       # start by searching albums in `.../my_music`
-> tap .                     # runs tap in the current directory
-> tap ~/path/to/album       # starts playback of `.../album` files
-> tap ~/path/to/album/file  # starts playback of `.../file`
-```
+**NB:** If path is omitted, the current directory is used. If a second path is provided it will override the first.
 
 ## Bindings
 
@@ -35,11 +23,13 @@ Passing in a second path argument will overide the path provided in the alias, s
 
 Global              | Keybinding    | Includes
 ---                 |---            |---
-fuzzy search        | `Tab`         | <i>all albums</i>
-filtered search     | `A...Z`       | <i>artists beginning with ..</i>
-sorted search       | `Ctrl` + `s`  | <i>all artists, sorted alphabetically</i>
-previous selection  | `-`           |
-random selection    | `=`           |
+fuzzy search        | `Tab`         | <i>all folders</i>
+depth search        | `F1...F4`     | <i>folders at depth 1...4</i>
+filtered search     | `A...Z`       | <i>artists beginning with A...Z</i>
+artist search       | `Ctrl` + `s`  | <i>all artists, sorted alphabetically</i>
+album search        | `Ctrl` + `a`  | <i>all albums, sorted alphabetically</i>
+load previous album | `-`           |
+load random album   | `=`           |
 
 Player              | Keybinding
 ---                 |---
@@ -51,7 +41,7 @@ go to first track   | `gg`
 go to last track    | `Ctrl` + `g`
 go to track number  | `0...9` + `g`
 toggle mute         | `m`
-keys                | `?`
+help                | `?`
 quit                | `q`
 
 Fuzzy               | Keybinding
