@@ -1,12 +1,12 @@
 [package]
 name = "tap"
-version = "0.4.1"
+version = "0.4.2"
 authors = ["Tim Dubbins <timdubbins@gmail.com>"]
-description = "An audio player for the terminal, with fuzzy-finding."
+description = "A fuzzy-finding audio player for the terminal"
 documentation = "https://github.com/timdubbins/tap"
 homepage = "https://github.com/timdubbins/tap"
 repository = "https://github.com/timdubbins/tap"
-keywords = ["audio", "player", "fuzzy", "finder", "cli"]
+keywords = ["audio", "player", "fuzzy", "finder", "rust", "cli", "tui", "music", "terminal"]
 categories = ["command-line-utilities"]
 license = "Unlicense OR MIT"
 edition = "2021"
@@ -20,7 +20,8 @@ name = "tap"
 anyhow = "1.0"
 async-std = "1.12.0"
 clap = { version = "4.1.8", features = ["derive"] }
-cursive = { version = "0.20", features = ["ncurses-backend", "toml"] }
+cursive = { git = "https://github.com/timdubbins/cursive", branch = "tap", features = ["ncurses-backend", "toml"] }
+# cursive = { version = "0.20", features = ["ncurses-backend", "toml"] }
 fuzzy-matcher = "*"
 lofty = "0.14.0"
 rand = "0.8.5"
