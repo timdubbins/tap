@@ -43,14 +43,15 @@ impl App {
         // Register the inner callbacks for fuzzy searching and selection.
         siv.set_on_pre_event_inner(trigger(), move |event: &Event| {
             let c = event.char().unwrap_or('0');
+            let items = items.to_owned();
 
             let items = match c {
-                'A'..='Z' => key_items(c, items.to_owned()),
-                'a' => leaf_items(items.to_owned()),
-                's' => non_leaf_items(items.to_owned()),
+                'A'..='Z' => key_items(c, items),
+                'a' => leaf_items(items),
+                's' => non_leaf_items(items),
                 _ => match event.f_num() {
-                    Some(depth) => depth_items(depth, items.to_owned()),
-                    None => items.to_owned(),
+                    Some(depth) => depth_items(depth, items),
+                    None => items,
                 },
             };
 
