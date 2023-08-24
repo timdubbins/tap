@@ -1,3 +1,4 @@
+use std::cmp::max;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
@@ -310,17 +311,14 @@ impl Player {
         let mut audio_files = vec![];
         // The width of the player view.
         let mut width = 0;
-        // The state of the current directory.
-        let mut dir_empty = true;
+        // True when `path` is not a valid file or contains no valid files.
+        let mut is_empty = true;
         // The error we get if we can't create an audio file.
         let mut error: Option<anyhow::Error> = None;
 
-        // Add valid files to the audio_files list, updating the
-        // width value on each entry. If we find a directory use
-        // it to build the list instead of the current path.
         if path.is_dir() {
             for entry in path.read_dir()? {
-                dir_empty = false;
+                is_empty = false;
                 if let Ok(entry) = entry {
                     let path = entry.path();
                     if path.is_dir() {
@@ -330,10 +328,7 @@ impl Player {
                         match AudioFile::new(path) {
                             // Grow the playlist and update width.
                             Ok(f) => {
-                                width = std::cmp::max(
-                                    f.title.len() + 19,
-                                    f.artist.len() + f.album.len() + 20,
-                                );
+                                width = max(width, f.title.len());
                                 audio_files.push(f)
                             }
                             // Save the error in case the playlist is empty.
@@ -343,11 +338,10 @@ impl Player {
                 }
             }
         } else if is_valid(&path) {
-            dir_empty = false;
             match AudioFile::new(path.clone()) {
                 // Create the playlist that contains a single file.
                 Ok(f) => {
-                    width = std::cmp::max(f.title.len() + 19, f.artist.len() + f.album.len() + 20);
+                    width = f.title.len();
                     audio_files.push(f)
                 }
                 // We cannot recover if the audio file is not created.
@@ -355,28 +349,30 @@ impl Player {
             }
         }
 
-        // Give an appropriate error if we fail to
-        // find any valid files.
-        if audio_files.is_empty() {
-            match dir_empty {
+        match audio_files.first() {
+            Some(f) => {
+                width = max(width, f.album.len() + f.artist.len() + 1);
+                can_decode(f)?;
+            }
+            // Give an appropriate error if we fail to find any valid files.
+            None => match is_empty {
                 true => bail!("'{}' is empty.", path.display()),
                 false => match error {
                     Some(e) => bail!(e),
                     None => bail!("No valid files found in '{}'.", path.display()),
                 },
-            }
+            },
         }
 
-        can_decode(&audio_files.first())?;
         audio_files.sort();
 
-        Ok((audio_files, width))
+        Ok((audio_files, width + 19))
     }
 }
 
-// Returns `Ok` if the audio file can be decoded.
-fn can_decode(audio_file: &Option<&AudioFile>) -> Result<(), anyhow::Error> {
-    let path = audio_file.expect("audio_files not empty").path.as_path();
+// Returns `Ok` if the file can be decoded.
+fn can_decode(audio_file: &AudioFile) -> Result<(), anyhow::Error> {
+    let path = audio_file.path.as_path();
     let f = match File::open(path) {
         Ok(f) => f,
         Err(_) => bail!("Could not open '{}'.", path.display()),
