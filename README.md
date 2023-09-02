@@ -7,15 +7,16 @@ tap is an audio player for the terminal. Jump to any album in your library with 
 <img src="https://github.com/timdubbins/tap/blob/master/doc/tap_screenshot.png" width="650"/>
 
 ## How to use
-
 ```bash
-> tap [path]
+> tap [-a] [path]
 ```
-Run tap in a directory that contains music folders to open a fuzzy-finder, allowing you to select an album to play. Playback starts on selection and you can return to the fuzzy-finder by pressing `Tab`.
+If path is omitted, the current directory is used. A second path will override the first (useful for creating aliases).
 
-- If path is omitted the current directory is used.
-- If a second path is provided it will override the first (useful for creating aliases).
-- If path is an audio file or album then a player will run without the fuzzy-finder.
+- Provide a path that contains music folders to open a fuzzy-finder, allowing you to select an album to play. Playback starts on selection and you can return to the fuzzy-finder by pressing `Tab`.
+
+- Provide a path to an audio file or album to open a player without the fuzzy-finder.
+
+- Include the `-a` flag to run an automated player without the TUI. Press `Ctrl` + `c` to quit.
 
 ## Bindings
 
@@ -28,10 +29,10 @@ Global              | Keybinding    | Includes
 fuzzy search        | `Tab`         | <i>all folders</i>
 depth search        | `F1...F4`     | <i>folders at depth 1...4</i>
 filtered search     | `A...Z`       | <i>artists beginning with A...Z</i>
-artist search       | `Ctrl` + `s`  | <i>all artists, sorted alphabetically</i>
-album search        | `Ctrl` + `a`  | <i>all albums, sorted alphabetically</i>
-load previous album | `-`           |
-load random album   | `=`           |
+artist search       | `Ctrl` + `a`  | <i>all artists, sorted alphabetically</i>
+album search        | `Ctrl` + `s`  | <i>all albums, sorted alphabetically</i>
+previous album | `-`           |
+random album   | `=`           |
 
 Player              | Keybinding
 ---                 |---
@@ -39,10 +40,11 @@ play or pause       | `h` or <kbd>&larr;</kbd> or `Space`
 next                | `j` or <kbd>&darr;</kbd>
 previous            | `k` or <kbd>&uarr;</kbd>
 stop                | `l` or <kbd>&rarr;</kbd> or `Enter`
+random              | `r`
+mute                | `m`
 go to first track   | `gg`
 go to last track    | `Ctrl` + `g`
 go to track number  | `0...9` + `g`
-toggle mute         | `m`
 help                | `?`
 quit                | `q`
 
@@ -89,7 +91,7 @@ You can install with <a href="https://brew.sh/">Homebrew</a>:
 ```bash
 > brew install timdubbins/tap/tap
 > tap --version
-0.4.2
+0.4.3
 ```
 
 </details>
@@ -105,7 +107,7 @@ such as <a href="https://github.com/Jguer/yay">yay</a>:
 ```bash
 > yay -S tap
 > tap --version
-0.4.2
+0.4.3
 ```
 The AUR package is available <a href="https://aur.archlinux.org/packages/tap">here</a>.
 <br>
@@ -116,13 +118,13 @@ The AUR package is available <a href="https://aur.archlinux.org/packages/tap">he
 <summary><b>Debian</b> (or a Debian derivative, such as <b>Ubuntu</b>)</summary>
 <br>
 
-You can install with a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.4.2">tap release</a>:
+You can install with a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.4.3">tap release</a>:
 
 ```bash
-> curl -LO https://github.com/timdubbins/tap/releases/download/v0.4.2/tap_v0.4.2_amd64.deb
-> sudo dpkg -i tap_v0.4.2_amd64.deb
+> curl -LO https://github.com/timdubbins/tap/releases/download/v0.4.3/tap_v0.4.3_amd64.deb
+> sudo dpkg -i tap_v0.4.3_amd64.deb
 > tap --version
-0.4.2
+0.4.3
 ```
 
 </details>
@@ -138,12 +140,12 @@ To compile from source, first you need a <a href="https://www.rust-lang.org/lear
 > cd tap
 > cargo install --path .
 > tap --version
-0.4.2
+0.4.3
 ```
 
 </details>
 
-The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.4.2).
+The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.4.3).
 
 ## Notes
 
