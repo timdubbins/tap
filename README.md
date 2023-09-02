@@ -10,13 +10,14 @@ tap is an audio player for the terminal. Jump to any album in your library with 
 ```bash
 > tap [-a] [path]
 ```
-If path is omitted, the current directory is used. A second path will override the first (useful for creating aliases).
+Run `tap` in a directory that contains music folders to open a `fuzzy-finder`, allowing you to select an album to play. Playback starts on selection and you can return to the fuzzy-finder by pressing `Tab`.
 
-- Provide a path that contains music folders to open a fuzzy-finder, allowing you to select an album to play. Playback starts on selection and you can return to the fuzzy-finder by pressing `Tab`.
+To open a player without the fuzzy-finder provide a `path` to an audio file or album. 
 
-- Provide a path to an audio file or album to open a player without the fuzzy-finder.
+Options:
+- `path` can be a file or directory. If it is omitted the current directory is used. A second path will override the first, which can be useful for creating aliases.
 
-- Include the `-a` flag to run an automated player without the TUI. Press `Ctrl` + `c` to quit.
+- Include the `-a` flag to run an automated player without the TUI. Quit with `Ctrl` + `c`.
 
 ## Bindings
 
