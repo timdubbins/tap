@@ -1,4 +1,4 @@
-use std::cmp::max;
+use std::cmp::{max, min};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
@@ -13,9 +13,9 @@ use cursive::XY;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
 use crate::audio_file::{is_valid, AudioFile};
-use crate::utils::concatenate;
+use crate::utils::{concatenate, random};
 
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum PlayerStatus {
     Paused,
     Playing,
@@ -31,8 +31,14 @@ pub struct Player {
     pub file: AudioFile,
     // The index of the current audio file.
     pub index: usize,
+    // The index of the previous audio file, used when the player doesn't change.
+    pub previous: usize,
     // Whether the player is muted or not.
     pub is_muted: bool,
+    // Whether or not the next track will be selected randomly.
+    pub is_randomized: bool,
+    // Whether or not we need to queue the next random track.
+    pub is_queued: bool,
     // Whether the player is playing, paused or stopped.
     pub status: PlayerStatus,
     // The list of numbers from last keyboard input,
@@ -54,9 +60,9 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(path: PathBuf) -> Result<(Self, XY<usize>), anyhow::Error> {
-        let (playlist, x) = Player::create_playlist(path.clone())?;
-        let y = std::cmp::min(45, playlist.len() + 3);
+    pub fn new(path: &PathBuf) -> Result<(Self, XY<usize>), anyhow::Error> {
+        let path = path.to_owned();
+        let (playlist, size) = Player::playlist(path.clone())?;
         let file = playlist
             .first()
             .expect("playlist should not be empty")
@@ -70,14 +76,17 @@ impl Player {
         }
 
         let mut player = Self {
-            path,
             status: PlayerStatus::Stopped,
             last_started: Instant::now(),
             last_elapsed: Duration::default(),
             index: 0,
+            previous: 0,
             number_keys: vec![],
             previous_key: Arc::new(AtomicBool::new(false)),
             is_muted: false,
+            is_randomized: false,
+            is_queued: false,
+            path,
             playlist,
             file,
             indices,
@@ -88,7 +97,7 @@ impl Player {
 
         player.play_or_pause();
 
-        Ok((player, XY { x, y }))
+        Ok((player, size))
     }
 
     // Whether the player is playing or not.
@@ -246,16 +255,10 @@ impl Player {
             self.file = self.playlist[self.index].clone();
         }
 
-        match self.status {
-            PlayerStatus::Stopped => self.stop(),
-            _ => {
-                self.stop();
-                self.play_or_pause()
-            }
-        }
+        self.set_playback();
     }
 
-    pub fn prev(&mut self) {
+    pub fn previous(&mut self) {
         self.clear();
 
         if self.index > 0 {
@@ -263,11 +266,25 @@ impl Player {
             self.file = self.playlist[self.index].clone();
         }
 
+        self.set_playback();
+    }
+
+    // Convenience method to maintain `status` in new player instances.
+    pub fn set_playback(&mut self) {
         match self.status {
-            PlayerStatus::Stopped => self.stop(),
-            _ => {
+            PlayerStatus::Paused => {
                 self.stop();
-                self.play_or_pause()
+                self.play();
+                self.pause();
+            }
+            PlayerStatus::Playing => {
+                self.stop();
+                self.play();
+            }
+            PlayerStatus::Stopped => {
+                self.stop();
+                self.play();
+                self.stop();
             }
         }
     }
@@ -282,36 +299,103 @@ impl Player {
             }
     }
 
-    pub fn poll_sink(&mut self) {
-        if self.is_playing() && self.sink.empty() {
-            if self.index < self.playlist.len() - 1 {
+    // Return values are for the automated player, where:
+    // 0 => the player has completed.
+    // 1 => the player has changed.
+    // 2 => the player is unchanged.
+    pub fn poll_sink(&mut self) -> usize {
+        if !self.is_playing() {
+            return 0;
+        }
+        if self.sink.empty() {
+            if self.is_randomized {
+                self.is_queued = true;
+            } else if self.index < self.playlist.len() - 1 {
                 self.next();
                 self.last_elapsed = Duration::default();
+                return 1;
             } else {
                 self.stop();
                 self.next();
             }
         }
+        2
     }
 
-    pub fn toggle_mute(&mut self) {
-        if self.sink.volume() == 0.0 {
-            self.sink.set_volume(1.0);
-            self.is_muted = false;
-        } else {
-            self.sink.set_volume(0.0);
-            self.is_muted = true;
+    // Tries to get the path of a random player and a random index for that player.
+    pub fn randomized(paths: &Vec<PathBuf>) -> Option<(PathBuf, usize)> {
+        let mut count = 0;
+        loop {
+            if count > 10 {
+                // Give up after a while.
+                return None;
+            }
+            let target = random(0..paths.len());
+            let path = paths[target].to_owned();
+            if let Ok((playlist, _)) = Player::playlist(path.to_owned()) {
+                let index = random(0..playlist.len());
+                return Some((path, index));
+            } else {
+                count += 1;
+                continue;
+            }
         }
     }
 
-    // Tries to create a playlist from the given path. Returns the list
-    // and the required width for the player on success.
-    pub fn create_playlist(path: PathBuf) -> Result<(Vec<AudioFile>, usize), anyhow::Error> {
+    // Sets the current track in a playlist randomly.
+    pub fn next_random(&mut self) {
+        if self.playlist.len() > 1 {
+            let mut index = random(0..self.playlist.len());
+            if index == self.index {
+                // A second chance to find a new index.
+                index = random(0..self.playlist.len());
+            }
+            self.previous = self.index;
+            self.index = index;
+            self.file = self.playlist[index].to_owned();
+            self.is_queued = false;
+            self.set_playback();
+        }
+    }
+
+    // Sets the track to the previous, randomly selected, track.
+    pub fn previous_random(&mut self) {
+        if self.playlist.len() > 1 {
+            let current = self.index;
+            self.index = self.previous;
+            self.previous = current;
+            self.file = self.playlist[self.index].to_owned();
+            self.is_queued = false;
+            self.set_playback();
+        }
+    }
+
+    pub fn init_volume(&mut self) {
+        if self.is_muted {
+            self.sink.set_volume(0.0)
+        }
+    }
+
+    pub fn toggle_mute(&mut self) {
+        self.is_muted ^= true;
+
+        match self.is_muted {
+            true => self.sink.set_volume(0.0),
+            false => self.sink.set_volume(1.0),
+        }
+    }
+
+    pub fn toggle_randomization(&mut self) {
+        self.is_randomized ^= true;
+    }
+
+    // Returns the playlist and required size for the player on success.
+    pub fn playlist(path: PathBuf) -> Result<(Vec<AudioFile>, XY<usize>), anyhow::Error> {
         // The list of files to use in the player.
         let mut audio_files = vec![];
-        // The width of the player view.
+        // An intermediate value used in calculating the player width.
         let mut width = 0;
-        // True when `path` is not a valid file or contains no valid files.
+        // True when `path` is an empty directory.
         let mut is_empty = true;
         // The error we get if we can't create an audio file.
         let mut error: Option<anyhow::Error> = None;
@@ -323,7 +407,7 @@ impl Player {
                     let path = entry.path();
                     if path.is_dir() {
                         // Recurse into child directory.
-                        return Player::create_playlist(path);
+                        return Player::playlist(path);
                     } else if is_valid(&path) {
                         match AudioFile::new(path) {
                             // Grow the playlist and update width.
@@ -366,7 +450,25 @@ impl Player {
 
         audio_files.sort();
 
-        Ok((audio_files, width + 19))
+        let size = XY {
+            x: max(width + 19, 53),
+            y: min(45, audio_files.len() + 3),
+        };
+
+        Ok((audio_files, size))
+    }
+
+    pub fn stdout(&self) -> (String, usize) {
+        let line = format!(
+            "Playing: '{}' by '{}' ({}/{})",
+            self.file.title,
+            self.file.artist,
+            self.index + 1,
+            self.playlist.len()
+        );
+        let length = line.len();
+
+        (line, length)
     }
 }
 

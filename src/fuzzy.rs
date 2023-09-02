@@ -125,3 +125,12 @@ pub fn leaf_items(items: Vec<FuzzyItem>) -> Vec<FuzzyItem> {
     items.sort();
     items
 }
+
+// Gets all the leaf paths.
+pub fn leaf_paths(items: &Vec<FuzzyItem>) -> Vec<PathBuf> {
+    items
+        .into_iter()
+        .filter(|e| !e.has_child)
+        .map(|e| e.path.to_owned())
+        .collect::<Vec<PathBuf>>()
+}

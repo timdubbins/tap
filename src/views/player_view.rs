@@ -3,6 +3,7 @@ use std::collections::VecDeque;
 use std::path::PathBuf;
 
 use cursive::event::{Event, EventResult, Key, MouseButton, MouseEvent};
+use cursive::reexports::crossbeam_channel::Sender;
 use cursive::theme::{ColorStyle, Effect};
 use cursive::traits::View;
 use cursive::view::Resizable;
@@ -10,7 +11,8 @@ use cursive::{Cursive, Printer, XY};
 
 use crate::player::{Player, PlayerStatus};
 use crate::theme::*;
-use crate::views::{utils::remove_layers_to_top, KeysView};
+use crate::utils::random;
+use crate::views::KeysView;
 
 pub struct PlayerView {
     // The currently loaded player.
@@ -19,54 +21,142 @@ pub struct PlayerView {
     selected: Option<usize>,
     // The vertical offset required to show relevant playlist rows.
     offset: usize,
+    // Callback to access the cursive root. `None` if standalone player.
+    cb: Option<Sender<Box<dyn FnOnce(&mut Cursive) + Send>>>,
     // The size of the view.
     size: XY<usize>,
 }
 
 impl PlayerView {
-    pub fn new(player: Player) -> Self {
+    pub fn new(player: Player, cb: Option<Sender<Box<dyn FnOnce(&mut Cursive) + Send>>>) -> Self {
         Self {
             player,
+            cb,
             selected: None,
             offset: 0,
             size: XY { x: 0, y: 0 },
         }
     }
 
-    pub fn load((player, size): (Player, XY<usize>), siv: &mut Cursive) {
+    pub fn fuzzy((player, size): (Player, XY<usize>), siv: &mut Cursive) {
         let path = player.path.to_owned();
 
+        PlayerView::load((player, size), siv);
+
+        siv.with_user_data(
+            |(_, queue): &mut (Vec<PathBuf>, VecDeque<(PathBuf, usize)>)| {
+                if queue.len() == 1 {
+                    queue.push_front((path.to_owned(), 0));
+                    queue.push_front((path, 0));
+                } else {
+                    queue.pop_front();
+                    queue.insert(1, (path, 0));
+                }
+            },
+        );
+    }
+
+    pub fn random(opts: Option<(PlayerStatus, bool)>, siv: &mut Cursive) {
+        let (_, queue) = siv
+            .user_data::<(Vec<PathBuf>, VecDeque<(PathBuf, usize)>)>()
+            .expect("should be set");
+
+        let (path, index) = queue.back().expect("should always be value").to_owned();
+        let (mut player, size) = Player::new(&path).expect("previous player");
+        let length = player.playlist.len();
+
+        if let Some(opts) = opts {
+            player.index = index;
+            player.file = player.playlist[index].to_owned();
+            player.status = opts.0;
+            player.is_muted = opts.1;
+            player.is_randomized = true;
+            player.init_volume();
+            player.set_playback();
+        }
+
+        PlayerView::load((player, size), siv);
+
+        siv.with_user_data(
+            |(paths, queue): &mut (Vec<PathBuf>, VecDeque<(PathBuf, usize)>)| {
+                if queue.len() == 1 {
+                    let first = queue.front().expect("set on init").to_owned();
+                    queue.push_back(first);
+                } else {
+                    queue.pop_front();
+                }
+
+                let (path, index) = match Player::randomized(&paths) {
+                    Some(res) => res,
+                    None => (path, random(0..length)),
+                };
+
+                queue.push_back((path, index));
+            },
+        );
+    }
+
+    pub fn previous(opts: Option<(PlayerStatus, bool)>, siv: &mut Cursive) {
+        let (_, queue) = siv
+            .user_data::<(Vec<PathBuf>, VecDeque<(PathBuf, usize)>)>()
+            .expect("should be set");
+
+        if queue.len() == 1 {
+            return;
+        }
+
+        let (path, index) = queue.front().expect("should always be value").to_owned();
+        let (mut player, size) = Player::new(&path).expect("previous player");
+
+        if let Some(opts) = opts {
+            player.index = index;
+            player.file = player.playlist[index].to_owned();
+            player.status = opts.0;
+            player.is_muted = opts.1;
+            player.is_randomized = true;
+            player.init_volume();
+            player.set_playback();
+        }
+
+        PlayerView::load((player, size), siv);
+
+        siv.with_user_data(
+            |(_, queue): &mut (Vec<PathBuf>, VecDeque<(PathBuf, usize)>)| {
+                queue.swap(0, 1);
+            },
+        );
+    }
+
+    pub fn load((player, size): (Player, XY<usize>), siv: &mut Cursive) {
+        let cb = match siv.user_data::<(Vec<PathBuf>, VecDeque<(PathBuf, usize)>)>() {
+            Some(_) => Some(siv.cb_sink().clone()),
+            None => None,
+        };
+
         siv.add_layer(
-            PlayerView::new(player)
+            PlayerView::new(player, cb)
                 .full_width()
-                .max_width(std::cmp::max(size.x, 53))
+                .max_width(size.x)
                 .fixed_height(size.y),
         );
 
         remove_layers_to_top(siv);
-
-        // Keep a reference to the current and previous player.
-        if siv.user_data::<VecDeque<PathBuf>>().is_none() {
-            siv.set_user_data(VecDeque::from([
-                PathBuf::from(path.as_path()),
-                PathBuf::from(path.as_path()),
-            ]));
-        } else {
-            siv.with_user_data(|history: &mut VecDeque<PathBuf>| {
-                history.push_back(path);
-                history.pop_front();
-            });
-        }
     }
 
     fn player_status(&self) -> (&'static str, ColorStyle, Effect) {
-        match self.player.is_muted {
-            true => ("m", cyan(), Effect::Italic),
-            false => match self.player.status {
-                PlayerStatus::Paused => ("|", white(), Effect::Simple),
-                PlayerStatus::Playing => (">", yellow(), Effect::Simple),
-                PlayerStatus::Stopped => (".", red(), Effect::Simple),
-            },
+        match self.player.status {
+            PlayerStatus::Paused => ("|", white(), Effect::Simple),
+            PlayerStatus::Playing => (">", yellow(), Effect::Simple),
+            PlayerStatus::Stopped => (".", red(), Effect::Simple),
+        }
+    }
+
+    fn player_opts(&self) -> &'static str {
+        match (self.player.is_randomized, self.player.is_muted) {
+            (true, true) => " *m",
+            (true, false) => "  *",
+            (false, true) => "  m",
+            (false, false) => unreachable!(),
         }
     }
 
@@ -123,6 +213,34 @@ impl PlayerView {
 
         EventResult::Consumed(None)
     }
+
+    fn random_track(&mut self) {
+        match &self.cb {
+            Some(cb) => {
+                // Random player and track.
+                let opts = Some((self.player.status.to_owned(), self.player.is_muted));
+                cb.send(Box::new(move |siv| {
+                    let opts = opts;
+                    PlayerView::random(opts, siv);
+                }))
+                .unwrap_or_default();
+            }
+            None => self.player.next_random(),
+        }
+    }
+
+    fn previous_random(&mut self) {
+        match &self.cb {
+            Some(cb) => {
+                let opts = Some((self.player.status.to_owned(), self.player.is_muted));
+                cb.send(Box::new(move |siv| {
+                    PlayerView::previous(opts, siv);
+                }))
+                .unwrap_or_default();
+            }
+            None => self.player.previous_random(),
+        }
+    }
 }
 
 impl View for PlayerView {
@@ -165,6 +283,14 @@ impl View for PlayerView {
                             (6, i + 1 - self.offset),
                             format!("{:02}  {}", f.track, f.title).as_str(),
                         );
+                        if column > 11 && (self.player.is_randomized || self.player.is_muted) {
+                            // Draw the player options.
+                            p.with_color(cyan(), |p| {
+                                p.with_effect(Effect::Italic, |p| {
+                                    p.print((column - 3, i + 1 - self.offset), self.player_opts())
+                                })
+                            })
+                        }
                         p.print(
                             (column, i + 1 - self.offset),
                             mins_and_secs(f.duration).as_str(),
@@ -232,6 +358,9 @@ impl View for PlayerView {
 
     fn layout(&mut self, size: cursive::Vec2) {
         self.player.poll_sink();
+        if self.player.is_queued {
+            self.random_track();
+        }
         self.size = size;
         self.offset = self.update_offset();
     }
@@ -266,16 +395,59 @@ impl View for PlayerView {
             | Event::Mouse {
                 event: MouseEvent::WheelDown,
                 ..
-            } => self.player.next(),
+            } => {
+                if self.player.is_randomized {
+                    self.random_track();
+                } else {
+                    self.player.next();
+                }
+            }
 
             Event::Char('k')
             | Event::Key(Key::Up)
             | Event::Mouse {
                 event: MouseEvent::WheelUp,
                 ..
-            } => self.player.prev(),
+            } => {
+                if self.player.is_randomized {
+                    self.previous_random();
+                } else {
+                    self.player.previous()
+                }
+            }
 
             Event::Char('m') => self.player.toggle_mute(),
+
+            Event::Char('*' | 'r') => {
+                if self.cb.is_none() && self.player.playlist.len() < 2 {
+                    return EventResult::Consumed(None);
+                }
+
+                self.player.toggle_randomization();
+
+                if self.player.is_randomized {
+                    let current_index = self.player.index;
+
+                    return match self.cb {
+                        Some(_) => EventResult::with_cb(move |siv| {
+                            siv.with_user_data(
+                                |(_, queue): &mut (Vec<PathBuf>, VecDeque<(PathBuf, usize)>)| {
+                                    if let Some((_, index)) = queue.get_mut(1) {
+                                        *index = current_index;
+                                    }
+                                },
+                            );
+                        }),
+                        None => {
+                            if self.player.playlist.len() > 1 {
+                                EventResult::with_cb(move |siv| siv.set_user_data(current_index))
+                            } else {
+                                EventResult::Consumed(None)
+                            }
+                        }
+                    };
+                }
+            }
 
             Event::Char('0') => self.player.number_keys.push(0),
             Event::Char('1') => self.player.number_keys.push(1),
@@ -333,4 +505,15 @@ fn sub_block(extra: usize) -> &'static str {
 
 fn mins_and_secs(secs: usize) -> String {
     format!("  {:02}:{:02}  ", secs / 60, secs % 60)
+}
+
+// Remove all layers from the StackView except the top layer.
+fn remove_layers_to_top(siv: &mut Cursive) {
+    let mut count = siv.screen().len();
+
+    while count > 1 {
+        siv.screen_mut()
+            .remove_layer(cursive::views::LayerPosition::FromBack(0));
+        count -= 1;
+    }
 }
