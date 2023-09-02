@@ -1,3 +1,6 @@
+use std::collections::VecDeque;
+use std::path::PathBuf;
+
 use cursive::event::{Event, EventResult, Key, MouseButton, MouseEvent};
 use cursive::theme::Effect;
 use cursive::view::{Resizable, View};
@@ -8,12 +11,11 @@ use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
-use crate::app::curr_path;
 use crate::fuzzy::*;
 use crate::player::Player;
 use crate::theme;
 use crate::utils::*;
-use crate::views::{utils::pop_layers_to_bottom, ErrorView, PlayerView};
+use crate::views::{ErrorView, PlayerView};
 
 #[derive(Clone)]
 pub struct FuzzyView {
@@ -36,7 +38,7 @@ pub struct FuzzyView {
 }
 
 impl FuzzyView {
-    pub fn new(items: Vec<FuzzyItem>) -> Self {
+    fn new(items: Vec<FuzzyItem>) -> Self {
         FuzzyView {
             query: String::new(),
             cursor: 0,
@@ -51,6 +53,13 @@ impl FuzzyView {
 
     pub fn load(items: Vec<FuzzyItem>, siv: &mut Cursive) {
         siv.add_layer(FuzzyView::new(items).full_screen())
+    }
+
+    pub fn with(items: Vec<FuzzyItem>, key: char, siv: &mut Cursive) {
+        let mut fuzzy = FuzzyView::new(items);
+        fuzzy.insert(key.to_ascii_lowercase());
+
+        siv.add_layer(fuzzy.full_screen());
     }
 
     // Moves the selection down one row.
@@ -249,17 +258,16 @@ impl FuzzyView {
 
         EventResult::with_cb(move |siv| {
             // The path of the current player.
-            let current = curr_path(siv);
+            let current = current_path(siv);
 
             if Some(selected.to_owned()).eq(&current) {
                 // Don't reload the player if the selection hasn't changed.
                 pop_layers_to_bottom(siv);
             } else {
-                match Player::new(selected.to_owned()) {
-                    Ok(player) => PlayerView::load(player, siv),
-                    // Err(e) => self.error = Some(e.to_string()),
+                match Player::new(&selected) {
+                    Ok(player) => PlayerView::fuzzy(player, siv),
                     Err(e) => ErrorView::load(siv, e),
-                }
+                };
             }
         })
     }
@@ -429,10 +437,32 @@ impl View for FuzzyView {
 // Handle a fuzzy match being escaped.
 fn on_cancel() -> EventResult {
     EventResult::with_cb(|siv| {
-        if curr_path(siv).is_none() {
+        if current_path(siv).is_none() {
             siv.quit()
         } else {
             pop_layers_to_bottom(siv);
         }
     })
+}
+
+// The path of the current player, if any.
+fn current_path(siv: &mut Cursive) -> Option<PathBuf> {
+    let curr_path = match siv.user_data::<(Vec<PathBuf>, VecDeque<(PathBuf, usize)>)>() {
+        Some((_, queue)) => match queue.get(1) {
+            Some((p, _)) => Some(p.to_owned()),
+            None => None,
+        },
+        None => None,
+    };
+    curr_path
+}
+
+// Pop all layers from the StackView except the bottom layer.
+fn pop_layers_to_bottom(siv: &mut Cursive) {
+    let mut count = siv.screen().len();
+
+    while count > 1 {
+        siv.pop_layer();
+        count -= 1;
+    }
 }
