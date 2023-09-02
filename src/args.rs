@@ -8,6 +8,9 @@ use clap::Parser;
 pub struct Args {
     path: Option<PathBuf>,
     second_path: Option<PathBuf>,
+
+    #[arg(short, long, default_value_t = false)]
+    automate: bool,
 }
 
 impl Args {
@@ -25,5 +28,9 @@ impl Args {
         }
 
         Ok(path)
+    }
+
+    pub fn is_automated() -> bool {
+        Args::parse().automate
     }
 }
