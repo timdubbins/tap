@@ -24,3 +24,6 @@ target/
 
 # Built Visual Studio Code Extensions
 *.vsix
+
+# A file to log errors.
+error_file.txt
