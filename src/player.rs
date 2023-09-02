@@ -31,7 +31,7 @@ pub struct Player {
     pub file: AudioFile,
     // The index of the current audio file.
     pub index: usize,
-    // The index of the previous audio file, used when the player doesn't change.
+    // The index of the previous audio file, used with standalone player.
     pub previous: usize,
     // Whether the player is muted or not.
     pub is_muted: bool,
@@ -460,7 +460,7 @@ impl Player {
 
     pub fn stdout(&self) -> (String, usize) {
         let line = format!(
-            "Playing: '{}' by '{}' ({}/{})",
+            "[tap player]: '{}' by '{}' ({}/{}) ",
             self.file.title,
             self.file.artist,
             self.index + 1,
