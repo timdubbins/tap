@@ -25,10 +25,10 @@ impl KeysView {
                                 .child("fuzzy search:", TextView::new("Tab"))
                                 .child("depth search:", TextView::new("F1...F4"))
                                 .child("filtered search:", TextView::new("A...Z"))
-                                .child("artist search:", TextView::new("Ctrl + s"))
-                                .child("album search:", TextView::new("Ctrl + a"))
-                                .child("load previous album:", TextView::new("-"))
-                                .child("load random album:", TextView::new("=")),
+                                .child("artist search:", TextView::new("Ctrl + a"))
+                                .child("album search:", TextView::new("Ctrl + s"))
+                                .child("previous album:", TextView::new("-"))
+                                .child("random album:", TextView::new("=")),
                         ),
                     )
                     .child(DummyView.fixed_height(1))
@@ -39,10 +39,11 @@ impl KeysView {
                                 .child("next:", TextView::new("j or ↓"))
                                 .child("previous:", TextView::new("k or ↑"))
                                 .child("stop:", TextView::new("l or → or Enter"))
+                                .child("random:", TextView::new("r or *"))
+                                .child("mute:", TextView::new("m"))
                                 .child("go to first track:", TextView::new("gg"))
                                 .child("go to last track:", TextView::new("Ctrl + g"))
                                 .child("go to track number:", TextView::new("0...9 + g"))
-                                .child("mute:", TextView::new("m"))
                                 .child("help:", TextView::new("?"))
                                 .child("quit:", TextView::new("q")),
                         ),
