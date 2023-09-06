@@ -358,7 +358,7 @@ impl View for PlayerView {
 
     fn layout(&mut self, size: cursive::Vec2) {
         self.player.poll_sink();
-        if self.player.is_queued {
+        if self.player.is_randomized && self.player.is_queued {
             self.random_track();
         }
         self.size = size;

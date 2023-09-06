@@ -37,7 +37,7 @@ pub struct Player {
     pub is_muted: bool,
     // Whether or not the next track will be selected randomly.
     pub is_randomized: bool,
-    // Whether or not we need to queue the next random track.
+    // Whether or not the next track is queued.
     pub is_queued: bool,
     // Whether the player is playing, paused or stopped.
     pub status: PlayerStatus,
@@ -118,20 +118,16 @@ impl Player {
     }
 
     pub fn play(&mut self) {
-        let p = &self.file.path;
-        let f = match File::open(p.as_path()) {
-            Ok(f) => f,
-            Err(_) => panic!("Could not open '{}'", p.display()),
-        };
-        let s = match Decoder::new(BufReader::new(f)) {
-            Ok(s) => s,
-            Err(_) => panic!("Could not decode '{}", p.display()),
-        };
+        let path = &self.file.path;
 
-        self.sink.append(s);
-        self.sink.play();
-        self.status = PlayerStatus::Playing;
-        self.last_started = Instant::now();
+        if let Ok(source) = get_source(path) {
+            self.sink.append(source);
+            self.sink.play();
+            self.status = PlayerStatus::Playing;
+            self.last_started = Instant::now();
+        } else {
+            self.next()
+        }
     }
 
     pub fn play_or_pause(&mut self) {
@@ -171,6 +167,7 @@ impl Player {
 
     // Removes the stored keyboard inputs.
     fn clear(&mut self) {
+        self.is_queued = false;
         self.number_keys.clear();
         self.previous_key.store(false, Ordering::Relaxed)
     }
@@ -307,17 +304,30 @@ impl Player {
         if !self.is_playing() {
             return 0;
         }
-        if self.sink.empty() {
-            if self.is_randomized {
+        if self.is_randomized {
+            if self.sink.empty() {
                 self.is_queued = true;
-            } else if self.index < self.playlist.len() - 1 {
-                self.next();
-                self.last_elapsed = Duration::default();
-                return 1;
-            } else {
-                self.stop();
-                self.next();
             }
+        } else if self.sink.len() == 1 {
+            if self.is_queued {
+                self.last_started = Instant::now();
+                self.index += 1;
+                self.file = self.playlist[self.index].clone();
+                self.is_queued = false;
+                return 1;
+            } else if self.index < self.playlist.len() - 1 {
+                let file = self.playlist[self.index + 1].clone();
+                let path = &file.path;
+
+                if let Ok(source) = get_source(path) {
+                    self.sink.append(source);
+                    self.is_queued = true;
+                } else {
+                    self.next();
+                }
+            }
+        } else if self.sink.empty() {
+            self.stop();
         }
         2
     }
@@ -386,6 +396,7 @@ impl Player {
     }
 
     pub fn toggle_randomization(&mut self) {
+        self.is_queued = false;
         self.is_randomized ^= true;
     }
 
@@ -474,15 +485,18 @@ impl Player {
 
 // Returns `Ok` if the file can be decoded.
 fn can_decode(audio_file: &AudioFile) -> Result<(), anyhow::Error> {
-    let path = audio_file.path.as_path();
-    let f = match File::open(path) {
-        Ok(f) => f,
-        Err(_) => bail!("Could not open '{}'.", path.display()),
-    };
-    let _ = match Decoder::new(BufReader::new(f)) {
-        Ok(s) => s,
-        Err(_) => bail!("Could not decode '{}'.", path.display()),
+    let _ = get_source(&audio_file.path)?;
+    Ok(())
+}
+
+fn get_source(path: &PathBuf) -> Result<Decoder<BufReader<File>>, anyhow::Error> {
+    let source = match File::open(path.as_path()) {
+        Ok(inner) => match Decoder::new(BufReader::new(inner)) {
+            Ok(s) => s,
+            Err(_) => bail!("Could not decode '{}", path.display()),
+        },
+        Err(_) => bail!("Could not open '{}'", path.display()),
     };
 
-    Ok(())
+    Ok(source)
 }
