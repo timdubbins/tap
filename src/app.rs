@@ -52,7 +52,7 @@ impl App {
         let paths = leaf_paths(&items);
         let queue: VecDeque<(PathBuf, usize)> = match Player::randomized(&paths) {
             Some(first) => VecDeque::from([first]),
-            None => bail!("could not find a randomized track"),
+            None => bail!("Could not find audio files in '{}'.", path.display()),
         };
 
         // Set the initial user data.
