@@ -59,10 +59,10 @@ impl PlayerView {
     pub fn random(opts: Option<(PlayerStatus, bool)>, siv: &mut Cursive) {
         let (_, queue) = siv
             .user_data::<(Vec<PathBuf>, VecDeque<(PathBuf, usize)>)>()
-            .expect("should be set");
+            .expect("set on init");
 
-        let (path, index) = queue.back().expect("should always be value").to_owned();
-        let (mut player, size) = Player::new(&path).expect("previous player");
+        let (path, index) = queue.back().expect("should always exist").to_owned();
+        let (mut player, size) = Player::new(&path).expect("should always be valid");
         let length = player.playlist.len();
 
         if let Some(opts) = opts {
@@ -80,7 +80,7 @@ impl PlayerView {
         siv.with_user_data(
             |(paths, queue): &mut (Vec<PathBuf>, VecDeque<(PathBuf, usize)>)| {
                 if queue.len() == 1 {
-                    let first = queue.front().expect("set on init").to_owned();
+                    let first = queue.front().expect("should always exist").to_owned();
                     queue.push_back(first);
                 } else {
                     queue.pop_front();
@@ -99,14 +99,14 @@ impl PlayerView {
     pub fn previous(opts: Option<(PlayerStatus, bool)>, siv: &mut Cursive) {
         let (_, queue) = siv
             .user_data::<(Vec<PathBuf>, VecDeque<(PathBuf, usize)>)>()
-            .expect("should be set");
+            .expect("set on init");
 
         if queue.len() == 1 {
             return;
         }
 
-        let (path, index) = queue.front().expect("should always be value").to_owned();
-        let (mut player, size) = Player::new(&path).expect("previous player");
+        let (path, index) = queue.front().expect("should always exist").to_owned();
+        let (mut player, size) = Player::new(&path).expect("should always be valid");
 
         if let Some(opts) = opts {
             player.index = index;
