@@ -397,6 +397,9 @@ impl Player {
 
     pub fn toggle_randomization(&mut self) {
         self.is_queued = false;
+        if !self.is_randomized {
+            self.sink.pop();
+        }
         self.is_randomized ^= true;
     }
 
