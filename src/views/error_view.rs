@@ -1,4 +1,6 @@
 use cursive::event::{Event, EventTrigger, MouseEvent};
+use cursive::utils::markup::StyledString;
+use cursive::utils::span::SpannedString;
 use cursive::view::Resizable;
 use cursive::views::{
     FixedLayout, Layer, LinearLayout, OnEventView, OnLayoutView, ResizedView, TextView,
@@ -11,12 +13,17 @@ pub struct ErrorView {}
 
 impl ErrorView {
     pub fn new(content: String) -> ResizedView<OnLayoutView<FixedLayout>> {
+        let mut content = StyledString::styled(content, theme::white());
+        content.append_plain("  ");
+        content.append(StyledString::styled(" <Ok> ", theme::button()));
+        content.append_plain("  ");
+
         OnLayoutView::new(
             FixedLayout::new().child(
                 Rect::from_point(Vec2::zero()),
                 LinearLayout::horizontal()
                     .child(Layer::with_color(TextView::new(" [error]: "), theme::red()))
-                    .child(Layer::with_color(TextView::new(content), theme::white()))
+                    .child(TextView::new(content))
                     .full_width(),
             ),
             |layout, size: cursive::XY<usize>| {
