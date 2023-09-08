@@ -1,6 +1,5 @@
 use cursive::event::{Event, EventTrigger, MouseEvent};
 use cursive::utils::markup::StyledString;
-use cursive::utils::span::SpannedString;
 use cursive::view::Resizable;
 use cursive::views::{
     FixedLayout, Layer, LinearLayout, OnEventView, OnLayoutView, ResizedView, TextView,
