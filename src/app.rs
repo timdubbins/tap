@@ -40,9 +40,9 @@ impl App {
         if items.is_empty() {
             // There are no items to search on so run a standalone player.
             let (player, size) = Player::new(&path)?;
-
             PlayerView::load((player, size), &mut siv);
             siv.run();
+            return Ok(());
         }
 
         // Load the initial fuzzy search.
