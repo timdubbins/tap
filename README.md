@@ -12,7 +12,7 @@ tap is an audio player for the terminal. Jump to any album in your library with 
 ```
 Run `tap` in a directory that contains music folders to open a `fuzzy-finder`, allowing you to select an album to play. Playback starts on selection and you can return to the fuzzy-finder by pressing `Tab`.
 
-To open a player without the fuzzy-finder provide a `path` to an audio file or album. 
+To open a player without the fuzzy-finder provide a `path` to an audio file or album.
 
 Options:
 - `path` can be a file or directory. If it is omitted the current directory is used. A second path will override the first, which can be useful for creating aliases.
@@ -92,7 +92,7 @@ You can install with <a href="https://brew.sh/">Homebrew</a>:
 ```bash
 > brew install timdubbins/tap/tap
 > tap --version
-0.4.3
+0.4.4
 ```
 
 </details>
@@ -108,7 +108,7 @@ such as <a href="https://github.com/Jguer/yay">yay</a>:
 ```bash
 > yay -S tap
 > tap --version
-0.4.3
+0.4.4
 ```
 The AUR package is available <a href="https://aur.archlinux.org/packages/tap">here</a>.
 <br>
@@ -119,13 +119,13 @@ The AUR package is available <a href="https://aur.archlinux.org/packages/tap">he
 <summary><b>Debian</b> (or a Debian derivative, such as <b>Ubuntu</b>)</summary>
 <br>
 
-You can install with a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.4.3">tap release</a>:
+You can install with a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.4.4">tap release</a>:
 
 ```bash
-> curl -LO https://github.com/timdubbins/tap/releases/download/v0.4.3/tap_v0.4.3_amd64.deb
-> sudo dpkg -i tap_v0.4.3_amd64.deb
+> curl -LO https://github.com/timdubbins/tap/releases/download/v0.4.4/tap_v0.4.4_amd64.deb
+> sudo dpkg -i tap_v0.4.4_amd64.deb
 > tap --version
-0.4.3
+0.4.4
 ```
 
 </details>
@@ -141,15 +141,16 @@ To compile from source, first you need a <a href="https://www.rust-lang.org/lear
 > cd tap
 > cargo install --path .
 > tap --version
-0.4.3
+0.4.4
 ```
 
 </details>
 
-The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.4.3).
+The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.4.4).
 
 ## Notes
 
+- Supports gapless playback.
 - The supported formats are: `aac`, `flac`, `mp3`, `m4a`, `ogg` and `wav`.
 - If there is an issue with playback of a file it is possible that this is due to incorrect audio tags on the file.
 
