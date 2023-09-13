@@ -1,10 +1,12 @@
 use std::collections::VecDeque;
 use std::io::{stdout, Write};
 use std::path::PathBuf;
-use std::thread::sleep;
+use std::sync::mpsc;
+use std::thread::{self, sleep};
 use std::time::Duration;
 
 use anyhow::bail;
+// use bincode::{config, Decode, Encode};
 use cursive::event::{Event, EventResult, EventTrigger, Key, MouseButton, MouseEvent};
 
 use crate::args::Args;
@@ -24,7 +26,12 @@ impl App {
             return App::run_automated(&path);
         }
 
-        // The items to fuzzy search on, if any.
+        // Start the loading spinner.
+        let (tx, rx) = mpsc::channel();
+        let spinner = loading_stdout(rx);
+
+        // TODO remove this line
+        sleep(Duration::from_secs(4));
         let items = get_items(&path);
 
         // The cursive root.
@@ -36,6 +43,10 @@ impl App {
 
         // Set the refresh rate.
         siv.set_fps(15);
+
+        // Stop the loading spinner.
+        tx.send(true)?;
+        spinner.join().unwrap();
 
         if items.is_empty() {
             // There are no items to search on so run a standalone player.
@@ -126,6 +137,30 @@ impl App {
     }
 }
 
+fn loading_stdout(rx: mpsc::Receiver<bool>) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
+        let ellipses = vec!["   ", ".  ", ".. ", "..."];
+        let mut circular_iter = CircularIterator::new(ellipses);
+
+        loop {
+            match rx.try_recv() {
+                Ok(should_exit) => {
+                    if should_exit {
+                        print!("\r{: <1$}", "", 20);
+                        stdout().flush().unwrap_or_default();
+                        break;
+                    }
+                }
+                Err(_) => {
+                    print!("\r[tap]: loading{} ", circular_iter.next().unwrap());
+                    stdout().flush().unwrap_or_default();
+                    sleep(Duration::from_millis(300));
+                }
+            }
+        }
+    })
+}
+
 // Trigger for the fuzzy-finder callbacks.
 fn trigger() -> EventTrigger {
     EventTrigger::from_fn(|event| {
@@ -145,4 +180,33 @@ fn trigger() -> EventTrigger {
                 }
         )
     })
+}
+
+struct CircularIterator<T: Clone> {
+    items: Vec<T>,
+    current_index: usize,
+}
+
+impl<T: Clone> CircularIterator<T> {
+    fn new(items: Vec<T>) -> Self {
+        Self {
+            items,
+            current_index: 0,
+        }
+    }
+}
+
+impl<T: Clone> Iterator for CircularIterator<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.items.is_empty() {
+            return None;
+        }
+
+        let next_item = self.items[self.current_index].clone();
+        self.current_index = (self.current_index + 1) % self.items.len();
+
+        Some(next_item)
+    }
 }
