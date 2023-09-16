@@ -251,7 +251,10 @@ impl FuzzyView {
             // Requires fuzzy matching on `selected`.
             self.clear();
             return EventResult::with_cb(move |siv| {
-                FuzzyView::load(get_items(&selected), siv);
+                FuzzyView::load(
+                    create_items(&selected).expect("should be a subset of initial fuzzy items"),
+                    siv,
+                );
                 siv.screen_mut().remove_layer(LayerPosition::FromFront(1));
             });
         }

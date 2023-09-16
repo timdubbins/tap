@@ -1,10 +1,11 @@
 use std::{cmp::Ordering, path::PathBuf};
 
+use bincode::{Decode, Encode};
 use walkdir::{DirEntry, WalkDir};
 
 use crate::utils::has_child;
 
-#[derive(Clone, Eq, PartialEq, Ord)]
+#[derive(Clone, Eq, PartialEq, Ord, Encode, Decode)]
 pub struct FuzzyItem {
     // The path of the directory entry.
     pub path: PathBuf,
@@ -61,8 +62,8 @@ impl PartialOrd for FuzzyItem {
     }
 }
 
-// Builds the list of fuzzy items from the non-hidden subdirectories of `path`.
-pub fn get_items(path: &PathBuf) -> Vec<FuzzyItem> {
+// Creates the list of fuzzy items from the non-hidden subdirectories of `path`.
+pub fn create_items(path: &PathBuf) -> Result<Vec<FuzzyItem>, anyhow::Error> {
     let items = WalkDir::new(path)
         .min_depth(1)
         .into_iter()
@@ -72,10 +73,12 @@ pub fn get_items(path: &PathBuf) -> Vec<FuzzyItem> {
         .collect::<Vec<FuzzyItem>>();
 
     // Exclude single items so we can load them without fuzzy matching.
-    match items.len() {
+    let items = match items.len() {
         1 => vec![],
         _ => items,
-    }
+    };
+
+    Ok(items)
 }
 
 // Whether the entry is a directory or not. Excludes hidden directories.
