@@ -1,6 +1,7 @@
-use std::ops::Range;
 use std::path::PathBuf;
+use std::{ops::Range, time::SystemTime};
 
+use anyhow::bail;
 use rand::{thread_rng, Rng};
 
 pub fn has_child(path: &PathBuf) -> bool {
@@ -51,4 +52,14 @@ pub fn concatenate(arr: &Vec<usize>) -> usize {
 // Generates a random unsigned int in the given range.
 pub fn random(range: Range<usize>) -> usize {
     thread_rng().gen_range(range)
+}
+
+pub fn last_modified(path: &PathBuf) -> Result<SystemTime, anyhow::Error> {
+    match std::fs::metadata(&path) {
+        Ok(data) => match data.modified() {
+            Ok(time) => Ok(time),
+            Err(e) => bail!(e),
+        },
+        Err(e) => bail!(e),
+    }
 }
