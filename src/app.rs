@@ -6,12 +6,13 @@ use std::thread::{self, sleep};
 use std::time::Duration;
 
 use anyhow::bail;
-// use bincode::{config, Decode, Encode};
 use cursive::event::{Event, EventResult, EventTrigger, Key, MouseButton, MouseEvent};
 
 use crate::args::Args;
 use crate::fuzzy::*;
 use crate::player::Player;
+use crate::serde::*;
+use crate::types::CycleIterator;
 use crate::views::{FuzzyView, PlayerView};
 
 #[derive(Clone)]
@@ -23,16 +24,18 @@ impl App {
         let path = Args::parse_path()?;
 
         if Args::is_automated() {
-            return App::run_automated(&path);
+            return run_automated(&path);
         }
 
-        // Start the loading spinner.
-        let (tx, rx) = mpsc::channel();
-        let spinner = loading_stdout(rx);
+        if Args::to_set_default() {
+            return process_cache(&path, "setting default");
+        }
 
-        // TODO remove this line
-        sleep(Duration::from_secs(4));
-        let items = get_items(&path);
+        if Args::to_print_default() {
+            return print_cached_path();
+        }
+
+        let items = get_items(&path)?;
 
         // The cursive root.
         let mut siv = cursive::ncurses();
@@ -43,10 +46,6 @@ impl App {
 
         // Set the refresh rate.
         siv.set_fps(15);
-
-        // Stop the loading spinner.
-        tx.send(true)?;
-        spinner.join().unwrap();
 
         if items.is_empty() {
             // There are no items to search on so run a standalone player.
@@ -112,53 +111,73 @@ impl App {
         siv.run();
         Ok(())
     }
+}
 
-    // Runs an automated player in the command line without the TUI.
-    fn run_automated(path: &PathBuf) -> Result<(), anyhow::Error> {
-        let (mut player, _) = Player::new(path)?;
-        let (mut line, mut length) = player.stdout();
+// Runs an automated player in the command line without the TUI.
+fn run_automated(path: &PathBuf) -> Result<(), anyhow::Error> {
+    let (mut player, _) = Player::new(path)?;
+    let (mut line, mut length) = player.stdout();
 
-        print!("{}", line);
-        stdout().flush()?;
+    print!("{}", line);
+    stdout().flush()?;
 
-        loop {
-            match player.poll_sink() {
-                0 => return Ok(()),
-                1 => {
-                    // Print the number of spaces required to clear the previous line.
-                    print!("\r{: <1$}", "", length);
-                    (line, length) = player.stdout();
-                    print!("\r{}", line);
-                    stdout().flush()?;
-                }
-                _ => sleep(Duration::from_millis(60)),
+    loop {
+        match player.poll_sink() {
+            0 => return Ok(()),
+            1 => {
+                // Print the number of spaces required to clear the previous line.
+                print!("\r{: <1$}", "", length);
+                (line, length) = player.stdout();
+                print!("\r{}", line);
+                stdout().flush()?;
             }
+            _ => sleep(Duration::from_millis(60)),
         }
     }
 }
 
-fn loading_stdout(rx: mpsc::Receiver<bool>) -> thread::JoinHandle<()> {
-    thread::spawn(move || {
-        let ellipses = vec!["   ", ".  ", ".. ", "..."];
-        let mut circular_iter = CircularIterator::new(ellipses);
-
-        loop {
-            match rx.try_recv() {
-                Ok(should_exit) => {
-                    if should_exit {
-                        print!("\r{: <1$}", "", 20);
-                        stdout().flush().unwrap_or_default();
-                        break;
-                    }
-                }
-                Err(_) => {
-                    print!("\r[tap]: loading{} ", circular_iter.next().unwrap());
-                    stdout().flush().unwrap_or_default();
-                    sleep(Duration::from_millis(300));
-                }
-            }
+fn process_cache(path: &PathBuf, action: &'static str) -> Result<(), anyhow::Error> {
+    match process(update_cache, path, action) {
+        Ok(_) => {
+            println!("\r[tap]: {}...", action);
+            println!("[tap]: done!");
+            return Ok(());
         }
-    })
+        Err(e) => bail!(e),
+    }
+}
+
+fn print_cached_path() -> Result<(), anyhow::Error> {
+    let cached_path = get_cached::<PathBuf>("path")?;
+    println!("[tap]: default set to '{}'", cached_path.display());
+
+    Ok(())
+}
+
+fn get_items(path: &PathBuf) -> Result<Vec<FuzzyItem>, anyhow::Error> {
+    match Args::is_default() || uses_default(path) {
+        true => match needs_update(path)? {
+            true => process(update_cache, path, "updating"),
+            false => get_cached::<Vec<FuzzyItem>>("items"),
+        },
+        false => process(create_items, path, "loading"),
+    }
+}
+
+fn process(
+    items: fn(&PathBuf) -> Result<Vec<FuzzyItem>, anyhow::Error>,
+    path: &PathBuf,
+    action: &'static str,
+) -> Result<Vec<FuzzyItem>, anyhow::Error> {
+    let (tx, rx) = mpsc::channel();
+    let spinner_handle = thread::spawn(move || spinner_stdout(rx, action));
+
+    let items = items(path);
+
+    tx.send(true)?;
+    spinner_handle.join().unwrap();
+
+    items
 }
 
 // Trigger for the fuzzy-finder callbacks.
@@ -182,31 +201,24 @@ fn trigger() -> EventTrigger {
     })
 }
 
-struct CircularIterator<T: Clone> {
-    items: Vec<T>,
-    current_index: usize,
-}
+fn spinner_stdout(rx: mpsc::Receiver<bool>, action: &str) {
+    let ellipses = vec!["   ", ".  ", ".. ", "..."];
+    let mut spinner = CycleIterator::new(ellipses);
 
-impl<T: Clone> CircularIterator<T> {
-    fn new(items: Vec<T>) -> Self {
-        Self {
-            items,
-            current_index: 0,
+    loop {
+        match rx.try_recv() {
+            Ok(should_exit) => {
+                if should_exit {
+                    print!("\r{: <1$}\r", "", 20);
+                    stdout().flush().unwrap_or_default();
+                    break;
+                }
+            }
+            Err(_) => {
+                print!("\r[tap]: {}{} ", action, spinner.next().unwrap());
+                stdout().flush().unwrap();
+                sleep(Duration::from_millis(300));
+            }
         }
-    }
-}
-
-impl<T: Clone> Iterator for CircularIterator<T> {
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.items.is_empty() {
-            return None;
-        }
-
-        let next_item = self.items[self.current_index].clone();
-        self.current_index = (self.current_index + 1) % self.items.len();
-
-        Some(next_item)
     }
 }
