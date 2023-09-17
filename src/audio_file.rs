@@ -22,19 +22,19 @@ impl AudioFile {
     pub fn new(path: PathBuf) -> Result<Self, anyhow::Error> {
         let file = match Probe::open(&path) {
             Ok(f) => f,
-            Err(e) => bail!("Could not probe '{}'\n-`{}`", path.display(), e),
+            Err(e) => bail!("could not probe '{}'\n-`{}`", path.display(), e),
         };
 
         let tagged_file = match file.read() {
             Ok(f) => f,
-            Err(e) => bail!("Failed to read '{}'\n- `{}`", path.display(), e),
+            Err(e) => bail!("failed to read '{}'\n- `{}`", path.display(), e),
         };
 
         let tag = match tagged_file.primary_tag() {
             Some(primary_tag) => primary_tag,
             None => match tagged_file.first_tag().ok_or(()) {
                 Ok(t) => t,
-                Err(_) => bail!("No tags found for '{}'", path.display()),
+                Err(_) => bail!("no tags found for '{}'", path.display()),
             },
         };
 

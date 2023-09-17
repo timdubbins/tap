@@ -63,7 +63,7 @@ impl Args {
         };
 
         if !path.exists() {
-            bail!("'{}' doesn't exist.", path.display())
+            bail!("'{}' doesn't exist", path.display())
         }
 
         Ok(path.canonicalize()?)

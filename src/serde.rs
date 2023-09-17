@@ -23,7 +23,7 @@ pub fn get_cached<T: Decode>(file_name: &str) -> Result<T, anyhow::Error> {
     let mut file = match File::open(file_path) {
         Ok(file) => file,
         Err(_) => {
-            bail!("\r[tap error]: Default not set. Use '--set-default' to set a default directory.")
+            bail!("\r[tap error]: use '--set-default' to set a default directory")
         }
     };
     let mut encoded = Vec::new();

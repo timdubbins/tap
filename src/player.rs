@@ -454,10 +454,10 @@ impl Player {
             }
             // Give an appropriate error if we fail to find any valid files.
             None => match is_empty {
-                true => bail!("'{}' is empty.", path.display()),
+                true => bail!("'{}' is empty", path.display()),
                 false => match error {
                     Some(e) => bail!(e),
-                    None => bail!("No valid files found in '{}'.", path.display()),
+                    None => bail!("no audio files found in '{}'", path.display()),
                 },
             },
         }
@@ -496,9 +496,9 @@ fn get_source(path: &PathBuf) -> Result<Decoder<BufReader<File>>, anyhow::Error>
     let source = match File::open(path.as_path()) {
         Ok(inner) => match Decoder::new(BufReader::new(inner)) {
             Ok(s) => s,
-            Err(_) => bail!("Could not decode '{}", path.display()),
+            Err(_) => bail!("could not decode '{}", path.display()),
         },
-        Err(_) => bail!("Could not open '{}'", path.display()),
+        Err(_) => bail!("could not open '{}'", path.display()),
     };
 
     Ok(source)

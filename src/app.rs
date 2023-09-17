@@ -62,7 +62,7 @@ impl App {
         let paths = leaf_paths(&items);
         let queue: VecDeque<(PathBuf, usize)> = match Player::randomized(&paths) {
             Some(first) => VecDeque::from([first]),
-            None => bail!("Could not find audio files in '{}'.", path.display()),
+            None => bail!("could not find audio files in '{}'", path.display()),
         };
 
         // Set the initial user data.
@@ -170,12 +170,33 @@ fn process(
     action: &'static str,
 ) -> Result<Vec<FuzzyItem>, anyhow::Error> {
     let (tx, rx) = mpsc::channel();
-    let spinner_handle = thread::spawn(move || spinner_stdout(rx, action));
+
+    let stdout_handle = thread::spawn(move || {
+        let ellipses = vec!["   ", ".  ", ".. ", "..."];
+        let mut spinner = CycleIterator::new(ellipses);
+
+        loop {
+            match rx.try_recv() {
+                Ok(should_exit) => {
+                    if should_exit {
+                        print!("\r{: <1$}\r", "", 20);
+                        stdout().flush().unwrap_or_default();
+                        break;
+                    }
+                }
+                Err(_) => {
+                    print!("\r[tap]: {}{} ", action, spinner.next().unwrap());
+                    stdout().flush().unwrap();
+                    sleep(Duration::from_millis(300));
+                }
+            }
+        }
+    });
 
     let items = items(path);
 
     tx.send(true)?;
-    spinner_handle.join().unwrap();
+    stdout_handle.join().unwrap();
 
     items
 }
@@ -199,26 +220,4 @@ fn trigger() -> EventTrigger {
                 }
         )
     })
-}
-
-fn spinner_stdout(rx: mpsc::Receiver<bool>, action: &str) {
-    let ellipses = vec!["   ", ".  ", ".. ", "..."];
-    let mut spinner = CycleIterator::new(ellipses);
-
-    loop {
-        match rx.try_recv() {
-            Ok(should_exit) => {
-                if should_exit {
-                    print!("\r{: <1$}\r", "", 20);
-                    stdout().flush().unwrap_or_default();
-                    break;
-                }
-            }
-            Err(_) => {
-                print!("\r[tap]: {}{} ", action, spinner.next().unwrap());
-                stdout().flush().unwrap();
-                sleep(Duration::from_millis(300));
-            }
-        }
-    }
 }
