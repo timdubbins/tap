@@ -8,34 +8,28 @@ use std::time::Duration;
 use anyhow::bail;
 use cursive::event::{Event, EventResult, EventTrigger, Key, MouseButton, MouseEvent};
 
-use crate::args::Args;
+use crate::args::{Args, Options};
 use crate::fuzzy::*;
 use crate::player::Player;
 use crate::serde::*;
 use crate::types::CycleIterator;
 use crate::views::{FuzzyView, PlayerView};
 
-#[derive(Clone)]
 pub struct App {}
 
 impl App {
     pub fn run() -> Result<(), anyhow::Error> {
-        // The initial path to play or search on.
-        let path = Args::parse_path()?;
+        let (path, option) = Args::parse_args()?;
 
-        if Args::is_automated() {
-            return run_automated(&path);
+        match option {
+            Options::Automate => return run_automated(&path),
+            Options::Set => return process_cache(&path, "setting default"),
+            Options::Print => return print_cached_path(),
+            _ => (),
         }
 
-        if Args::to_set_default() {
-            return process_cache(&path, "setting default");
-        }
-
-        if Args::to_print_default() {
-            return print_cached_path();
-        }
-
-        let items = get_items(&path)?;
+        // The items to fuzzy search on, if any.
+        let items = get_items(&path, option)?;
 
         // The cursive root.
         let mut siv = cursive::ncurses();
@@ -154,8 +148,8 @@ fn print_cached_path() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-fn get_items(path: &PathBuf) -> Result<Vec<FuzzyItem>, anyhow::Error> {
-    match Args::is_default() || uses_default(path) {
+fn get_items(path: &PathBuf, option: Options) -> Result<Vec<FuzzyItem>, anyhow::Error> {
+    match option == Options::Default || uses_default(path) {
         true => match needs_update(path)? {
             true => process(update_cache, path, "updating"),
             false => get_cached::<Vec<FuzzyItem>>("items"),
