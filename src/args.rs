@@ -6,7 +6,7 @@ use clap::{ArgGroup, Parser};
 use crate::serde::get_cached;
 
 #[derive(PartialEq)]
-pub enum Options {
+pub enum Opts {
     Automate,
     Print,
     Set,
@@ -71,15 +71,15 @@ pub struct Args {
 }
 
 impl Args {
-    pub fn parse_args() -> Result<(PathBuf, Options), anyhow::Error> {
+    pub fn parse_args() -> Result<(PathBuf, Opts), anyhow::Error> {
         let args = Args::parse();
-        let option = Args::parse_options(&args);
+        let option = Args::parse_opts(&args);
         let path = Args::parse_path(args)?;
 
         Ok((path, option))
     }
 
-    pub fn parse_path(args: Args) -> Result<PathBuf, anyhow::Error> {
+    fn parse_path(args: Args) -> Result<PathBuf, anyhow::Error> {
         let path = match args.default {
             true => get_cached::<PathBuf>("path")?,
             false => match args.second_path {
@@ -98,17 +98,17 @@ impl Args {
         Ok(path.canonicalize()?)
     }
 
-    fn parse_options(args: &Args) -> Options {
+    fn parse_opts(args: &Args) -> Opts {
         if args.automate {
-            Options::Automate
+            Opts::Automate
         } else if args.default {
-            Options::Default
+            Opts::Default
         } else if args.set_default {
-            Options::Set
+            Opts::Set
         } else if args.print_default {
-            Options::Print
+            Opts::Print
         } else {
-            Options::None
+            Opts::None
         }
     }
 }
