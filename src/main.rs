@@ -1,8 +1,8 @@
 mod app;
 mod args;
+mod data;
 mod fuzzy;
 mod player;
-mod serde;
 mod utils;
 mod views;
 

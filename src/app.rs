@@ -1,4 +1,3 @@
-use std::collections::VecDeque;
 use std::io::{stdout, Write};
 use std::path::PathBuf;
 use std::sync::mpsc;
@@ -9,53 +8,12 @@ use anyhow::bail;
 use cursive::event::{Event, EventResult, EventTrigger, Key, MouseButton, MouseEvent};
 
 use crate::args::{Args, Opts};
+
+use crate::data::{cache::*, UserData};
 use crate::fuzzy::*;
-use crate::player::{Player, PlayerOpts};
-use crate::serde::*;
+use crate::player::Player;
 use crate::utils::{CycleIterator, IntoInner};
 use crate::views::{FuzzyView, PlayerView};
-
-struct UserData {
-    opts: PlayerOpts,
-    paths: Vec<PathBuf>,
-    queue: VecDeque<(PathBuf, usize)>,
-}
-
-impl UserData {
-    fn new(path: &PathBuf, items: &Vec<FuzzyItem>) -> Result<Self, anyhow::Error> {
-        let paths = leaf_paths(&items);
-        let queue: VecDeque<(PathBuf, usize)> = match Player::randomized(&paths) {
-            Some(first) => VecDeque::from([first]),
-            None => bail!("could not find audio files in '{}'", path.display()),
-        };
-
-        let data = Self {
-            opts: PlayerOpts::default(),
-            paths,
-            queue,
-        };
-
-        Ok(data)
-    }
-}
-
-impl IntoInner for UserData {
-    type T = ((u8, u8, bool), Vec<PathBuf>, VecDeque<(PathBuf, usize)>);
-
-    fn into_inner(self) -> Self::T {
-        (self.opts.into_inner(), self.paths, self.queue)
-    }
-}
-
-impl Into<UserData> for ((u8, u8, bool), Vec<PathBuf>, VecDeque<(PathBuf, usize)>) {
-    fn into(self) -> UserData {
-        UserData {
-            opts: self.0.into(),
-            paths: self.1,
-            queue: self.2,
-        }
-    }
-}
 
 pub struct App {}
 
