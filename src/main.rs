@@ -1,6 +1,5 @@
 mod app;
 mod args;
-mod audio_file;
 mod fuzzy;
 mod player;
 mod serde;

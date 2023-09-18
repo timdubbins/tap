@@ -12,10 +12,9 @@ use async_std::task;
 use cursive::XY;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
-use crate::audio_file::{is_valid, AudioFile};
 use crate::utils::{concatenate, random};
 
-use super::{PlayerStatus, StatusToBytes};
+use super::{is_valid, AudioFile, PlayerStatus, StatusToBytes};
 
 pub struct Player {
     // The path used to create the playlist.
