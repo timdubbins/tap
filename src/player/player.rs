@@ -15,12 +15,7 @@ use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 use crate::audio_file::{is_valid, AudioFile};
 use crate::utils::{concatenate, random};
 
-#[derive(Clone, PartialEq)]
-pub enum PlayerStatus {
-    Paused,
-    Playing,
-    Stopped,
-}
+use super::PlayerStatus;
 
 pub struct Player {
     // The path used to create the playlist.
@@ -33,12 +28,16 @@ pub struct Player {
     pub index: usize,
     // The index of the previous audio file, used with standalone player.
     pub previous: usize,
+    // The current volume.
+    pub volume: u8,
     // Whether the player is muted or not.
     pub is_muted: bool,
     // Whether or not the next track will be selected randomly.
     pub is_randomized: bool,
     // Whether or not the next track is queued.
     pub is_queued: bool,
+    // Whether or not the current volume is displayed.
+    pub showing_volume: bool,
     // Whether the player is playing, paused or stopped.
     pub status: PlayerStatus,
     // The list of numbers from last keyboard input,
@@ -83,9 +82,11 @@ impl Player {
             previous: 0,
             number_keys: vec![],
             previous_key: Arc::new(AtomicBool::new(false)),
+            volume: 100,
             is_muted: false,
             is_randomized: false,
             is_queued: false,
+            showing_volume: false,
             path,
             playlist,
             file,
@@ -383,7 +384,31 @@ impl Player {
     pub fn init_volume(&mut self) {
         if self.is_muted {
             self.sink.set_volume(0.0)
+        } else {
+            self.sink.set_volume(self.volume as f32 / 100.0);
         }
+    }
+
+    pub fn increase_volume(&mut self) {
+        if self.volume < 120 {
+            self.volume += 10;
+            if !self.is_muted {
+                self.sink.set_volume(self.volume as f32 / 100.0);
+            }
+        }
+    }
+
+    pub fn decrease_volume(&mut self) {
+        if self.volume > 0 {
+            self.volume -= 10;
+            if !self.is_muted {
+                self.sink.set_volume(self.volume as f32 / 100.0);
+            }
+        }
+    }
+
+    pub fn show_volume(&mut self) {
+        self.showing_volume ^= true;
     }
 
     pub fn toggle_mute(&mut self) {
@@ -391,7 +416,7 @@ impl Player {
 
         match self.is_muted {
             true => self.sink.set_volume(0.0),
-            false => self.sink.set_volume(1.0),
+            false => self.sink.set_volume(self.volume as f32 / 100.0),
         }
     }
 
