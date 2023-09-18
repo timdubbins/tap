@@ -5,35 +5,30 @@ pub enum PlayerStatus {
     Stopped,
 }
 
-pub trait StatusConversion {
-    fn to_status(&self) -> PlayerStatus;
+pub trait BytesToStatus {
+    fn from_u8(&self) -> PlayerStatus;
+}
+
+pub trait StatusToBytes {
     fn to_u8(&self) -> u8;
 }
 
-impl StatusConversion for u8 {
-    fn to_status(&self) -> PlayerStatus {
+impl BytesToStatus for u8 {
+    fn from_u8(&self) -> PlayerStatus {
         match self {
             0 => PlayerStatus::Playing,
             1 => PlayerStatus::Paused,
             _ => PlayerStatus::Stopped,
         }
     }
-
-    fn to_u8(&self) -> u8 {
-        *self
-    }
 }
 
-impl StatusConversion for PlayerStatus {
+impl StatusToBytes for PlayerStatus {
     fn to_u8(&self) -> u8 {
         match self {
             PlayerStatus::Playing => 0,
             PlayerStatus::Paused => 1,
             PlayerStatus::Stopped => 2,
         }
-    }
-
-    fn to_status(&self) -> PlayerStatus {
-        self.clone()
     }
 }

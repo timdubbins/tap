@@ -5,7 +5,6 @@ mod fuzzy;
 mod player;
 mod serde;
 mod theme;
-mod types;
 mod utils;
 mod views;
 

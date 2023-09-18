@@ -17,6 +17,8 @@ use crate::theme;
 use crate::utils::*;
 use crate::views::{ErrorView, PlayerView};
 
+type UserData = ((u8, u8, bool), Vec<PathBuf>, VecDeque<(PathBuf, usize)>);
+
 #[derive(Clone)]
 pub struct FuzzyView {
     // The text input to fuzzy match with.
@@ -450,8 +452,8 @@ fn on_cancel() -> EventResult {
 
 // The path of the current player, if any.
 fn current_path(siv: &mut Cursive) -> Option<PathBuf> {
-    let curr_path = match siv.user_data::<(Vec<PathBuf>, VecDeque<(PathBuf, usize)>)>() {
-        Some((_, queue)) => match queue.get(1) {
+    let curr_path = match siv.user_data::<UserData>() {
+        Some((_, _, queue)) => match queue.get(1) {
             Some((p, _)) => Some(p.to_owned()),
             None => None,
         },

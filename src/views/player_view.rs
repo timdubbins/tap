@@ -9,10 +9,12 @@ use cursive::traits::View;
 use cursive::view::Resizable;
 use cursive::{Cursive, Printer, XY};
 
-use crate::player::{Player, PlayerStatus};
+use crate::player::{Player, PlayerOpts, PlayerStatus};
 use crate::theme::*;
 use crate::utils::random;
 use crate::views::KeysView;
+
+type UserData = ((u8, u8, bool), Vec<PathBuf>, VecDeque<(PathBuf, usize)>);
 
 pub struct PlayerView {
     // The currently loaded player.
@@ -40,95 +42,98 @@ impl PlayerView {
 
     pub fn fuzzy((player, size): (Player, XY<usize>), siv: &mut Cursive) {
         let path = player.path.to_owned();
+        let mut player = player;
+        let (opts, _, _) = siv.user_data::<UserData>().expect("set on init");
+
+        player.volume = opts.1;
+        player.init_volume();
 
         PlayerView::load((player, size), siv);
 
-        siv.with_user_data(
-            |(_, queue): &mut (Vec<PathBuf>, VecDeque<(PathBuf, usize)>)| {
-                if queue.len() == 1 {
-                    queue.push_front((path.to_owned(), 0));
-                    queue.push_front((path, 0));
-                } else {
-                    queue.pop_front();
-                    queue.insert(1, (path, 0));
-                }
-            },
-        );
+        siv.with_user_data(|(_, _, queue): &mut UserData| {
+            if queue.len() == 1 {
+                queue.push_front((path.to_owned(), 0));
+                queue.push_front((path, 0));
+            } else {
+                queue.pop_front();
+                queue.insert(1, (path, 0));
+            }
+        });
     }
 
-    pub fn random(opts: Option<(PlayerStatus, bool)>, siv: &mut Cursive) {
-        let (_, queue) = siv
-            .user_data::<(Vec<PathBuf>, VecDeque<(PathBuf, usize)>)>()
-            .expect("set on init");
+    pub fn random(random_track: bool, siv: &mut Cursive) {
+        let (opts, _, queue) = siv.user_data::<UserData>().expect("set on init");
 
+        let opts: PlayerOpts = (*opts).into();
         let (path, index) = queue.back().expect("should always exist").to_owned();
+
         let (mut player, size) = Player::new(&path).expect("should always be valid");
         let length = player.playlist.len();
 
-        if let Some(opts) = opts {
+        if random_track {
             player.index = index;
             player.file = player.playlist[index].to_owned();
-            player.status = opts.0;
-            player.is_muted = opts.1;
             player.is_randomized = true;
-            player.init_volume();
-            player.set_playback();
         }
+
+        player.status = opts.status;
+        player.volume = opts.volume;
+        player.is_muted = opts.is_muted;
+        player.init_volume();
+        player.set_playback();
 
         PlayerView::load((player, size), siv);
 
-        siv.with_user_data(
-            |(paths, queue): &mut (Vec<PathBuf>, VecDeque<(PathBuf, usize)>)| {
-                if queue.len() == 1 {
-                    let first = queue.front().expect("should always exist").to_owned();
-                    queue.push_back(first);
-                } else {
-                    queue.pop_front();
-                }
+        siv.with_user_data(|(_, paths, queue): &mut UserData| {
+            if queue.len() == 1 {
+                let first = queue.front().expect("should always exist").to_owned();
+                queue.push_back(first);
+            } else {
+                queue.pop_front();
+            }
 
-                let (path, index) = match Player::randomized(&paths) {
-                    Some(res) => res,
-                    None => (path, random(0..length)),
-                };
+            let (path, index) = match Player::randomized(&paths) {
+                Some(res) => res,
+                None => (path, random(0..length)),
+            };
 
-                queue.push_back((path, index));
-            },
-        );
+            queue.push_back((path, index));
+        });
     }
 
-    pub fn previous(opts: Option<(PlayerStatus, bool)>, siv: &mut Cursive) {
-        let (_, queue) = siv
-            .user_data::<(Vec<PathBuf>, VecDeque<(PathBuf, usize)>)>()
-            .expect("set on init");
+    pub fn previous(random_track: bool, siv: &mut Cursive) {
+        let (opts, _, queue) = siv.user_data::<UserData>().expect("set on init");
 
         if queue.len() == 1 {
             return;
         }
 
+        let opts: PlayerOpts = (*opts).into();
         let (path, index) = queue.front().expect("should always exist").to_owned();
+
         let (mut player, size) = Player::new(&path).expect("should always be valid");
 
-        if let Some(opts) = opts {
+        if random_track {
             player.index = index;
             player.file = player.playlist[index].to_owned();
-            player.status = opts.0;
-            player.is_muted = opts.1;
             player.is_randomized = true;
-            player.init_volume();
-            player.set_playback();
         }
+
+        player.status = opts.status;
+        player.volume = opts.volume;
+        player.is_muted = opts.is_muted;
+        player.init_volume();
+        player.set_playback();
 
         PlayerView::load((player, size), siv);
 
-        siv.with_user_data(
-            |(_, queue): &mut (Vec<PathBuf>, VecDeque<(PathBuf, usize)>)| {
-                queue.swap(0, 1);
-            },
-        );
+        siv.with_user_data(|(_, _, queue): &mut UserData| {
+            queue.swap(0, 1);
+        });
     }
 
     pub fn load((player, size): (Player, XY<usize>), siv: &mut Cursive) {
-        let cb = match siv.user_data::<(Vec<PathBuf>, VecDeque<(PathBuf, usize)>)>() {
+        let cb = match siv.user_data::<UserData>() {
             Some(_) => Some(siv.cb_sink().clone()),
             None => None,
         };
@@ -165,6 +170,13 @@ impl PlayerView {
             return format!("{} ({})", self.player.file.album, year);
         } else {
             return format!("{}", self.player.file.album);
+        }
+    }
+
+    fn volume(&self, w: usize) -> String {
+        match w > 14 {
+            true => format!("  vol: {:>3} %  ", self.player.volume),
+            false => format!("  {:>3} %  ", self.player.volume),
         }
     }
 
@@ -217,11 +229,8 @@ impl PlayerView {
     fn random_track(&mut self) {
         match &self.cb {
             Some(cb) => {
-                // Random player and track.
-                let opts = Some((self.player.status.to_owned(), self.player.is_muted));
                 cb.send(Box::new(move |siv| {
-                    let opts = opts;
-                    PlayerView::random(opts, siv);
+                    PlayerView::random(true, siv);
                 }))
                 .unwrap_or_default();
             }
@@ -232,9 +241,8 @@ impl PlayerView {
     fn previous_random(&mut self) {
         match &self.cb {
             Some(cb) => {
-                let opts = Some((self.player.status.to_owned(), self.player.is_muted));
                 cb.send(Box::new(move |siv| {
-                    PlayerView::previous(opts, siv);
+                    PlayerView::previous(true, siv);
                 }))
                 .unwrap_or_default();
             }
@@ -328,6 +336,11 @@ impl View for PlayerView {
                 })
             });
 
+            if self.player.showing_volume {
+                let column = if w > 14 { column - 5 } else { column };
+                p.with_color(grey(), |p| p.print((column, 0), &self.volume(w).as_str()));
+            };
+
             // The last row we can draw on.
             let last_row = h - 1;
 
@@ -379,7 +392,16 @@ impl View for PlayerView {
             } => return self.mouse_select(y, event),
 
             Event::Char('h') | Event::Char(' ') | Event::Key(Key::Left) => {
-                self.player.play_or_pause()
+                let status = self.player.play_or_pause();
+
+                return match self.cb {
+                    Some(_) => EventResult::with_cb(move |siv| {
+                        siv.with_user_data(|(opts, _, _): &mut UserData| {
+                            opts.0 = status;
+                        });
+                    }),
+                    None => EventResult::Consumed(None),
+                };
             }
 
             Event::Char('l')
@@ -388,7 +410,18 @@ impl View for PlayerView {
             | Event::Mouse {
                 event: MouseEvent::Press(MouseButton::Right),
                 ..
-            } => self.player.stop(),
+            } => {
+                let status = self.player.stop();
+
+                return match self.cb {
+                    Some(_) => EventResult::with_cb(move |siv| {
+                        siv.with_user_data(|(opts, _, _): &mut UserData| {
+                            opts.0 = status;
+                        });
+                    }),
+                    None => EventResult::Consumed(None),
+                };
+            }
 
             Event::Char('j')
             | Event::Key(Key::Down)
@@ -416,7 +449,43 @@ impl View for PlayerView {
                 }
             }
 
-            Event::Char('m') => self.player.toggle_mute(),
+            Event::Char(']') => {
+                let volume = self.player.increase_volume();
+
+                return match self.cb {
+                    Some(_) => EventResult::with_cb(move |siv| {
+                        siv.with_user_data(|(opts, _, _): &mut UserData| {
+                            opts.1 = volume;
+                        });
+                    }),
+                    None => EventResult::Consumed(None),
+                };
+            }
+            Event::Char('[') => {
+                let volume = self.player.decrease_volume();
+
+                return match self.cb {
+                    Some(_) => EventResult::with_cb(move |siv| {
+                        siv.with_user_data(|(opts, _, _): &mut UserData| {
+                            opts.1 = volume;
+                        });
+                    }),
+                    None => EventResult::Consumed(None),
+                };
+            }
+            Event::Char('v') => self.player.show_volume(),
+            Event::Char('m') => {
+                let is_muted = self.player.toggle_mute();
+
+                return match self.cb {
+                    Some(_) => EventResult::with_cb(move |siv| {
+                        siv.with_user_data(|(opts, _, _): &mut UserData| {
+                            opts.2 = is_muted;
+                        });
+                    }),
+                    None => EventResult::Consumed(None),
+                };
+            }
 
             Event::Char('*' | 'r') => {
                 if self.cb.is_none() && self.player.playlist.len() < 2 {
@@ -430,13 +499,11 @@ impl View for PlayerView {
 
                     return match self.cb {
                         Some(_) => EventResult::with_cb(move |siv| {
-                            siv.with_user_data(
-                                |(_, queue): &mut (Vec<PathBuf>, VecDeque<(PathBuf, usize)>)| {
-                                    if let Some((_, index)) = queue.get_mut(1) {
-                                        *index = current_index;
-                                    }
-                                },
-                            );
+                            siv.with_user_data(|(_, _, queue): &mut UserData| {
+                                if let Some((_, index)) = queue.get_mut(1) {
+                                    *index = current_index;
+                                }
+                            });
                         }),
                         None => {
                             if self.player.playlist.len() > 1 {

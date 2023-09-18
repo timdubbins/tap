@@ -15,7 +15,7 @@ use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 use crate::audio_file::{is_valid, AudioFile};
 use crate::utils::{concatenate, random};
 
-use super::PlayerStatus;
+use super::{PlayerStatus, StatusToBytes};
 
 pub struct Player {
     // The path used to create the playlist.
@@ -131,7 +131,7 @@ impl Player {
         }
     }
 
-    pub fn play_or_pause(&mut self) {
+    pub fn play_or_pause(&mut self) -> u8 {
         self.clear();
 
         match self.status {
@@ -139,9 +139,11 @@ impl Player {
             PlayerStatus::Playing => self.pause(),
             PlayerStatus::Stopped => self.play(),
         };
+
+        self.status.to_u8()
     }
 
-    pub fn stop(&mut self) {
+    pub fn stop(&mut self) -> u8 {
         self.clear();
 
         match self.status {
@@ -152,11 +154,13 @@ impl Player {
                 self.last_elapsed = Duration::default()
             }
         }
+
+        self.status.to_u8()
     }
 
     pub fn play_selection(&mut self) {
         if self.select_track() {
-            self.play_or_pause()
+            self.play_or_pause();
         }
     }
 
@@ -389,35 +393,41 @@ impl Player {
         }
     }
 
-    pub fn increase_volume(&mut self) {
+    pub fn increase_volume(&mut self) -> u8 {
         if self.volume < 120 {
             self.volume += 10;
             if !self.is_muted {
                 self.sink.set_volume(self.volume as f32 / 100.0);
             }
         }
+
+        self.volume
     }
 
-    pub fn decrease_volume(&mut self) {
+    pub fn decrease_volume(&mut self) -> u8 {
         if self.volume > 0 {
             self.volume -= 10;
             if !self.is_muted {
                 self.sink.set_volume(self.volume as f32 / 100.0);
             }
         }
+
+        self.volume
     }
 
     pub fn show_volume(&mut self) {
         self.showing_volume ^= true;
     }
 
-    pub fn toggle_mute(&mut self) {
+    pub fn toggle_mute(&mut self) -> bool {
         self.is_muted ^= true;
 
         match self.is_muted {
             true => self.sink.set_volume(0.0),
             false => self.sink.set_volume(self.volume as f32 / 100.0),
-        }
+        };
+
+        self.is_muted
     }
 
     pub fn toggle_randomization(&mut self) {

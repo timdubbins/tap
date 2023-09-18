@@ -8,28 +8,70 @@ use std::time::Duration;
 use anyhow::bail;
 use cursive::event::{Event, EventResult, EventTrigger, Key, MouseButton, MouseEvent};
 
-use crate::args::{Args, Options};
+use crate::args::{Args, Opts};
 use crate::fuzzy::*;
-use crate::player::Player;
+use crate::player::{Player, PlayerOpts};
 use crate::serde::*;
-use crate::types::CycleIterator;
+use crate::utils::{CycleIterator, IntoInner};
 use crate::views::{FuzzyView, PlayerView};
+
+struct UserData {
+    opts: PlayerOpts,
+    paths: Vec<PathBuf>,
+    queue: VecDeque<(PathBuf, usize)>,
+}
+
+impl UserData {
+    fn new(path: &PathBuf, items: &Vec<FuzzyItem>) -> Result<Self, anyhow::Error> {
+        let paths = leaf_paths(&items);
+        let queue: VecDeque<(PathBuf, usize)> = match Player::randomized(&paths) {
+            Some(first) => VecDeque::from([first]),
+            None => bail!("could not find audio files in '{}'", path.display()),
+        };
+
+        let data = Self {
+            opts: PlayerOpts::default(),
+            paths,
+            queue,
+        };
+
+        Ok(data)
+    }
+}
+
+impl IntoInner for UserData {
+    type T = ((u8, u8, bool), Vec<PathBuf>, VecDeque<(PathBuf, usize)>);
+
+    fn into_inner(self) -> Self::T {
+        (self.opts.into_inner(), self.paths, self.queue)
+    }
+}
+
+impl Into<UserData> for ((u8, u8, bool), Vec<PathBuf>, VecDeque<(PathBuf, usize)>) {
+    fn into(self) -> UserData {
+        UserData {
+            opts: self.0.into(),
+            paths: self.1,
+            queue: self.2,
+        }
+    }
+}
 
 pub struct App {}
 
 impl App {
     pub fn run() -> Result<(), anyhow::Error> {
-        let (path, option) = Args::parse_args()?;
+        let (path, opts) = Args::parse_args()?;
 
-        match option {
-            Options::Automate => return run_automated(&path),
-            Options::Set => return process_cache(&path, "setting default"),
-            Options::Print => return print_cached_path(),
+        match opts {
+            Opts::Automate => return run_automated(&path),
+            Opts::Set => return process_cache(&path, "setting default"),
+            Opts::Print => return print_cached_path(),
             _ => (),
         }
 
         // The items to fuzzy search on, if any.
-        let items = get_items(&path, option)?;
+        let items = get_items(&path, opts)?;
 
         // The cursive root.
         let mut siv = cursive::ncurses();
@@ -52,27 +94,21 @@ impl App {
         // Load the initial fuzzy search.
         FuzzyView::load(items.to_owned(), &mut siv);
 
-        // The initial user data.
-        let paths = leaf_paths(&items);
-        let queue: VecDeque<(PathBuf, usize)> = match Player::randomized(&paths) {
-            Some(first) => VecDeque::from([first]),
-            None => bail!("could not find audio files in '{}'", path.display()),
-        };
-
         // Set the initial user data.
-        siv.set_user_data((paths, queue));
+        let user_data = UserData::new(&path, &items)?;
+        siv.set_user_data(user_data.into_inner());
 
         // Set the callback for the previous selection.
         siv.set_on_pre_event_inner('-', |_| {
             Some(EventResult::with_cb(|siv| {
-                PlayerView::previous(None, siv);
+                PlayerView::previous(false, siv);
             }))
         });
 
         // Set callback for a random selection.
         siv.set_on_pre_event_inner('=', |_| {
             Some(EventResult::with_cb(|siv| {
-                PlayerView::random(None, siv);
+                PlayerView::random(false, siv);
             }))
         });
 
@@ -148,8 +184,8 @@ fn print_cached_path() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-fn get_items(path: &PathBuf, option: Options) -> Result<Vec<FuzzyItem>, anyhow::Error> {
-    match option == Options::Default || uses_default(path) {
+fn get_items(path: &PathBuf, opts: Opts) -> Result<Vec<FuzzyItem>, anyhow::Error> {
+    match opts == Opts::Default || uses_default(path) {
         true => match needs_update(path)? {
             true => process(update_cache, path, "updating"),
             false => get_cached::<Vec<FuzzyItem>>("items"),

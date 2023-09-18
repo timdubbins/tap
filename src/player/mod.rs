@@ -1,7 +1,9 @@
+pub mod opts;
 pub mod player;
 pub mod status;
 
 pub use self::{
+    opts::PlayerOpts,
     player::Player,
-    status::{PlayerStatus, StatusConversion},
+    status::{BytesToStatus, PlayerStatus, StatusToBytes},
 };
