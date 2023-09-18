@@ -4,7 +4,6 @@ mod audio_file;
 mod fuzzy;
 mod player;
 mod serde;
-mod theme;
 mod utils;
 mod views;
 

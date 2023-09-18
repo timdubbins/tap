@@ -13,9 +13,10 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::fuzzy::*;
 use crate::player::Player;
-use crate::theme;
 use crate::utils::*;
 use crate::views::{ErrorView, PlayerView};
+
+use super::theme::*;
 
 type UserData = ((u8, u8, bool), Vec<PathBuf>, VecDeque<(PathBuf, usize)>);
 
@@ -320,12 +321,12 @@ impl View for FuzzyView {
                     // Set the color depending on whether row is currently selected or not.
                     let (primary, highlight) = if row + self.selected == start_row + self.offset {
                         // Draw the symbol to show the currently selected item.
-                        p.with_color(theme::yellow(), |p| p.print((0, row), ">"));
+                        p.with_color(yellow(), |p| p.print((0, row), ">"));
                         // The colors for the currently selected row.
-                        (theme::white(), theme::green())
+                        (white(), green())
                     } else {
                         // The colors for the not selected row.
-                        (theme::blue(), theme::white())
+                        (blue(), white())
                     };
                     // Draw the item's display name.
                     p.with_color(primary, |p| {
@@ -347,7 +348,7 @@ impl View for FuzzyView {
             }
 
             // Draw the page count.
-            p.with_color(theme::grey(), |p| {
+            p.with_color(grey(), |p| {
                 let page = self.selected / start_row;
                 let pages = self.matches / start_row;
                 let digits = page.checked_ilog10().unwrap_or(0) as usize
@@ -363,7 +364,7 @@ impl View for FuzzyView {
             let query_row = h - 1;
 
             // Draw the match count and some borders.
-            p.with_color(theme::magenta(), |p| {
+            p.with_color(magenta(), |p| {
                 let lines = std::cmp::min(self.matches / 4, h / 4);
                 p.print_vline((w - 1, query_row - 1 - lines), lines, "│");
                 p.print_hline((2, query_row - 1), w - 3, "─");
@@ -371,7 +372,7 @@ impl View for FuzzyView {
             });
 
             // Draw the text input area that shows the query.
-            p.with_color(theme::inverted(), |p| {
+            p.with_color(inverted(), |p| {
                 p.with_effect(Effect::Reverse, |p| {
                     p.print_hline((0, query_row), w, " ");
                     p.print((2, query_row), &self.query);
@@ -389,7 +390,7 @@ impl View for FuzzyView {
                 p.print((offset + 2, query_row), c);
             });
             // Draw the symbol to show the start of the text input area.
-            p.with_color(theme::grey(), |p| p.print((0, query_row), ">"));
+            p.with_color(grey(), |p| p.print((0, query_row), ">"));
         }
     }
 

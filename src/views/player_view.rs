@@ -10,9 +10,10 @@ use cursive::view::Resizable;
 use cursive::{Cursive, Printer, XY};
 
 use crate::player::{Player, PlayerOpts, PlayerStatus};
-use crate::theme::*;
 use crate::utils::random;
 use crate::views::KeysView;
+
+use super::theme::*;
 
 type UserData = ((u8, u8, bool), Vec<PathBuf>, VecDeque<(PathBuf, usize)>);
 

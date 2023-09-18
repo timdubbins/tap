@@ -6,22 +6,22 @@ use cursive::views::{
 };
 use cursive::{Cursive, Rect, Vec2, View};
 
-use crate::theme;
+use super::theme::*;
 
 pub struct ErrorView {}
 
 impl ErrorView {
     pub fn new(content: String) -> ResizedView<OnLayoutView<FixedLayout>> {
-        let mut content = StyledString::styled(content, theme::white());
+        let mut content = StyledString::styled(content, white());
         content.append_plain("  ");
-        content.append(StyledString::styled(" <Ok> ", theme::button()));
+        content.append(StyledString::styled(" <Ok> ", button()));
         content.append_plain("  ");
 
         OnLayoutView::new(
             FixedLayout::new().child(
                 Rect::from_point(Vec2::zero()),
                 LinearLayout::horizontal()
-                    .child(Layer::with_color(TextView::new(" [error]: "), theme::red()))
+                    .child(Layer::with_color(TextView::new(" [error]: "), red()))
                     .child(TextView::new(content))
                     .full_width(),
             ),
