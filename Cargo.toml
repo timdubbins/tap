@@ -18,7 +18,6 @@ name = "tap"
 
 [dependencies]
 anyhow = "1.0"
-async-std = "1.12.0"
 bincode = "2.0.0-rc.3"
 clap = { version = "4.1.8", features = ["derive"] }
 cursive = { git = "https://github.com/timdubbins/cursive", branch = "tap", features = ["ncurses-backend", "toml"] }
