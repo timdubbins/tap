@@ -3,16 +3,13 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::bail;
-use async_std::task;
 use cursive::XY;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
-use crate::utils::{concatenate, random};
+use crate::utils::{concatenate, random, TimerBool};
 
 use super::{is_valid, AudioFile, PlayerStatus, StatusToBytes};
 
@@ -40,7 +37,7 @@ pub struct Player {
     // The list of numbers from last keyboard input,
     pub number_keys: Vec<usize>,
     // Whether or not a double-tap event was registered.
-    pub previous_key: Arc<AtomicBool>,
+    pub timer_bool: TimerBool,
     // The map of audio track numbers to file indices.
     indices: HashMap<u32, usize>,
     // The instant that playback started or resumed.
@@ -78,7 +75,7 @@ impl Player {
             index: 0,
             previous: 0,
             number_keys: vec![],
-            previous_key: Arc::new(AtomicBool::new(false)),
+            timer_bool: TimerBool::new(false, Duration::from_millis(500)),
             volume: 100,
             is_muted: false,
             is_randomized: false,
@@ -170,7 +167,7 @@ impl Player {
     fn clear(&mut self) {
         self.is_queued = false;
         self.number_keys.clear();
-        self.previous_key.store(false, Ordering::Relaxed)
+        self.timer_bool.set_false();
     }
 
     // Selects a track to play based on stored keyboard input.
@@ -186,17 +183,10 @@ impl Player {
     // Selects the first track when called twice in quick succession.
     // This is to model a double tap gesture.
     fn select_track_double_tap(&mut self) -> bool {
-        if self.previous_key.load(Ordering::Relaxed) {
+        if self.timer_bool.is_true() {
             self.select_first_track()
         } else {
-            // Set `previous_key` to true temporarily to gain access
-            // to the 'if' block of this conditional.
-            self.previous_key.store(true, Ordering::Relaxed);
-            let _previous_key = self.previous_key.clone();
-            task::spawn(async move {
-                task::sleep(Duration::from_millis(500)).await;
-                _previous_key.store(false, Ordering::Relaxed)
-            });
+            self.timer_bool.set();
             false
         }
     }
