@@ -1,4 +1,8 @@
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::{Duration, Instant};
 use std::{ops::Range, time::SystemTime};
 
 use anyhow::bail;
@@ -48,6 +52,65 @@ pub fn has_child(path: &PathBuf) -> bool {
         }
     }
     false
+}
+
+pub struct TimerBool {
+    last_set: Arc<Mutex<Instant>>,
+    value: Arc<AtomicBool>,
+    duration: Duration,
+}
+
+impl TimerBool {
+    pub fn new(v: bool, duration: Duration) -> Self {
+        TimerBool {
+            value: Arc::new(AtomicBool::new(v)),
+            last_set: Arc::new(Mutex::new(Instant::now())),
+            duration,
+        }
+    }
+
+    pub fn is_true(&self) -> bool {
+        self.value.load(Ordering::Relaxed)
+    }
+
+    pub fn toggle(&mut self) {
+        if self.value.load(Ordering::Relaxed) {
+            self.value.store(false, Ordering::Relaxed);
+        } else {
+            self.set();
+        }
+    }
+
+    pub fn set(&mut self) {
+        let last_set = self.last_set.lock().unwrap().clone();
+        let now = Instant::now();
+        let elapsed = now.duration_since(last_set);
+
+        if elapsed > self.duration || !self.value.load(Ordering::Relaxed) {
+            self.value.store(true, Ordering::Relaxed);
+            *self.last_set.lock().unwrap() = now;
+
+            // Spawn a new thread to reset the boolean after the specified timeout
+            let value_clone = Arc::clone(&self.value);
+            let last_set_clone = Arc::clone(&self.last_set);
+            let duration_clone = self.duration.clone();
+
+            thread::spawn(move || loop {
+                let last_set = last_set_clone.lock().unwrap().clone();
+                let now = Instant::now();
+                let elapsed = now.duration_since(last_set);
+
+                if elapsed > duration_clone {
+                    value_clone.store(false, Ordering::Relaxed);
+                    break;
+                } else {
+                    thread::sleep(Duration::from_millis(50));
+                }
+            });
+        } else {
+            *self.last_set.lock().unwrap() = now;
+        }
+    }
 }
 
 // Returns true if the path has at least two children.
