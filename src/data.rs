@@ -32,14 +32,24 @@ impl UserData {
 }
 
 impl IntoInner for UserData {
-    type T = ((u8, u8, bool), Vec<PathBuf>, VecDeque<(PathBuf, usize)>);
+    type T = (
+        (u8, u8, bool, bool),
+        Vec<PathBuf>,
+        VecDeque<(PathBuf, usize)>,
+    );
 
     fn into_inner(self) -> Self::T {
         (self.opts.into_inner(), self.paths, self.queue)
     }
 }
 
-impl Into<UserData> for ((u8, u8, bool), Vec<PathBuf>, VecDeque<(PathBuf, usize)>) {
+impl Into<UserData>
+    for (
+        (u8, u8, bool, bool),
+        Vec<PathBuf>,
+        VecDeque<(PathBuf, usize)>,
+    )
+{
     fn into(self) -> UserData {
         UserData {
             opts: self.0.into(),

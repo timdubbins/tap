@@ -18,7 +18,11 @@ use crate::views::{ErrorView, PlayerView};
 
 use super::theme::*;
 
-type UserData = ((u8, u8, bool), Vec<PathBuf>, VecDeque<(PathBuf, usize)>);
+type UserData = (
+    (u8, u8, bool, bool),
+    Vec<PathBuf>,
+    VecDeque<(PathBuf, usize)>,
+);
 
 #[derive(Clone)]
 pub struct FuzzyView {

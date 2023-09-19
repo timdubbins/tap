@@ -79,8 +79,14 @@ impl TimerBool {
         self.ignores_timer || self.value.load(Ordering::Relaxed)
     }
 
-    pub fn toggle(&mut self) {
-        self.ignores_timer ^= true;
+    pub fn toggle(&mut self) -> bool {
+        if self.value.load(Ordering::Relaxed) {
+            self.value.store(false, Ordering::Relaxed);
+            false
+        } else {
+            self.ignores_timer ^= true;
+            self.ignores_timer
+        }
     }
 
     pub fn set(&mut self) {

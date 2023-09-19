@@ -1,7 +1,6 @@
 use std::cmp::min;
 use std::collections::VecDeque;
 use std::path::PathBuf;
-use std::time::Duration;
 
 use cursive::event::{Event, EventResult, Key, MouseButton, MouseEvent};
 use cursive::reexports::crossbeam_channel::Sender;
@@ -11,12 +10,16 @@ use cursive::view::Resizable;
 use cursive::{Cursive, Printer, XY};
 
 use crate::player::{Player, PlayerOpts, PlayerStatus};
-use crate::utils::{random, TimerBool};
+use crate::utils::random;
 use crate::views::KeysView;
 
 use super::theme::*;
 
-type UserData = ((u8, u8, bool), Vec<PathBuf>, VecDeque<(PathBuf, usize)>);
+type UserData = (
+    (u8, u8, bool, bool),
+    Vec<PathBuf>,
+    VecDeque<(PathBuf, usize)>,
+);
 
 pub struct PlayerView {
     // The currently loaded player.
@@ -29,8 +32,6 @@ pub struct PlayerView {
     cb: Option<Sender<Box<dyn FnOnce(&mut Cursive) + Send>>>,
     // The size of the view.
     size: XY<usize>,
-    // Whether or not the current volume is displayed.
-    showing_volume: TimerBool,
 }
 
 impl PlayerView {
@@ -41,7 +42,6 @@ impl PlayerView {
             selected: None,
             offset: 0,
             size: XY { x: 0, y: 0 },
-            showing_volume: TimerBool::new(false, Duration::from_millis(1500)),
         }
     }
 
@@ -49,6 +49,10 @@ impl PlayerView {
         let path = player.path.to_owned();
         let mut player = player;
         let (opts, _, _) = siv.user_data::<UserData>().expect("set on init");
+
+        if opts.3 {
+            player.showing_volume.toggle();
+        }
 
         player.volume = opts.1;
         player.init_volume();
@@ -79,6 +83,10 @@ impl PlayerView {
             player.index = index;
             player.file = player.playlist[index].to_owned();
             player.is_randomized = true;
+        }
+
+        if opts.showing_volume {
+            player.showing_volume.toggle();
         }
 
         player.status = opts.status;
@@ -122,6 +130,10 @@ impl PlayerView {
             player.index = index;
             player.file = player.playlist[index].to_owned();
             player.is_randomized = true;
+        }
+
+        if opts.showing_volume {
+            player.showing_volume.toggle();
         }
 
         player.status = opts.status;
@@ -254,15 +266,6 @@ impl PlayerView {
             None => self.player.previous_random(),
         }
     }
-
-    // fn show_volume(&mut self) {
-    //     self.showing_volume.store(true, Ordering::Relaxed);
-    //     let _showing_volume = self.showing_volume.clone();
-    //     task::spawn(async move {
-    //         task::sleep(Duration::from_millis(1500)).await;
-    //         _showing_volume.store(false, Ordering::Relaxed)
-    //     });
-    // }
 }
 
 impl View for PlayerView {
@@ -350,7 +353,7 @@ impl View for PlayerView {
                 })
             });
 
-            if self.showing_volume.is_true() {
+            if self.player.showing_volume.is_true() {
                 let column = if w > 14 { column - 5 } else { column };
                 p.with_color(grey(), |p| p.print((column, 0), &self.volume(w).as_str()));
             };
@@ -465,7 +468,7 @@ impl View for PlayerView {
 
             Event::Char(']') => {
                 let volume = self.player.increase_volume();
-                self.showing_volume.set();
+                self.player.showing_volume.set();
 
                 return match self.cb {
                     Some(_) => EventResult::with_cb(move |siv| {
@@ -478,7 +481,7 @@ impl View for PlayerView {
             }
             Event::Char('[') => {
                 let volume = self.player.decrease_volume();
-                self.showing_volume.set();
+                self.player.showing_volume.set();
 
                 return match self.cb {
                     Some(_) => EventResult::with_cb(move |siv| {
@@ -489,7 +492,18 @@ impl View for PlayerView {
                     None => EventResult::Consumed(None),
                 };
             }
-            Event::Char('v') => self.showing_volume.toggle(),
+            Event::Char('v') => {
+                let showing_volume = self.player.showing_volume.toggle();
+
+                return match self.cb {
+                    Some(_) => EventResult::with_cb(move |siv| {
+                        siv.with_user_data(|(opts, _, _): &mut UserData| {
+                            opts.3 = showing_volume;
+                        });
+                    }),
+                    None => EventResult::Consumed(None),
+                };
+            }
             Event::Char('m') => {
                 let is_muted = self.player.toggle_mute();
 

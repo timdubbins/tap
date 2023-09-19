@@ -28,6 +28,8 @@ pub struct Player {
     pub volume: u8,
     // Whether the player is muted or not.
     pub is_muted: bool,
+    // Whether or not the current volume is displayed.
+    pub showing_volume: TimerBool,
     // Whether or not the next track will be selected randomly.
     pub is_randomized: bool,
     // Whether or not the next track is queued.
@@ -76,6 +78,7 @@ impl Player {
             previous: 0,
             number_keys: vec![],
             timer_bool: TimerBool::new(false, Duration::from_millis(500)),
+            showing_volume: TimerBool::new(false, Duration::from_millis(1500)),
             volume: 100,
             is_muted: false,
             is_randomized: false,
