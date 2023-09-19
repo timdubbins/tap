@@ -69,6 +69,10 @@ impl TimerBool {
         }
     }
 
+    pub fn set_false(&self) {
+        self.value.store(false, Ordering::Relaxed);
+    }
+
     pub fn is_true(&self) -> bool {
         self.value.load(Ordering::Relaxed)
     }

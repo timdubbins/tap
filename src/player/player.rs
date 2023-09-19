@@ -35,8 +35,6 @@ pub struct Player {
     pub is_randomized: bool,
     // Whether or not the next track is queued.
     pub is_queued: bool,
-    // Whether or not the current volume is displayed.
-    pub showing_volume: bool,
     // Whether the player is playing, paused or stopped.
     pub status: PlayerStatus,
     // The list of numbers from last keyboard input,
@@ -85,7 +83,6 @@ impl Player {
             is_muted: false,
             is_randomized: false,
             is_queued: false,
-            showing_volume: false,
             path,
             playlist,
             file,
@@ -412,10 +409,6 @@ impl Player {
         }
 
         self.volume
-    }
-
-    pub fn show_volume(&mut self) {
-        self.showing_volume ^= true;
     }
 
     pub fn toggle_mute(&mut self) -> bool {
