@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use anyhow::bail;
 use clap::{ArgGroup, Parser};
 
-use crate::data::cache::get_cached;
+use crate::serialization::get_cached;
 
 #[derive(PartialEq)]
 pub enum Opts {

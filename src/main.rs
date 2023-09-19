@@ -3,6 +3,7 @@ mod args;
 mod data;
 mod fuzzy;
 mod player;
+mod serialization;
 mod utils;
 mod views;
 

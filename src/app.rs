@@ -9,9 +9,10 @@ use cursive::event::{Event, EventResult, EventTrigger, Key, MouseButton, MouseEv
 
 use crate::args::{Args, Opts};
 
-use crate::data::{cache::*, UserData};
+use crate::data::UserData;
 use crate::fuzzy::*;
 use crate::player::Player;
+use crate::serialization::*;
 use crate::utils::{CycleIterator, IntoInner};
 use crate::views::{FuzzyView, PlayerView};
 
