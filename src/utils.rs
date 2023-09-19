@@ -58,6 +58,7 @@ pub struct TimerBool {
     last_set: Arc<Mutex<Instant>>,
     value: Arc<AtomicBool>,
     duration: Duration,
+    ignores_timer: bool,
 }
 
 impl TimerBool {
@@ -65,6 +66,7 @@ impl TimerBool {
         TimerBool {
             value: Arc::new(AtomicBool::new(v)),
             last_set: Arc::new(Mutex::new(Instant::now())),
+            ignores_timer: false,
             duration,
         }
     }
@@ -74,15 +76,11 @@ impl TimerBool {
     }
 
     pub fn is_true(&self) -> bool {
-        self.value.load(Ordering::Relaxed)
+        self.ignores_timer || self.value.load(Ordering::Relaxed)
     }
 
     pub fn toggle(&mut self) {
-        if self.value.load(Ordering::Relaxed) {
-            self.value.store(false, Ordering::Relaxed);
-        } else {
-            self.set();
-        }
+        self.ignores_timer ^= true;
     }
 
     pub fn set(&mut self) {
