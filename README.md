@@ -8,7 +8,7 @@ tap is an audio player for the terminal. Jump to any album in your library with 
 
 ## How to use
 ```bash
-> tap [-adps] [path]
+> tap [-a] [path]
 ```
 Run `tap` in a directory that contains music folders to open a `fuzzy-finder`, allowing you to select an album to play. Playback starts on selection and you can return to the fuzzy-finder by pressing `Tab`.
 
@@ -19,9 +19,6 @@ To open a player without the fuzzy-finder provide a `path` to an audio file or a
 Option                  | Description
 ---                     |---
 `-a` `--automate`       | Run an automated player without the TUI. Quit with `Ctrl` + `c`.
-`-d` `--default`        | Run from the default directory, if set.
-`-p` `--print`          | Print the path of the default directory, if set.
-`-s` `--set-default`    | Set `path` as the default directory. The load time when using this directory will be significantly faster. You can use this directory by providing the path or including the `-d` flag. If you make changes in this directory the default will update the next time it is used. See [Notes](#notes).
 
 ## Bindings
 
@@ -46,9 +43,6 @@ next                | `j` or <kbd>&darr;</kbd>
 previous            | `k` or <kbd>&uarr;</kbd>
 stop                | `l` or <kbd>&rarr;</kbd> or `Enter`
 random              | `r`
-volume up           | `]`
-volume down         | `[`
-show volume         | `v`
 mute                | `m`
 go to first track   | `gg`
 go to last track    | `Ctrl` + `g`
@@ -99,7 +93,7 @@ You can install with <a href="https://brew.sh/">Homebrew</a>:
 ```bash
 > brew install timdubbins/tap/tap
 > tap --version
-0.4.5
+0.4.4
 ```
 
 </details>
@@ -115,7 +109,7 @@ such as <a href="https://github.com/Jguer/yay">yay</a>:
 ```bash
 > yay -S tap
 > tap --version
-0.4.5
+0.4.4
 ```
 The AUR package is available <a href="https://aur.archlinux.org/packages/tap">here</a>.
 <br>
@@ -126,13 +120,13 @@ The AUR package is available <a href="https://aur.archlinux.org/packages/tap">he
 <summary><b>Debian</b> (or a Debian derivative, such as <b>Ubuntu</b>)</summary>
 <br>
 
-You can install with a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.4.5">tap release</a>:
+You can install with a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.4.4">tap release</a>:
 
 ```bash
-> curl -LO https://github.com/timdubbins/tap/releases/download/v0.4.5/tap_v0.4.5_amd64.deb
-> sudo dpkg -i tap_v0.4.5_amd64.deb
+> curl -LO https://github.com/timdubbins/tap/releases/download/v0.4.4/tap_v0.4.4_amd64.deb
+> sudo dpkg -i tap_v0.4.4_amd64.deb
 > tap --version
-0.4.5
+0.4.4
 ```
 
 </details>
@@ -148,22 +142,25 @@ To compile from source, first you need a <a href="https://www.rust-lang.org/lear
 > cd tap
 > cargo install --path .
 > tap --version
-0.4.5
+0.4.4
 ```
 
 </details>
 
-The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.4.5).
+The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.4.4).
 
 ## Notes
 
 - Supports gapless playback.
 - Supports `aac`, `flac`, `mp3`, `m4a`, `ogg` and `wav`.
-- Setting the `default directory` will write a small amount of encoded data to `~/.cache/tap`. This is the only place that `tap` will write to. The data is guaranteed to be at least as small as the in-memory data. For example, setting a directory that is 200GB as the default produces a ~/.cache/tap size of 350KB (equivalent to an mp3 that is 2 seconds long) and decreases the load time by ~6x.
+
+**Using the default directory:**
+
+Setting the `default directory` will write a small amount of encoded data to `~/.cache/tap`. This is the only place that `tap` will write to and the data is guaranteed to be at least as small as the in-memory data. For example, setting a directory that is 200GB as the default produces a ~/.cache/tap size of 350KB (equivalent to an mp3 that is 2 seconds long) and decreases the load time by ~6x.
 
 ## Contributing
 
-Suggestions / bug reports are welcome. Feel free to open an issue and I'll try to respond.
+Suggestions / bug reports are welcome!
 
 ### Inspired by
 
