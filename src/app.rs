@@ -16,93 +16,90 @@ use crate::serialization::*;
 use crate::utils::{CycleIterator, IntoInner};
 use crate::views::{FuzzyView, PlayerView};
 
-pub struct App {}
+// Runs the app.
+pub fn run() -> Result<(), anyhow::Error> {
+    let (path, opts) = Args::parse_args()?;
 
-impl App {
-    pub fn run() -> Result<(), anyhow::Error> {
-        let (path, opts) = Args::parse_args()?;
-
-        match opts {
-            Opts::Automate => return run_automated(path),
-            Opts::Set => return process_cache(path, "setting default"),
-            Opts::Print => return print_cached_path(),
-            _ => (),
-        }
-
-        // The items to fuzzy search on, if any.
-        let items = get_items(&path, opts)?;
-
-        // The cursive root.
-        let mut siv = cursive::ncurses();
-
-        // Set style and background color.
-        siv.load_toml(include_str!("assets/style.toml"))
-            .expect("style.toml should be located in assets directory");
-
-        // Set the refresh rate.
-        siv.set_fps(15);
-
-        if items.is_empty() {
-            let player = PlayerCreator::new(path)?;
-            PlayerView::load(player, &mut siv);
-            siv.run();
-            return Ok(());
-        }
-
-        // Load the initial fuzzy search.
-        FuzzyView::load(items.to_owned(), &mut siv);
-
-        // Set the initial user data.
-        let user_data = UserData::new(&path, &items)?;
-        siv.set_user_data(user_data.into_inner());
-
-        // Set the callback for the previous selection.
-        siv.set_on_pre_event_inner('-', |_| {
-            Some(EventResult::with_cb(|siv| {
-                if let Ok(player) = PlayerCreator::PreviousAlbum.from(None, siv) {
-                    PlayerView::load(player, siv);
-                }
-            }))
-        });
-
-        // Set callback for a random selection.
-        siv.set_on_pre_event_inner('=', |_| {
-            Some(EventResult::with_cb(|siv| {
-                if let Ok(player) = PlayerCreator::RandomAlbum.from(None, siv) {
-                    PlayerView::load(player, siv);
-                }
-            }))
-        });
-
-        // Set the callbacks for the fuzzy-finder.
-        siv.set_on_pre_event_inner(trigger(), move |event: &Event| {
-            let c = event.char().unwrap_or('0');
-            let items = items.to_owned();
-
-            if matches!(c, 'A'..='Z') {
-                let items = key_items(c, items);
-                return Some(EventResult::with_cb(move |siv| {
-                    FuzzyView::with(items.to_owned(), c, siv)
-                }));
-            }
-
-            let items = match c {
-                'a' => non_leaf_items(items),
-                's' => leaf_items(items),
-                _ => match event.f_num() {
-                    Some(depth) => depth_items(depth, items),
-                    None => items,
-                },
-            };
-
-            Some(EventResult::with_cb(move |siv| {
-                FuzzyView::load(items.to_owned(), siv)
-            }))
-        });
-
-        siv.run();
-        Ok(())
+    match opts {
+        Opts::Automate => return run_automated(path),
+        Opts::Set => return process_cache(path, "setting default"),
+        Opts::Print => return print_cached_path(),
+        _ => (),
     }
+
+    // The items to fuzzy search on, if any.
+    let items = get_items(&path, opts)?;
+
+    // The cursive root.
+    let mut siv = cursive::ncurses();
+
+    // Set style and background color.
+    siv.load_toml(include_str!("assets/style.toml"))
+        .expect("style.toml should be located in assets directory");
+
+    // Set the refresh rate.
+    siv.set_fps(15);
+
+    if items.is_empty() {
+        let player = PlayerCreator::new(path)?;
+        PlayerView::load(player, &mut siv);
+        siv.run();
+        return Ok(());
+    }
+
+    // Load the initial fuzzy search.
+    FuzzyView::load(items.to_owned(), &mut siv);
+
+    // Set the initial user data.
+    let user_data = UserData::new(&path, &items)?;
+    siv.set_user_data(user_data.into_inner());
+
+    // Set the callback for the previous selection.
+    siv.set_on_pre_event_inner('-', |_| {
+        Some(EventResult::with_cb(|siv| {
+            if let Ok(player) = PlayerCreator::PreviousAlbum.from(None, siv) {
+                PlayerView::load(player, siv);
+            }
+        }))
+    });
+
+    // Set callback for a random selection.
+    siv.set_on_pre_event_inner('=', |_| {
+        Some(EventResult::with_cb(|siv| {
+            if let Ok(player) = PlayerCreator::RandomAlbum.from(None, siv) {
+                PlayerView::load(player, siv);
+            }
+        }))
+    });
+
+    // Set the callbacks for the fuzzy-finder.
+    siv.set_on_pre_event_inner(trigger(), move |event: &Event| {
+        let c = event.char().unwrap_or('0');
+        let items = items.to_owned();
+
+        if matches!(c, 'A'..='Z') {
+            let items = key_items(c, items);
+            return Some(EventResult::with_cb(move |siv| {
+                FuzzyView::with(items.to_owned(), c, siv)
+            }));
+        }
+
+        let items = match c {
+            'a' => non_leaf_items(items),
+            's' => leaf_items(items),
+            _ => match event.f_num() {
+                Some(depth) => depth_items(depth, items),
+                None => items,
+            },
+        };
+
+        Some(EventResult::with_cb(move |siv| {
+            FuzzyView::load(items.to_owned(), siv)
+        }))
+    });
+
+    siv.run();
+    Ok(())
 }
 
 // Runs an automated player in the command line without the TUI.

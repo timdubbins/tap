@@ -7,10 +7,8 @@ mod serialization;
 mod utils;
 mod views;
 
-use crate::app::App;
-
 fn main() {
-    let result: Result<(), anyhow::Error> = App::run();
+    let result: Result<(), anyhow::Error> = app::run();
     match result {
         Ok(r) => r,
         Err(err) => {
