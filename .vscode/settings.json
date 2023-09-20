@@ -1,11 +1,14 @@
 {
     "cSpell.words": [
+        "adps",
         "alsa",
         "bincode",
         "canonicalize",
+        "cmus",
         "consts",
         "crossterm",
         "Deque",
+        "dpkg",
         "flac",
         "fullscreen",
         "gapless",
