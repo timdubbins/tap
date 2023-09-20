@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::bail;
-use cursive::{Cursive, XY};
+use cursive::Cursive;
 
 use crate::utils::{random, UserData};
 
