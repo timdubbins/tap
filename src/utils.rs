@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -12,6 +13,12 @@ pub trait IntoInner {
     type T;
     fn into_inner(self) -> Self::T;
 }
+
+pub type UserData = (
+    (u8, u8, bool, bool),
+    Vec<PathBuf>,
+    VecDeque<(PathBuf, usize)>,
+);
 
 // An iterator that cycles back to the first element.
 pub struct CycleIterator<T> {
@@ -37,21 +44,6 @@ impl<T: Clone> Iterator for CycleIterator<T> {
         self.index = (self.index + 1) % self.items.len();
         Some(item)
     }
-}
-
-pub fn has_child(path: &PathBuf) -> bool {
-    let iter = match path.read_dir() {
-        Ok(r) => r,
-        Err(_) => return false,
-    };
-    for entry in iter {
-        if let Ok(entry) = entry {
-            if entry.path().is_dir() {
-                return true;
-            }
-        }
-    }
-    false
 }
 
 pub struct TimerBool {
@@ -119,6 +111,21 @@ impl TimerBool {
             *self.last_set.lock().unwrap() = now;
         }
     }
+}
+
+pub fn has_child(path: &PathBuf) -> bool {
+    let iter = match path.read_dir() {
+        Ok(r) => r,
+        Err(_) => return false,
+    };
+    for entry in iter {
+        if let Ok(entry) = entry {
+            if entry.path().is_dir() {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 // Returns true if the path has at least two children.
