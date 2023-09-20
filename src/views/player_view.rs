@@ -1,6 +1,5 @@
 use std::cmp::min;
-use std::collections::VecDeque;
-use std::path::PathBuf;
+use std::time::Duration;
 
 use cursive::event::{Event, EventResult, Key, MouseButton, MouseEvent};
 use cursive::reexports::crossbeam_channel::Sender;
@@ -9,17 +8,11 @@ use cursive::traits::View;
 use cursive::view::Resizable;
 use cursive::{Cursive, Printer, XY};
 
-use crate::player::{Player, PlayerOpts, PlayerStatus};
-use crate::utils::random;
+use crate::player::{Player, PlayerCreator, PlayerStatus};
+use crate::utils::{TimerBool, UserData};
 use crate::views::KeysView;
 
 use super::theme::*;
-
-type UserData = (
-    (u8, u8, bool, bool),
-    Vec<PathBuf>,
-    VecDeque<(PathBuf, usize)>,
-);
 
 pub struct PlayerView {
     // The currently loaded player.
@@ -28,6 +21,8 @@ pub struct PlayerView {
     selected: Option<usize>,
     // The vertical offset required to show relevant playlist rows.
     offset: usize,
+    // Whether or not the current volume is displayed.
+    showing_volume: TimerBool,
     // Callback to access the cursive root. `None` if standalone player.
     cb: Option<Sender<Box<dyn FnOnce(&mut Cursive) + Send>>>,
     // The size of the view.
@@ -35,128 +30,29 @@ pub struct PlayerView {
 }
 
 impl PlayerView {
-    pub fn new(player: Player, cb: Option<Sender<Box<dyn FnOnce(&mut Cursive) + Send>>>) -> Self {
+    pub fn new(
+        player: Player,
+        showing_volume: bool,
+        cb: Option<Sender<Box<dyn FnOnce(&mut Cursive) + Send>>>,
+    ) -> Self {
         Self {
             player,
             cb,
             selected: None,
             offset: 0,
+            showing_volume: TimerBool::new(showing_volume, Duration::from_millis(1500)),
             size: XY { x: 0, y: 0 },
         }
     }
 
-    pub fn fuzzy((player, size): (Player, XY<usize>), siv: &mut Cursive) {
-        let path = player.path.to_owned();
-        let mut player = player;
-        let (opts, _, _) = siv.user_data::<UserData>().expect("set on init");
-
-        if opts.3 {
-            player.showing_volume.toggle();
-        }
-
-        player.volume = opts.1;
-        player.init_volume();
-
-        PlayerView::load((player, size), siv);
-
-        siv.with_user_data(|(_, _, queue): &mut UserData| {
-            if queue.len() == 1 {
-                queue.push_front((path.to_owned(), 0));
-                queue.push_front((path, 0));
-            } else {
-                queue.pop_front();
-                queue.insert(1, (path, 0));
-            }
-        });
-    }
-
-    pub fn random(random_track: bool, siv: &mut Cursive) {
-        let (opts, _, queue) = siv.user_data::<UserData>().expect("set on init");
-
-        let opts: PlayerOpts = (*opts).into();
-        let (path, index) = queue.back().expect("should always exist").to_owned();
-
-        let (mut player, size) = Player::new(&path).expect("should always be valid");
-        let length = player.playlist.len();
-
-        if random_track {
-            player.index = index;
-            player.file = player.playlist[index].to_owned();
-            player.is_randomized = true;
-        }
-
-        if opts.showing_volume {
-            player.showing_volume.toggle();
-        }
-
-        player.status = opts.status;
-        player.volume = opts.volume;
-        player.is_muted = opts.is_muted;
-        player.init_volume();
-        player.set_playback();
-
-        PlayerView::load((player, size), siv);
-
-        siv.with_user_data(|(_, paths, queue): &mut UserData| {
-            if queue.len() == 1 {
-                let first = queue.front().expect("should always exist").to_owned();
-                queue.push_back(first);
-            } else {
-                queue.pop_front();
-            }
-
-            let (path, index) = match Player::randomized(&paths) {
-                Some(res) => res,
-                None => (path, random(0..length)),
-            };
-
-            queue.push_back((path, index));
-        });
-    }
-
-    pub fn previous(random_track: bool, siv: &mut Cursive) {
-        let (opts, _, queue) = siv.user_data::<UserData>().expect("set on init");
-
-        if queue.len() == 1 {
-            return;
-        }
-
-        let opts: PlayerOpts = (*opts).into();
-        let (path, index) = queue.front().expect("should always exist").to_owned();
-
-        let (mut player, size) = Player::new(&path).expect("should always be valid");
-
-        if random_track {
-            player.index = index;
-            player.file = player.playlist[index].to_owned();
-            player.is_randomized = true;
-        }
-
-        if opts.showing_volume {
-            player.showing_volume.toggle();
-        }
-
-        player.status = opts.status;
-        player.volume = opts.volume;
-        player.is_muted = opts.is_muted;
-        player.init_volume();
-        player.set_playback();
-
-        PlayerView::load((player, size), siv);
-
-        siv.with_user_data(|(_, _, queue): &mut UserData| {
-            queue.swap(0, 1);
-        });
-    }
-
-    pub fn load((player, size): (Player, XY<usize>), siv: &mut Cursive) {
+    pub fn load((player, showing_volume, size): (Player, bool, XY<usize>), siv: &mut Cursive) {
         let cb = match siv.user_data::<UserData>() {
             Some(_) => Some(siv.cb_sink().clone()),
             None => None,
         };
 
         siv.add_layer(
-            PlayerView::new(player, cb)
+            PlayerView::new(player, showing_volume, cb)
                 .full_width()
                 .max_width(size.x)
                 .fixed_height(size.y),
@@ -247,7 +143,9 @@ impl PlayerView {
         match &self.cb {
             Some(cb) => {
                 cb.send(Box::new(move |siv| {
-                    PlayerView::random(true, siv);
+                    if let Ok(player) = PlayerCreator::RandomTrack.from(None, siv) {
+                        PlayerView::load(player, siv);
+                    }
                 }))
                 .unwrap_or_default();
             }
@@ -259,7 +157,9 @@ impl PlayerView {
         match &self.cb {
             Some(cb) => {
                 cb.send(Box::new(move |siv| {
-                    PlayerView::previous(true, siv);
+                    if let Ok(player) = PlayerCreator::PreviousTrack.from(None, siv) {
+                        PlayerView::load(player, siv);
+                    }
                 }))
                 .unwrap_or_default();
             }
@@ -353,7 +253,7 @@ impl View for PlayerView {
                 })
             });
 
-            if self.player.showing_volume.is_true() {
+            if self.showing_volume.is_true() {
                 let column = if w > 14 { column - 5 } else { column };
                 p.with_color(grey(), |p| p.print((column, 0), &self.volume(w).as_str()));
             };
@@ -468,7 +368,7 @@ impl View for PlayerView {
 
             Event::Char(']') => {
                 let volume = self.player.increase_volume();
-                self.player.showing_volume.set();
+                self.showing_volume.set();
 
                 return match self.cb {
                     Some(_) => EventResult::with_cb(move |siv| {
@@ -481,7 +381,7 @@ impl View for PlayerView {
             }
             Event::Char('[') => {
                 let volume = self.player.decrease_volume();
-                self.player.showing_volume.set();
+                self.showing_volume.set();
 
                 return match self.cb {
                     Some(_) => EventResult::with_cb(move |siv| {
@@ -493,7 +393,7 @@ impl View for PlayerView {
                 };
             }
             Event::Char('v') => {
-                let showing_volume = self.player.showing_volume.toggle();
+                let showing_volume = self.showing_volume.toggle();
 
                 return match self.cb {
                     Some(_) => EventResult::with_cb(move |siv| {

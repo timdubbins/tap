@@ -11,7 +11,7 @@ use crate::args::{Args, Opts};
 
 use crate::data::UserData;
 use crate::fuzzy::*;
-use crate::player::Player;
+use crate::player::PlayerCreator;
 use crate::serialization::*;
 use crate::utils::{CycleIterator, IntoInner};
 use crate::views::{FuzzyView, PlayerView};
@@ -23,8 +23,8 @@ impl App {
         let (path, opts) = Args::parse_args()?;
 
         match opts {
-            Opts::Automate => return run_automated(&path),
-            Opts::Set => return process_cache(&path, "setting default"),
+            Opts::Automate => return run_automated(path),
+            Opts::Set => return process_cache(path, "setting default"),
             Opts::Print => return print_cached_path(),
             _ => (),
         }
@@ -43,9 +43,8 @@ impl App {
         siv.set_fps(15);
 
         if items.is_empty() {
-            // There are no items to search on so run a standalone player.
-            let (player, size) = Player::new(&path)?;
-            PlayerView::load((player, size), &mut siv);
+            let player = PlayerCreator::new(path)?;
+            PlayerView::load(player, &mut siv);
             siv.run();
             return Ok(());
         }
@@ -60,14 +59,18 @@ impl App {
         // Set the callback for the previous selection.
         siv.set_on_pre_event_inner('-', |_| {
             Some(EventResult::with_cb(|siv| {
-                PlayerView::previous(false, siv);
+                if let Ok(player) = PlayerCreator::PreviousAlbum.from(None, siv) {
+                    PlayerView::load(player, siv);
+                }
             }))
         });
 
         // Set callback for a random selection.
         siv.set_on_pre_event_inner('=', |_| {
             Some(EventResult::with_cb(|siv| {
-                PlayerView::random(false, siv);
+                if let Ok(player) = PlayerCreator::RandomAlbum.from(None, siv) {
+                    PlayerView::load(player, siv);
+                }
             }))
         });
 
@@ -103,8 +106,9 @@ impl App {
 }
 
 // Runs an automated player in the command line without the TUI.
-fn run_automated(path: &PathBuf) -> Result<(), anyhow::Error> {
-    let (mut player, _) = Player::new(path)?;
+fn run_automated(path: PathBuf) -> Result<(), anyhow::Error> {
+    // let (mut player, _) = Player::new(path)?;
+    let (mut player, _, _) = PlayerCreator::new(path)?;
     let (mut line, mut length) = player.stdout();
 
     print!("{}", line);
@@ -125,8 +129,8 @@ fn run_automated(path: &PathBuf) -> Result<(), anyhow::Error> {
     }
 }
 
-fn process_cache(path: &PathBuf, action: &'static str) -> Result<(), anyhow::Error> {
-    match process(update_cache, path, action) {
+fn process_cache(path: PathBuf, action: &'static str) -> Result<(), anyhow::Error> {
+    match process(update_cache, &path, action) {
         Ok(_) => {
             println!("\r[tap]: {}...", action);
             println!("[tap]: done!");

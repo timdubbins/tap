@@ -11,7 +11,9 @@ use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
 use crate::utils::{concatenate, random, TimerBool};
 
-use super::{is_valid, AudioFile, PlayerStatus, StatusToBytes};
+use super::{is_valid, AudioFile, PlayerOpts, PlayerStatus, StatusToBytes};
+
+pub type PlayerResult = Result<(Player, bool, XY<usize>), anyhow::Error>;
 
 pub struct Player {
     // The path used to create the playlist.
@@ -28,8 +30,6 @@ pub struct Player {
     pub volume: u8,
     // Whether the player is muted or not.
     pub is_muted: bool,
-    // Whether or not the current volume is displayed.
-    pub showing_volume: TimerBool,
     // Whether or not the next track will be selected randomly.
     pub is_randomized: bool,
     // Whether or not the next track is queued.
@@ -55,13 +55,10 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(path: &PathBuf) -> Result<(Self, XY<usize>), anyhow::Error> {
-        let path = path.to_owned();
-        let (playlist, size) = Player::playlist(path.clone())?;
-        let file = playlist
-            .first()
-            .expect("playlist should not be empty")
-            .clone();
+    pub fn new(track: (PathBuf, usize), opts: PlayerOpts, is_randomized: bool) -> PlayerResult {
+        let (path, index) = (track.0, track.1);
+        let (playlist, size) = Player::playlist(&path)?;
+        let file = playlist[index].to_owned();
         let (_stream, _stream_handle) = OutputStream::try_default()?;
         let sink = Sink::try_new(&_stream_handle)?;
         let mut indices = HashMap::new();
@@ -71,30 +68,30 @@ impl Player {
         }
 
         let mut player = Self {
-            status: PlayerStatus::Stopped,
             last_started: Instant::now(),
             last_elapsed: Duration::default(),
-            index: 0,
             previous: 0,
             number_keys: vec![],
-            timer_bool: TimerBool::new(false, Duration::from_millis(500)),
-            showing_volume: TimerBool::new(false, Duration::from_millis(1500)),
-            volume: 100,
-            is_muted: false,
-            is_randomized: false,
             is_queued: false,
+            timer_bool: TimerBool::new(false, Duration::from_millis(500)),
+            status: opts.status,
+            volume: opts.volume,
+            is_muted: opts.is_muted,
             path,
+            index,
             playlist,
             file,
             indices,
+            is_randomized,
             sink,
             _stream,
             _stream_handle,
         };
 
-        player.play_or_pause();
+        player.set_volume();
+        player.set_playback();
 
-        Ok((player, size))
+        Ok((player, opts.showing_volume, size))
     }
 
     // Whether the player is playing or not.
@@ -336,7 +333,7 @@ impl Player {
             }
             let target = random(0..paths.len());
             let path = paths[target].to_owned();
-            if let Ok((playlist, _)) = Player::playlist(path.to_owned()) {
+            if let Ok((playlist, _)) = Player::playlist(&path) {
                 let index = random(0..playlist.len());
                 return Some((path, index));
             } else {
@@ -374,7 +371,7 @@ impl Player {
         }
     }
 
-    pub fn init_volume(&mut self) {
+    pub fn set_volume(&mut self) {
         if self.is_muted {
             self.sink.set_volume(0.0)
         } else {
@@ -424,7 +421,7 @@ impl Player {
     }
 
     // Returns the playlist and required size for the player on success.
-    pub fn playlist(path: PathBuf) -> Result<(Vec<AudioFile>, XY<usize>), anyhow::Error> {
+    pub fn playlist(path: &PathBuf) -> Result<(Vec<AudioFile>, XY<usize>), anyhow::Error> {
         // The list of files to use in the player.
         let mut audio_files = vec![];
         // An intermediate value used in calculating the player width.
@@ -441,7 +438,7 @@ impl Player {
                     let path = entry.path();
                     if path.is_dir() {
                         // Recurse into child directory.
-                        return Player::playlist(path);
+                        return Player::playlist(&path);
                     } else if is_valid(&path) {
                         match AudioFile::new(path) {
                             // Grow the playlist and update width.

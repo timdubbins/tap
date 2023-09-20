@@ -1,4 +1,3 @@
-use std::collections::VecDeque;
 use std::path::PathBuf;
 
 use cursive::event::{Event, EventResult, Key, MouseButton, MouseEvent};
@@ -12,17 +11,11 @@ use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
 use crate::fuzzy::*;
-use crate::player::Player;
+use crate::player::PlayerCreator;
 use crate::utils::*;
 use crate::views::{ErrorView, PlayerView};
 
 use super::theme::*;
-
-type UserData = (
-    (u8, u8, bool, bool),
-    Vec<PathBuf>,
-    VecDeque<(PathBuf, usize)>,
-);
 
 #[derive(Clone)]
 pub struct FuzzyView {
@@ -274,10 +267,11 @@ impl FuzzyView {
                 // Don't reload the player if the selection hasn't changed.
                 pop_layers_to_bottom(siv);
             } else {
-                match Player::new(&selected) {
-                    Ok(player) => PlayerView::fuzzy(player, siv),
+                let path = Some(selected.to_owned());
+                match PlayerCreator::FuzzyFinder.from(path, siv) {
+                    Ok(player) => PlayerView::load(player, siv),
                     Err(e) => ErrorView::load(siv, e),
-                };
+                }
             }
         })
     }
