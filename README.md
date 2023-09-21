@@ -160,9 +160,9 @@ The binaries for each release are also available [here](https://github.com/timdu
 - Supports gapless playback.
 - Supports `aac`, `flac`, `mp3`, `m4a`, `ogg` and `wav`.
 
-**Using the default directory:**
+**Setting the default directory:**
 
-Setting the `default directory` will write a small amount of encoded data to `~/.cache/tap`. This is the only place that `tap` will write to and the data is guaranteed to be at least as small as the in-memory data. If you make changes in the default directory, tap will update ~/.cache/tap the next time it is accessed.
+This will write a small amount of encoded data to `~/.cache/tap`. This is the only place that `tap` will write to and the data is guaranteed to be at least as small as the in-memory data. Changes in the default directory will be updated in ~/.cache/tap the next time it is accessed by tap.
 
 As a benchmark, setting a directory that is 200GB as the default produces a ~/.cache/tap  that has size 350KB (equivalent to an mp3 that is 2 seconds long) and decreases the load time by ~6x.
 
