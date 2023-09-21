@@ -14,7 +14,7 @@ use crate::fuzzy::*;
 use crate::player::PlayerCreator;
 use crate::serialization::*;
 use crate::utils::{CycleIterator, IntoInner};
-use crate::views::{FuzzyView, PlayerView};
+use crate::views::{theme, FuzzyView, PlayerView};
 
 // Runs the app.
 pub fn run() -> Result<(), anyhow::Error> {
@@ -33,11 +33,7 @@ pub fn run() -> Result<(), anyhow::Error> {
     // The cursive root.
     let mut siv = cursive::ncurses();
 
-    // Set style and background color.
-    siv.load_toml(include_str!("assets/style.toml"))
-        .expect("style.toml should be located in assets directory");
-
-    // Set the refresh rate.
+    siv.set_theme(theme::custom());
     siv.set_fps(15);
 
     if items.is_empty() {
@@ -104,7 +100,6 @@ pub fn run() -> Result<(), anyhow::Error> {
 
 // Runs an automated player in the command line without the TUI.
 fn run_automated(path: PathBuf) -> Result<(), anyhow::Error> {
-    // let (mut player, _) = Player::new(path)?;
     let (mut player, _, _) = PlayerCreator::new(path)?;
     let (mut line, mut length) = player.stdout();
 

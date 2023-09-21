@@ -1,8 +1,0 @@
-shadow  = false
-borders = "simple"
-
-[colors]
-	background 		= "#1d1f21"		# black
-	view   			= "#1d1f21"    	# black
-	primary			= "#c5c8c6"		# white
-	title_primary 	= "#b5bd68"		# green 
