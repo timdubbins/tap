@@ -26,6 +26,8 @@ pub fn custom() -> Theme {
         palette: Palette::default().with(|palette| {
             palette[Background] = BLACK;
             palette[View] = BLACK;
+            palette[Primary] = WHITE;
+            palette[TitlePrimary] = GREEN;
         }),
     }
 }
