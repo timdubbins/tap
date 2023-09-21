@@ -21,7 +21,7 @@ Option                  | Description
 `-a` `--automate`       | Run an automated player without the TUI. Quit with `Ctrl` + `c`.
 `-d` `--default`        | Run from the default directory, if set.
 `-p` `--print`          | Print the path of the default directory, if set.
-`-s` `--set-default`    | Set `path` as the default directory. The load time when using this directory will be significantly faster. You can use this directory by providing the path or including the `-d` flag. If you make changes in this directory the default will update the next time it is used. See [Notes](#notes).
+`-s` `--set-default`    | Set `path` as the default directory. This can significantly reduce the time it takes to load this directory. See [Notes](#notes).
 
 ## Bindings
 
@@ -162,7 +162,9 @@ The binaries for each release are also available [here](https://github.com/timdu
 
 **Using the default directory:**
 
-Setting the `default directory` will write a small amount of encoded data to `~/.cache/tap`. This is the only place that `tap` will write to and the data is guaranteed to be at least as small as the in-memory data. For example, setting a directory that is 200GB as the default produces a ~/.cache/tap size of 350KB (equivalent to an mp3 that is 2 seconds long) and decreases the load time by ~6x.
+Setting the `default directory` will write a small amount of encoded data to `~/.cache/tap`. This is the only place that `tap` will write to and the data is guaranteed to be at least as small as the in-memory data. If you make changes in the default directory, tap will update ~/.cache/tap the next time it is accessed.
+
+As a benchmark, setting a directory that is 200GB as the default produces a ~/.cache/tap  that has size 350KB (equivalent to an mp3 that is 2 seconds long) and decreases the load time by ~6x.
 
 ## Contributing
 
