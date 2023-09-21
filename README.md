@@ -8,7 +8,7 @@ tap is an audio player for the terminal. Jump to any album in your library with 
 
 ## How to use
 ```bash
-> tap [-a] [path]
+> tap [-adps] [path]
 ```
 Run `tap` in a directory that contains music folders to open a `fuzzy-finder`, allowing you to select an album to play. Playback starts on selection and you can return to the fuzzy-finder by pressing `Tab`.
 
