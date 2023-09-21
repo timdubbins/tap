@@ -19,6 +19,9 @@ To open a player without the fuzzy-finder provide a `path` to an audio file or a
 Option                  | Description
 ---                     |---
 `-a` `--automate`       | Run an automated player without the TUI. Quit with `Ctrl` + `c`.
+`-d` `--default`        | Run from the default directory, if set.
+`-p` `--print`          | Print the path of the default directory, if set.
+`-s` `--set-default`    | Set `path` as the default directory. The load time when using this directory will be significantly faster. You can use this directory by providing the path or including the `-d` flag. If you make changes in this directory the default will update the next time it is used. See [Notes](#notes).
 
 ## Bindings
 
@@ -43,6 +46,9 @@ next                | `j` or <kbd>&darr;</kbd>
 previous            | `k` or <kbd>&uarr;</kbd>
 stop                | `l` or <kbd>&rarr;</kbd> or `Enter`
 random              | `r`
+volume up           | `]`
+volume down         | `[`
+show volume         | `v`
 mute                | `m`
 go to first track   | `gg`
 go to last track    | `Ctrl` + `g`
@@ -93,7 +99,7 @@ You can install with <a href="https://brew.sh/">Homebrew</a>:
 ```bash
 > brew install timdubbins/tap/tap
 > tap --version
-0.4.4
+0.4.5
 ```
 
 </details>
@@ -109,7 +115,7 @@ such as <a href="https://github.com/Jguer/yay">yay</a>:
 ```bash
 > yay -S tap
 > tap --version
-0.4.4
+0.4.5
 ```
 The AUR package is available <a href="https://aur.archlinux.org/packages/tap">here</a>.
 <br>
@@ -120,13 +126,13 @@ The AUR package is available <a href="https://aur.archlinux.org/packages/tap">he
 <summary><b>Debian</b> (or a Debian derivative, such as <b>Ubuntu</b>)</summary>
 <br>
 
-You can install with a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.4.4">tap release</a>:
+You can install with a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.4.5">tap release</a>:
 
 ```bash
-> curl -LO https://github.com/timdubbins/tap/releases/download/v0.4.4/tap_v0.4.4_amd64.deb
-> sudo dpkg -i tap_v0.4.4_amd64.deb
+> curl -LO https://github.com/timdubbins/tap/releases/download/v0.4.5/tap_v0.4.5_amd64.deb
+> sudo dpkg -i tap_v0.4.5_amd64.deb
 > tap --version
-0.4.4
+0.4.5
 ```
 
 </details>
@@ -142,12 +148,12 @@ To compile from source, first you need a <a href="https://www.rust-lang.org/lear
 > cd tap
 > cargo install --path .
 > tap --version
-0.4.4
+0.4.5
 ```
 
 </details>
 
-The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.4.4).
+The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.4.5).
 
 ## Notes
 
