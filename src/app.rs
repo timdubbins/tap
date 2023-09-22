@@ -8,7 +8,6 @@ use anyhow::bail;
 use cursive::event::{Event, EventResult, EventTrigger, Key, MouseButton, MouseEvent};
 
 use crate::args::{Args, Opts};
-
 use crate::data::UserData;
 use crate::fuzzy::*;
 use crate::player::PlayerCreator;
@@ -44,7 +43,7 @@ pub fn run() -> Result<(), anyhow::Error> {
     }
 
     // Load the initial fuzzy search.
-    FuzzyView::load(items.to_owned(), &mut siv);
+    FuzzyView::load(&items, &mut siv);
 
     // Set the initial user data.
     let user_data = UserData::new(&path, &items)?;
@@ -71,26 +70,25 @@ pub fn run() -> Result<(), anyhow::Error> {
     // Set the callbacks for the fuzzy-finder.
     siv.set_on_pre_event_inner(trigger(), move |event: &Event| {
         let c = event.char().unwrap_or('0');
-        let items = items.to_owned();
 
         if matches!(c, 'A'..='Z') {
-            let items = key_items(c, items);
+            let items = key_items(c, &items);
             return Some(EventResult::with_cb(move |siv| {
-                FuzzyView::with(items.to_owned(), c, siv)
+                FuzzyView::with(&items, c, siv)
             }));
         }
 
         let items = match c {
-            'a' => non_leaf_items(items),
-            's' => leaf_items(items),
+            'a' => non_leaf_items(&items),
+            's' => leaf_items(&items),
             _ => match event.f_num() {
-                Some(depth) => depth_items(depth, items),
-                None => items,
+                Some(depth) => depth_items(depth, &items),
+                None => items.to_owned(),
             },
         };
 
         Some(EventResult::with_cb(move |siv| {
-            FuzzyView::load(items.to_owned(), siv)
+            FuzzyView::load(&items, siv)
         }))
     });
 

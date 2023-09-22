@@ -55,6 +55,12 @@ impl FuzzyItem {
     }
 }
 
+impl<'a> FromIterator<&'a FuzzyItem> for Vec<FuzzyItem> {
+    fn from_iter<I: IntoIterator<Item = &'a FuzzyItem>>(iter: I) -> Self {
+        iter.into_iter().cloned().collect()
+    }
+}
+
 // Use alphabetical ordering.
 impl PartialOrd for FuzzyItem {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -92,7 +98,7 @@ fn is_non_hidden_dir(entry: &walkdir::DirEntry) -> bool {
 }
 
 // Gets all the non-leaf items that start with the letter `key`.
-pub fn key_items(key: char, items: Vec<FuzzyItem>) -> Vec<FuzzyItem> {
+pub fn key_items(key: char, items: &Vec<FuzzyItem>) -> Vec<FuzzyItem> {
     items
         .into_iter()
         .filter(|e| e.has_child && e.key == key)
@@ -100,7 +106,7 @@ pub fn key_items(key: char, items: Vec<FuzzyItem>) -> Vec<FuzzyItem> {
 }
 
 // Gets all the items that are `depth` level directories, sorted alphabetically.
-pub fn depth_items(depth: usize, items: Vec<FuzzyItem>) -> Vec<FuzzyItem> {
+pub fn depth_items(depth: usize, items: &Vec<FuzzyItem>) -> Vec<FuzzyItem> {
     let mut items = items
         .into_iter()
         .filter(|e| e.depth == depth)
@@ -110,7 +116,7 @@ pub fn depth_items(depth: usize, items: Vec<FuzzyItem>) -> Vec<FuzzyItem> {
 }
 
 // Gets all the non-leaf items, sorted alphabetically.
-pub fn non_leaf_items(items: Vec<FuzzyItem>) -> Vec<FuzzyItem> {
+pub fn non_leaf_items(items: &Vec<FuzzyItem>) -> Vec<FuzzyItem> {
     let mut items = items
         .into_iter()
         .filter(|e| e.has_child)
@@ -120,7 +126,7 @@ pub fn non_leaf_items(items: Vec<FuzzyItem>) -> Vec<FuzzyItem> {
 }
 
 // Gets all the leaf items, sorted alphabetically.
-pub fn leaf_items(items: Vec<FuzzyItem>) -> Vec<FuzzyItem> {
+pub fn leaf_items(items: &Vec<FuzzyItem>) -> Vec<FuzzyItem> {
     let mut items = items
         .into_iter()
         .filter(|e| !e.has_child)

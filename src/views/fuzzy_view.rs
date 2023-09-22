@@ -51,12 +51,12 @@ impl FuzzyView {
         }
     }
 
-    pub fn load(items: Vec<FuzzyItem>, siv: &mut Cursive) {
-        siv.add_layer(FuzzyView::new(items).full_screen())
+    pub fn load(items: &Vec<FuzzyItem>, siv: &mut Cursive) {
+        siv.add_layer(FuzzyView::new(items.clone()).full_screen())
     }
 
-    pub fn with(items: Vec<FuzzyItem>, key: char, siv: &mut Cursive) {
-        let mut fuzzy = FuzzyView::new(items);
+    pub fn with(items: &Vec<FuzzyItem>, key: char, siv: &mut Cursive) {
+        let mut fuzzy = FuzzyView::new(items.to_owned());
         fuzzy.insert(key.to_ascii_lowercase());
 
         siv.add_layer(fuzzy.full_screen());
@@ -251,10 +251,10 @@ impl FuzzyView {
             // Requires fuzzy matching on `selected`.
             self.clear();
             return EventResult::with_cb(move |siv| {
-                FuzzyView::load(
-                    create_items(&selected).expect("should be a subset of initial fuzzy items"),
-                    siv,
-                );
+                let items =
+                    create_items(&selected).expect("should be a subset of initial fuzzy items");
+
+                siv.add_layer(FuzzyView::new(items).full_screen());
                 siv.screen_mut().remove_layer(LayerPosition::FromFront(1));
             });
         }
