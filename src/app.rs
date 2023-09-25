@@ -26,7 +26,7 @@ pub fn run() -> Result<(), anyhow::Error> {
         _ => (),
     }
 
-    // The items to fuzzy search on, if any.
+    // The items to fuzzy search on.
     let items = get_items(&path, opts)?;
 
     // The cursive root.
@@ -35,15 +35,16 @@ pub fn run() -> Result<(), anyhow::Error> {
     siv.set_theme(theme::custom());
     siv.set_fps(15);
 
-    if items.is_empty() {
+    if items.len() == 1 {
         let player = PlayerCreator::new(path)?;
         PlayerView::load(player, &mut siv);
+
         siv.run();
         return Ok(());
     }
 
     // Load the initial fuzzy search.
-    FuzzyView::load(&items, &mut siv);
+    FuzzyView::load(items.to_owned(), &mut siv);
 
     // Set the initial user data.
     let user_data = UserData::new(&path, &items)?;
@@ -74,13 +75,13 @@ pub fn run() -> Result<(), anyhow::Error> {
         if matches!(c, 'A'..='Z') {
             let items = key_items(c, &items);
             return Some(EventResult::with_cb(move |siv| {
-                FuzzyView::with(&items, c, siv)
+                FuzzyView::with(items.to_owned(), c, siv)
             }));
         }
 
         let items = match c {
             'a' => non_leaf_items(&items),
-            's' => leaf_items(&items),
+            's' => audio_items(&items),
             _ => match event.f_num() {
                 Some(depth) => depth_items(depth, &items),
                 None => items.to_owned(),
@@ -88,7 +89,7 @@ pub fn run() -> Result<(), anyhow::Error> {
         };
 
         Some(EventResult::with_cb(move |siv| {
-            FuzzyView::load(&items, siv)
+            FuzzyView::load(items.to_owned(), siv)
         }))
     });
 

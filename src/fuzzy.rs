@@ -1,9 +1,10 @@
 use std::{cmp::Ordering, path::PathBuf};
 
+use anyhow::bail;
 use bincode::{Decode, Encode};
 use walkdir::{DirEntry, WalkDir};
 
-use crate::utils::has_child;
+use crate::player::is_valid;
 
 #[derive(Clone, Eq, PartialEq, Ord, Encode, Decode)]
 pub struct FuzzyItem {
@@ -15,8 +16,10 @@ pub struct FuzzyItem {
     pub display: String,
     // The first character of `display`, uppercased.
     pub key: char,
-    // Whether or not `path` contains subdirectories.
-    pub has_child: bool,
+    // Whether or not the `path` contains audio.
+    pub has_audio: bool,
+    // The subdirectory count.
+    pub child_count: usize,
     // The indices of `display` that are fuzzy matched.
     pub indices: Vec<usize>,
     // The weight of the fuzzy match. Better matches have higher weight.
@@ -24,8 +27,11 @@ pub struct FuzzyItem {
 }
 
 impl FuzzyItem {
-    pub fn new(dent: DirEntry) -> Self {
+    pub fn new(res: Result<DirEntry, walkdir::Error>) -> Result<Self, anyhow::Error> {
+        let dent = res?;
         let path = dent.path().into();
+
+        let (has_audio, sub_dirs) = FuzzyItem::validate(&path)?;
 
         let display = dent
             .file_name()
@@ -39,8 +45,10 @@ impl FuzzyItem {
             .unwrap_or_default()
             .to_ascii_uppercase();
 
-        FuzzyItem {
-            has_child: has_child(&path),
+        let fuzzy_item = FuzzyItem {
+            has_audio,
+            child_count: sub_dirs,
+            // has_child: has_child(&path),
             depth: dent.depth(),
             indices: vec![],
             // We assign a default weight so that the weights of
@@ -51,7 +59,34 @@ impl FuzzyItem {
             path,
             display,
             key,
+        };
+
+        Ok(fuzzy_item)
+    }
+
+    fn validate(path: &PathBuf) -> Result<(bool, usize), anyhow::Error> {
+        let mut has_audio = false;
+        let mut dir_count: usize = 0;
+
+        for entry in path.read_dir()? {
+            if let Ok(entry) = entry {
+                if entry.path().is_dir() {
+                    dir_count += 1;
+                } else if !has_audio {
+                    has_audio = is_valid(&entry.path());
+                }
+            }
+
+            if has_audio && dir_count > 1 {
+                break;
+            }
         }
+
+        if !has_audio && dir_count == 0 {
+            bail!("invalid")
+        }
+
+        Ok((has_audio, dir_count))
     }
 }
 
@@ -74,15 +109,8 @@ pub fn create_items(path: &PathBuf) -> Result<Vec<FuzzyItem>, anyhow::Error> {
         .min_depth(1)
         .into_iter()
         .filter_entry(is_non_hidden_dir)
-        .filter_map(|res| res.ok())
-        .map(|dent| FuzzyItem::new(dent))
+        .filter_map(|res| FuzzyItem::new(res).ok())
         .collect::<Vec<FuzzyItem>>();
-
-    // Exclude single items so we can load them without fuzzy matching.
-    let items = match items.len() {
-        1 => vec![],
-        _ => items,
-    };
 
     Ok(items)
 }
@@ -101,7 +129,7 @@ fn is_non_hidden_dir(entry: &walkdir::DirEntry) -> bool {
 pub fn key_items(key: char, items: &Vec<FuzzyItem>) -> Vec<FuzzyItem> {
     items
         .into_iter()
-        .filter(|e| e.has_child && e.key == key)
+        .filter(|e| e.child_count > 0 && e.key == key)
         .collect()
 }
 
@@ -119,17 +147,17 @@ pub fn depth_items(depth: usize, items: &Vec<FuzzyItem>) -> Vec<FuzzyItem> {
 pub fn non_leaf_items(items: &Vec<FuzzyItem>) -> Vec<FuzzyItem> {
     let mut items = items
         .into_iter()
-        .filter(|e| e.has_child)
+        .filter(|e| e.child_count > 0)
         .collect::<Vec<FuzzyItem>>();
     items.sort();
     items
 }
 
 // Gets all the leaf items, sorted alphabetically.
-pub fn leaf_items(items: &Vec<FuzzyItem>) -> Vec<FuzzyItem> {
+pub fn audio_items(items: &Vec<FuzzyItem>) -> Vec<FuzzyItem> {
     let mut items = items
         .into_iter()
-        .filter(|e| !e.has_child)
+        .filter(|e| e.has_audio)
         .collect::<Vec<FuzzyItem>>();
     items.sort();
     items
@@ -139,7 +167,7 @@ pub fn leaf_items(items: &Vec<FuzzyItem>) -> Vec<FuzzyItem> {
 pub fn leaf_paths(items: &Vec<FuzzyItem>) -> Vec<PathBuf> {
     items
         .into_iter()
-        .filter(|e| !e.has_child)
+        .filter(|e| e.has_audio)
         .map(|e| e.path.to_owned())
         .collect::<Vec<PathBuf>>()
 }

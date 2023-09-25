@@ -51,14 +51,14 @@ impl FuzzyView {
         }
     }
 
-    pub fn load(items: &Vec<FuzzyItem>, siv: &mut Cursive) {
-        siv.add_layer(FuzzyView::new(items.clone()).full_screen())
+    pub fn load(items: Vec<FuzzyItem>, siv: &mut Cursive) {
+        siv.add_layer(FuzzyView::new(items).full_screen())
     }
 
-    pub fn with(items: &Vec<FuzzyItem>, key: char, siv: &mut Cursive) {
-        let mut fuzzy = FuzzyView::new(items.to_owned());
-        fuzzy.insert(key.to_ascii_lowercase());
+    pub fn with(items: Vec<FuzzyItem>, key: char, siv: &mut Cursive) {
+        let mut fuzzy = FuzzyView::new(items);
 
+        fuzzy.insert(key.to_ascii_lowercase());
         siv.add_layer(fuzzy.full_screen());
     }
 
@@ -244,34 +244,30 @@ impl FuzzyView {
 
     // Handle a fuzzy match being selected.
     fn on_select(&mut self) -> EventResult {
-        // The fuzzy selected path.
-        let selected = self.items[self.selected].path.to_owned();
-
-        if has_child_dirs(&selected) {
-            // Requires fuzzy matching on `selected`.
-            self.clear();
-            return EventResult::with_cb(move |siv| {
-                let items =
-                    create_items(&selected).expect("should be a subset of initial fuzzy items");
-
-                siv.add_layer(FuzzyView::new(items).full_screen());
-                siv.screen_mut().remove_layer(LayerPosition::FromFront(1));
-            });
-        }
+        let item = self.items[self.selected].to_owned();
 
         EventResult::with_cb(move |siv| {
-            // The path of the current player.
-            let current = current_path(siv);
-
-            if Some(selected.to_owned()).eq(&current) {
-                // Don't reload the player if the selection hasn't changed.
-                pop_layers_to_bottom(siv);
+            if item.child_count == 0 {
+                select_player(item.to_owned(), siv);
             } else {
-                let path = Some(selected.to_owned());
-                match PlayerCreator::FuzzyFinder.from(path, siv) {
-                    Ok(player) => PlayerView::load(player, siv),
-                    Err(e) => ErrorView::load(siv, e),
+                let mut items = create_items(&item.path).expect("");
+
+                if item.has_audio {
+                    let mut item = item.to_owned();
+                    item.child_count = 0;
+                    items.push(item);
                 }
+
+                if items.len() == 1 {
+                    let item = items.first().unwrap();
+
+                    if item.has_audio && item.child_count == 0 {
+                        return select_player(item.to_owned(), siv);
+                    }
+                }
+
+                FuzzyView::load(items, siv);
+                siv.screen_mut().remove_layer(LayerPosition::FromFront(1));
             }
         })
     }
@@ -438,6 +434,22 @@ impl View for FuzzyView {
     }
 }
 
+fn select_player(item: FuzzyItem, siv: &mut Cursive) {
+    let selected = item.path.to_owned();
+    let current = current_path(siv);
+
+    if Some(selected.to_owned()).eq(&current) {
+        // Don't reload the player if the selection hasn't changed.
+        pop_layers_to_bottom(siv);
+    } else {
+        let path = Some(selected.to_owned());
+        match PlayerCreator::FuzzyFinder.from(path, siv) {
+            Ok(player) => PlayerView::load(player, siv),
+            Err(e) => ErrorView::load(siv, e),
+        }
+    }
+}
+
 // Handle a fuzzy match being escaped.
 fn on_cancel() -> EventResult {
     EventResult::with_cb(|siv| {
@@ -450,7 +462,7 @@ fn on_cancel() -> EventResult {
 }
 
 // The path of the current player, if any.
-fn current_path(siv: &mut Cursive) -> Option<PathBuf> {
+pub fn current_path(siv: &mut Cursive) -> Option<PathBuf> {
     let curr_path = match siv.user_data::<UserData>() {
         Some((_, _, queue)) => match queue.get(1) {
             Some((p, _)) => Some(p.to_owned()),
