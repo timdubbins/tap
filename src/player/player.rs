@@ -26,7 +26,7 @@ pub struct Player {
     pub index: usize,
     // The index of the previous audio file, used with standalone player.
     pub previous: usize,
-    // The current volume.
+    // The current volume as a percentage, in range 0..=120.
     pub volume: u8,
     // Whether the player is muted or not.
     pub is_muted: bool,
