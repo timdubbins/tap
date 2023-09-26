@@ -36,6 +36,7 @@ depth search        | `F1...F4`     | <i>folders at depth 1...4</i>
 filtered search     | `A...Z`       | <i>artists beginning with A...Z</i>
 artist search       | `Ctrl` + `a`  | <i>all artists, sorted alphabetically</i>
 album search        | `Ctrl` + `s`  | <i>all albums, sorted alphabetically</i>
+parent search       | `Ctrl` + `p`  | <i>folders up one level</i>
 previous album      | `-`           |
 random album        | `=`           |
 
@@ -99,7 +100,7 @@ You can install with <a href="https://brew.sh/">Homebrew</a>:
 ```bash
 > brew install timdubbins/tap/tap
 > tap --version
-0.4.5
+0.4.6
 ```
 
 </details>
@@ -115,7 +116,7 @@ such as <a href="https://github.com/Jguer/yay">yay</a>:
 ```bash
 > yay -S tap
 > tap --version
-0.4.5
+0.4.6
 ```
 The AUR package is available <a href="https://aur.archlinux.org/packages/tap">here</a>.
 <br>
@@ -126,13 +127,13 @@ The AUR package is available <a href="https://aur.archlinux.org/packages/tap">he
 <summary><b>Debian</b> (or a Debian derivative, such as <b>Ubuntu</b>)</summary>
 <br>
 
-You can install with a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.4.5">tap release</a>:
+You can install with a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.4.6">tap release</a>:
 
 ```bash
-> curl -LO https://github.com/timdubbins/tap/releases/download/v0.4.5/tap_0.4.5_amd64.deb
-> sudo dpkg -i tap_0.4.5_amd64.deb
+> curl -LO https://github.com/timdubbins/tap/releases/download/v0.4.6/tap_0.4.6_amd64.deb
+> sudo dpkg -i tap_0.4.6_amd64.deb
 > tap --version
-0.4.5
+0.4.6
 ```
 
 </details>
@@ -148,12 +149,12 @@ To compile from source, first you need a <a href="https://www.rust-lang.org/lear
 > cd tap
 > cargo install --path .
 > tap --version
-0.4.5
+0.4.6
 ```
 
 </details>
 
-The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.4.5).
+The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.4.6).
 
 ## Notes
 
