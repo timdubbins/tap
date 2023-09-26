@@ -27,6 +27,7 @@ impl KeysView {
                                 .child("filtered search:", TextView::new("A...Z"))
                                 .child("artist search:", TextView::new("Ctrl + a"))
                                 .child("album search:", TextView::new("Ctrl + s"))
+                                .child("parent search:", TextView::new("Ctrl + p"))
                                 .child("previous album:", TextView::new("-"))
                                 .child("random album:", TextView::new("=")),
                         ),
