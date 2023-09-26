@@ -8,11 +8,13 @@ use cursive::traits::View;
 use cursive::view::Resizable;
 use cursive::{Cursive, Printer, XY};
 
+use crate::args::Args;
+use crate::fuzzy::create_items;
 use crate::player::{Player, PlayerCreator, PlayerStatus};
 use crate::utils::{TimerBool, UserData};
 use crate::views::KeysView;
 
-use super::theme::*;
+use super::{theme::*, FuzzyView};
 
 pub struct PlayerView {
     // The currently loaded player.
@@ -166,6 +168,61 @@ impl PlayerView {
             None => self.player.previous_random(),
         }
     }
+
+    fn set_volume(&mut self, volume: u8) -> EventResult {
+        self.showing_volume.set();
+
+        return match self.cb {
+            Some(_) => EventResult::with_cb(move |siv| {
+                siv.with_user_data(|(opts, _, _): &mut UserData| {
+                    opts.1 = volume;
+                });
+            }),
+            None => EventResult::Consumed(None),
+        };
+    }
+
+    fn set_status(&mut self, status: u8) -> EventResult {
+        return match self.cb {
+            Some(_) => EventResult::with_cb(move |siv| {
+                siv.with_user_data(|(opts, _, _): &mut UserData| {
+                    opts.0 = status;
+                });
+            }),
+            None => EventResult::Consumed(None),
+        };
+    }
+
+    fn toggle_randomization(&mut self) -> EventResult {
+        if self.cb.is_none() && self.player.playlist.len() < 2 {
+            return EventResult::Consumed(None);
+        }
+
+        self.player.toggle_randomization();
+
+        if self.player.is_randomized {
+            let current_index = self.player.index;
+
+            return match self.cb {
+                Some(_) => EventResult::with_cb(move |siv| {
+                    siv.with_user_data(|(_, _, queue): &mut UserData| {
+                        if let Some((_, index)) = queue.get_mut(1) {
+                            *index = current_index;
+                        }
+                    });
+                }),
+                None => {
+                    if self.player.playlist.len() > 1 {
+                        EventResult::with_cb(move |siv| siv.set_user_data(current_index))
+                    } else {
+                        EventResult::Consumed(None)
+                    }
+                }
+            };
+        } else {
+            EventResult::Consumed(None)
+        }
+    }
 }
 
 impl View for PlayerView {
@@ -310,15 +367,7 @@ impl View for PlayerView {
 
             Event::Char('h') | Event::Char(' ') | Event::Key(Key::Left) => {
                 let status = self.player.play_or_pause();
-
-                return match self.cb {
-                    Some(_) => EventResult::with_cb(move |siv| {
-                        siv.with_user_data(|(opts, _, _): &mut UserData| {
-                            opts.0 = status;
-                        });
-                    }),
-                    None => EventResult::Consumed(None),
-                };
+                return self.set_status(status);
             }
 
             Event::Char('l')
@@ -329,15 +378,7 @@ impl View for PlayerView {
                 ..
             } => {
                 let status = self.player.stop();
-
-                return match self.cb {
-                    Some(_) => EventResult::with_cb(move |siv| {
-                        siv.with_user_data(|(opts, _, _): &mut UserData| {
-                            opts.0 = status;
-                        });
-                    }),
-                    None => EventResult::Consumed(None),
-                };
+                return self.set_status(status);
             }
 
             Event::Char('j')
@@ -368,29 +409,11 @@ impl View for PlayerView {
 
             Event::Char(']') => {
                 let volume = self.player.increase_volume();
-                self.showing_volume.set();
-
-                return match self.cb {
-                    Some(_) => EventResult::with_cb(move |siv| {
-                        siv.with_user_data(|(opts, _, _): &mut UserData| {
-                            opts.1 = volume;
-                        });
-                    }),
-                    None => EventResult::Consumed(None),
-                };
+                return self.set_volume(volume);
             }
             Event::Char('[') => {
                 let volume = self.player.decrease_volume();
-                self.showing_volume.set();
-
-                return match self.cb {
-                    Some(_) => EventResult::with_cb(move |siv| {
-                        siv.with_user_data(|(opts, _, _): &mut UserData| {
-                            opts.1 = volume;
-                        });
-                    }),
-                    None => EventResult::Consumed(None),
-                };
+                return self.set_volume(volume);
             }
             Event::Char('v') => {
                 let showing_volume = self.showing_volume.toggle();
@@ -417,32 +440,18 @@ impl View for PlayerView {
                 };
             }
 
-            Event::Char('*' | 'r') => {
-                if self.cb.is_none() && self.player.playlist.len() < 2 {
-                    return EventResult::Consumed(None);
-                }
+            Event::Char('*' | 'r') => return self.toggle_randomization(),
 
-                self.player.toggle_randomization();
+            Event::CtrlChar('p') => {
+                let mut parent = self.player.path.to_owned();
+                let root = Args::search_root();
 
-                if self.player.is_randomized {
-                    let current_index = self.player.index;
-
-                    return match self.cb {
-                        Some(_) => EventResult::with_cb(move |siv| {
-                            siv.with_user_data(|(_, _, queue): &mut UserData| {
-                                if let Some((_, index)) = queue.get_mut(1) {
-                                    *index = current_index;
-                                }
-                            });
-                        }),
-                        None => {
-                            if self.player.playlist.len() > 1 {
-                                EventResult::with_cb(move |siv| siv.set_user_data(current_index))
-                            } else {
-                                EventResult::Consumed(None)
-                            }
-                        }
-                    };
+                if parent != root {
+                    parent.pop();
+                    return EventResult::with_cb(move |siv| {
+                        let items = create_items(&parent).expect("");
+                        FuzzyView::load(items, siv)
+                    });
                 }
             }
 
@@ -506,11 +515,8 @@ fn mins_and_secs(secs: usize) -> String {
 
 // Remove all layers from the StackView except the top layer.
 fn remove_layers_to_top(siv: &mut Cursive) {
-    let mut count = siv.screen().len();
-
-    while count > 1 {
+    while siv.screen().len() > 1 {
         siv.screen_mut()
             .remove_layer(cursive::views::LayerPosition::FromBack(0));
-        count -= 1;
     }
 }

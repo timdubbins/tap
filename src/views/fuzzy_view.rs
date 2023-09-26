@@ -10,6 +10,7 @@ use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
+use crate::args::Args;
 use crate::fuzzy::*;
 use crate::player::PlayerCreator;
 use crate::utils::*;
@@ -52,7 +53,8 @@ impl FuzzyView {
     }
 
     pub fn load(items: Vec<FuzzyItem>, siv: &mut Cursive) {
-        siv.add_layer(FuzzyView::new(items).full_screen())
+        siv.add_layer(FuzzyView::new(items).full_screen());
+        remove_layer(siv);
     }
 
     pub fn with(items: Vec<FuzzyItem>, key: char, siv: &mut Cursive) {
@@ -60,6 +62,7 @@ impl FuzzyView {
 
         fuzzy.insert(key.to_ascii_lowercase());
         siv.add_layer(fuzzy.full_screen());
+        remove_layer(siv);
     }
 
     // Moves the selection down one row.
@@ -267,7 +270,6 @@ impl FuzzyView {
                 }
 
                 FuzzyView::load(items, siv);
-                siv.screen_mut().remove_layer(LayerPosition::FromFront(1));
             }
         })
     }
@@ -427,6 +429,20 @@ impl View for FuzzyView {
             Event::Key(Key::Home) => self.cursor = 0,
             Event::Key(Key::End) => self.cursor = self.query.len(),
             Event::CtrlChar('u') => self.clear(),
+            Event::CtrlChar('p') => {
+                let mut parent = self.items.first().expect("").path.to_owned();
+                parent.pop();
+                let root = Args::search_root();
+                if parent != root {
+                    parent.pop();
+                }
+
+                return EventResult::with_cb(move |siv| {
+                    if let Ok(items) = create_items(&parent) {
+                        FuzzyView::load(items, siv);
+                    }
+                });
+            }
             _ => return EventResult::Ignored,
         }
 
@@ -440,7 +456,7 @@ fn select_player(item: FuzzyItem, siv: &mut Cursive) {
 
     if Some(selected.to_owned()).eq(&current) {
         // Don't reload the player if the selection hasn't changed.
-        pop_layers_to_bottom(siv);
+        siv.pop_layer();
     } else {
         let path = Some(selected.to_owned());
         match PlayerCreator::FuzzyFinder.from(path, siv) {
@@ -456,7 +472,7 @@ fn on_cancel() -> EventResult {
         if current_path(siv).is_none() {
             siv.quit()
         } else {
-            pop_layers_to_bottom(siv);
+            siv.pop_layer();
         }
     })
 }
@@ -473,12 +489,8 @@ pub fn current_path(siv: &mut Cursive) -> Option<PathBuf> {
     curr_path
 }
 
-// Pop all layers from the StackView except the bottom layer.
-fn pop_layers_to_bottom(siv: &mut Cursive) {
-    let mut count = siv.screen().len();
-
-    while count > 1 {
-        siv.pop_layer();
-        count -= 1;
+fn remove_layer(siv: &mut Cursive) {
+    while siv.screen().len() > 2 {
+        siv.screen_mut().remove_layer(LayerPosition::FromFront(1));
     }
 }

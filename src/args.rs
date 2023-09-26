@@ -18,7 +18,7 @@ pub enum Opts {
 #[command(
     author = "Tim Dubbins",
     about = "An audio player for the terminal with fuzzy-finder",
-    version = "0.4.5"
+    version = "0.4.6"
 )]
 #[clap(group = ArgGroup::new("exclude_multiples").multiple(false))]
 #[clap(group = ArgGroup::new("conflicts_path").conflicts_with("path"))]
@@ -77,6 +77,10 @@ impl Args {
         let path = Args::parse_path(args)?;
 
         Ok((path, option))
+    }
+
+    pub fn search_root() -> PathBuf {
+        Args::parse_args().expect("should be verified on startup").0
     }
 
     fn parse_path(args: Args) -> Result<PathBuf, anyhow::Error> {

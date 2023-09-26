@@ -142,7 +142,11 @@ fn get_items(path: &PathBuf, opts: Opts) -> Result<Vec<FuzzyItem>, anyhow::Error
     match opts == Opts::Default || uses_default(path) {
         true => match needs_update(path)? {
             true => process(update_cache, path, "updating"),
-            false => get_cached::<Vec<FuzzyItem>>("items"),
+            false => match get_cached::<Vec<FuzzyItem>>("items") {
+                Ok(items) => Ok(items),
+                // Try an update before bailing.
+                Err(_) => process(update_cache, path, "updating"),
+            },
         },
         false => process(create_items, path, "loading"),
     }
