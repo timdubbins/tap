@@ -6,7 +6,7 @@ use walkdir::{DirEntry, WalkDir};
 
 use crate::player::is_valid;
 
-#[derive(Clone, Eq, PartialEq, Ord, Encode, Decode)]
+#[derive(Clone, Debug, Eq, PartialEq, Ord, Encode, Decode)]
 pub struct FuzzyItem {
     // The path of the directory entry.
     pub path: PathBuf,
@@ -27,11 +27,14 @@ pub struct FuzzyItem {
 }
 
 impl FuzzyItem {
-    pub fn new(res: Result<DirEntry, walkdir::Error>) -> Result<Self, anyhow::Error> {
+    pub fn new(res: Result<DirEntry, walkdir::Error>, root: bool) -> Result<Self, anyhow::Error> {
         let dent = res?;
         let path = dent.path().into();
 
-        let (has_audio, sub_dirs) = FuzzyItem::validate(&path)?;
+        let (has_audio, sub_dirs) = match root {
+            true => (FuzzyItem::has_audio(&path)?, 0),
+            false => FuzzyItem::validate(&path)?,
+        };
 
         let display = dent
             .file_name()
@@ -48,7 +51,6 @@ impl FuzzyItem {
         let fuzzy_item = FuzzyItem {
             has_audio,
             child_count: sub_dirs,
-            // has_child: has_child(&path),
             depth: dent.depth(),
             indices: vec![],
             // We assign a default weight so that the weights of
@@ -62,6 +64,17 @@ impl FuzzyItem {
         };
 
         Ok(fuzzy_item)
+    }
+
+    fn has_audio(path: &PathBuf) -> Result<bool, anyhow::Error> {
+        for entry in path.read_dir()? {
+            if let Ok(entry) = entry {
+                if is_valid(&entry.path()) {
+                    return Ok(true);
+                }
+            }
+        }
+        bail!("invalid")
     }
 
     fn validate(path: &PathBuf) -> Result<(bool, usize), anyhow::Error> {
@@ -105,12 +118,23 @@ impl PartialOrd for FuzzyItem {
 
 // Creates the list of fuzzy items from the non-hidden subdirectories of `path`.
 pub fn create_items(path: &PathBuf) -> Result<Vec<FuzzyItem>, anyhow::Error> {
-    let items = WalkDir::new(path)
+    let mut items = WalkDir::new(path)
         .min_depth(1)
         .into_iter()
         .filter_entry(is_non_hidden_dir)
-        .filter_map(|res| FuzzyItem::new(res).ok())
+        .filter_map(|res| FuzzyItem::new(res, false).ok())
         .collect::<Vec<FuzzyItem>>();
+
+    if let Some(first) = WalkDir::new(path)
+        .max_depth(0)
+        .contents_first(true)
+        .into_iter()
+        .filter_map(|res| FuzzyItem::new(res, true).ok())
+        .collect::<Vec<_>>()
+        .first()
+    {
+        items.push(first.to_owned())
+    }
 
     Ok(items)
 }

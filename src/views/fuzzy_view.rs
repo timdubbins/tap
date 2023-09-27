@@ -247,19 +247,20 @@ impl FuzzyView {
 
     // Handle a fuzzy match being selected.
     fn on_select(&mut self) -> EventResult {
+        if self.items.is_empty() {
+            return EventResult::with_cb(|siv| {
+                let err = anyhow::Error::msg("Nothing to select!");
+                ErrorView::load(siv, err)
+            });
+        }
+
         let item = self.items[self.selected].to_owned();
 
         EventResult::with_cb(move |siv| {
             if item.child_count == 0 {
                 select_player(item.to_owned(), siv);
             } else {
-                let mut items = create_items(&item.path).expect("");
-
-                if item.has_audio {
-                    let mut item = item.to_owned();
-                    item.child_count = 0;
-                    items.push(item);
-                }
+                let items = create_items(&item.path).expect("should always exist");
 
                 if items.len() == 1 {
                     let item = items.first().unwrap();
@@ -430,7 +431,11 @@ impl View for FuzzyView {
             Event::Key(Key::End) => self.cursor = self.query.len(),
             Event::CtrlChar('u') => self.clear(),
             Event::CtrlChar('p') => {
-                let mut parent = self.items.first().expect("").path.to_owned();
+                let mut parent = match self.items.first() {
+                    Some(parent) => parent.path.to_owned(),
+                    None => return EventResult::Ignored,
+                };
+
                 parent.pop();
                 let root = Args::search_root();
                 if parent != root {

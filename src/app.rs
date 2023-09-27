@@ -35,7 +35,7 @@ pub fn run() -> Result<(), anyhow::Error> {
     siv.set_theme(theme::custom());
     siv.set_fps(15);
 
-    if items.len() == 1 {
+    if items.len() < 2 {
         let player = PlayerCreator::new(path)?;
         PlayerView::load(player, &mut siv);
 
