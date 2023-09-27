@@ -29,7 +29,7 @@ impl PlayerCreator {
         let track = (path, 0);
         let opts = PlayerOpts::default();
 
-        Player::new(track, opts, false)
+        Player::new(track, opts, false, true)
     }
 
     fn previous(&self, siv: &mut Cursive) -> PlayerResult {
@@ -54,7 +54,7 @@ impl PlayerCreator {
         let is_randomized = Self::PreviousTrack.eq(self);
 
         match path {
-            Some(path) => Player::new((path, index), opts, is_randomized),
+            Some(path) => Player::new((path, index), opts, is_randomized, false),
             None => bail!("path not set"),
         }
     }
@@ -77,7 +77,7 @@ impl PlayerCreator {
                     None => {
                         let path = path.to_owned();
                         let index = random(
-                            0..Player::playlist(&path)
+                            0..Player::playlist(&path, false)
                                 .expect("should always exist")
                                 .0
                                 .len(),
@@ -96,7 +96,7 @@ impl PlayerCreator {
             index = 0;
         }
 
-        Player::new((path, index), opts, Self::RandomTrack.eq(self))
+        Player::new((path, index), opts, Self::RandomTrack.eq(self), false)
     }
 
     fn fuzzy(path: Option<PathBuf>, siv: &mut Cursive) -> PlayerResult {
@@ -118,6 +118,6 @@ impl PlayerCreator {
             })
             .expect("should be set on init");
 
-        Player::new(track, opts, false)
+        Player::new(track, opts, false, false)
     }
 }

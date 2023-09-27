@@ -9,6 +9,7 @@ use anyhow::bail;
 use cursive::XY;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
+use crate::args::Args;
 use crate::utils::{concatenate, random, TimerBool};
 
 use super::{is_valid, AudioFile, PlayerOpts, PlayerStatus, StatusToBytes};
@@ -55,9 +56,14 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(track: (PathBuf, usize), opts: PlayerOpts, is_randomized: bool) -> PlayerResult {
+    pub fn new(
+        track: (PathBuf, usize),
+        opts: PlayerOpts,
+        is_randomized: bool,
+        recurse: bool,
+    ) -> PlayerResult {
         let (path, index) = (track.0, track.1);
-        let (playlist, size) = Player::playlist(&path)?;
+        let (playlist, size) = Player::playlist(&path, recurse)?;
         let file = playlist[index].to_owned();
         let (_stream, _stream_handle) = OutputStream::try_default()?;
         let sink = Sink::try_new(&_stream_handle)?;
@@ -333,7 +339,7 @@ impl Player {
             }
             let target = random(0..paths.len());
             let path = paths[target].to_owned();
-            if let Ok((playlist, _)) = Player::playlist(&path) {
+            if let Ok((playlist, _)) = Player::playlist(&path, false) {
                 let index = random(0..playlist.len());
                 return Some((path, index));
             } else {
@@ -421,7 +427,10 @@ impl Player {
     }
 
     // Returns the playlist and required size for the player on success.
-    pub fn playlist(path: &PathBuf) -> Result<(Vec<AudioFile>, XY<usize>), anyhow::Error> {
+    pub fn playlist(
+        path: &PathBuf,
+        recurse: bool,
+    ) -> Result<(Vec<AudioFile>, XY<usize>), anyhow::Error> {
         // The list of files to use in the player.
         let mut audio_files = vec![];
         // An intermediate value used in calculating the player width.
@@ -436,9 +445,8 @@ impl Player {
                 is_empty = false;
                 if let Ok(entry) = entry {
                     let path = entry.path();
-                    if path.is_dir() {
-                        // Recurse into child directory.
-                        return Player::playlist(&path);
+                    if recurse && path.is_dir() {
+                        return Player::playlist(&path, recurse);
                     } else if is_valid(&path) {
                         match AudioFile::new(path) {
                             // Grow the playlist and update width.
@@ -469,14 +477,21 @@ impl Player {
                 width = max(width, f.album.len() + f.artist.len() + 1);
                 can_decode(f)?;
             }
-            // Give an appropriate error if we fail to find any valid files.
-            None => match is_empty {
-                true => bail!("'{}' is empty", path.display()),
-                false => match error {
-                    Some(e) => bail!(e),
-                    None => bail!("no audio files found in '{}'", path.display()),
-                },
-            },
+            None => {
+                let path = match recurse {
+                    true => Args::search_root(),
+                    false => path.to_owned(),
+                };
+
+                // Give an appropriate error if we fail to find any valid files.
+                match is_empty {
+                    true => bail!("'{}' is empty", path.display()),
+                    false => match error {
+                        Some(e) => bail!(e),
+                        None => bail!("no audio files detected in '{}'", path.display()),
+                    },
+                }
+            }
         }
 
         audio_files.sort();
