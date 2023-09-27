@@ -18,7 +18,7 @@ pub enum Opts {
 #[command(
     author = "Tim Dubbins",
     about = "An audio player for the terminal with fuzzy-finder",
-    version = "0.4.6"
+    version = "0.4.7"
 )]
 #[clap(group = ArgGroup::new("exclude_multiples").multiple(false))]
 #[clap(group = ArgGroup::new("conflicts_path").conflicts_with("path"))]

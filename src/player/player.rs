@@ -331,6 +331,10 @@ impl Player {
 
     // Tries to get the path of a random player and a random index for that player.
     pub fn randomized(paths: &Vec<PathBuf>) -> Option<(PathBuf, usize)> {
+        if paths.len() == 0 {
+            return None;
+        }
+
         let mut count = 0;
         loop {
             if count > 10 {
