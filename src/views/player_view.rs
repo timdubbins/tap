@@ -10,7 +10,7 @@ use cursive::{Cursive, Printer, XY};
 
 use crate::args::Args;
 use crate::fuzzy::create_items;
-use crate::player::{Player, PlayerCreator, PlayerStatus};
+use crate::player::{Player, PlayerBuilder, PlayerStatus};
 use crate::utils::{TimerBool, UserData};
 use crate::views::KeysView;
 
@@ -145,7 +145,7 @@ impl PlayerView {
         match &self.cb {
             Some(cb) => {
                 cb.send(Box::new(move |siv| {
-                    if let Ok(player) = PlayerCreator::RandomTrack.from(None, siv) {
+                    if let Ok(player) = PlayerBuilder::RandomTrack.from(None, siv) {
                         PlayerView::load(player, siv);
                     }
                 }))
@@ -159,7 +159,7 @@ impl PlayerView {
         match &self.cb {
             Some(cb) => {
                 cb.send(Box::new(move |siv| {
-                    if let Ok(player) = PlayerCreator::PreviousTrack.from(None, siv) {
+                    if let Ok(player) = PlayerBuilder::PreviousTrack.from(None, siv) {
                         PlayerView::load(player, siv);
                     }
                 }))

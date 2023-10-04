@@ -10,7 +10,7 @@ use cursive::event::{Event, EventResult, EventTrigger, Key, MouseButton, MouseEv
 use crate::args::{Args, Opts};
 use crate::data::UserData;
 use crate::fuzzy::*;
-use crate::player::PlayerCreator;
+use crate::player::PlayerBuilder;
 use crate::serialization::*;
 use crate::utils::{CycleIterator, IntoInner};
 use crate::views::{theme, FuzzyView, PlayerView};
@@ -36,7 +36,7 @@ pub fn run() -> Result<(), anyhow::Error> {
     siv.set_fps(15);
 
     if items.len() < 2 {
-        let player = PlayerCreator::new(path)?;
+        let player = PlayerBuilder::new(path)?;
         PlayerView::load(player, &mut siv);
 
         siv.run();
@@ -53,7 +53,7 @@ pub fn run() -> Result<(), anyhow::Error> {
     // Set the callback for the previous selection.
     siv.set_on_pre_event_inner('-', |_| {
         Some(EventResult::with_cb(|siv| {
-            if let Ok(player) = PlayerCreator::PreviousAlbum.from(None, siv) {
+            if let Ok(player) = PlayerBuilder::PreviousAlbum.from(None, siv) {
                 PlayerView::load(player, siv);
             }
         }))
@@ -62,7 +62,7 @@ pub fn run() -> Result<(), anyhow::Error> {
     // Set callback for a random selection.
     siv.set_on_pre_event_inner('=', |_| {
         Some(EventResult::with_cb(|siv| {
-            if let Ok(player) = PlayerCreator::RandomAlbum.from(None, siv) {
+            if let Ok(player) = PlayerBuilder::RandomAlbum.from(None, siv) {
                 PlayerView::load(player, siv);
             }
         }))
@@ -99,7 +99,7 @@ pub fn run() -> Result<(), anyhow::Error> {
 
 // Runs an automated player in the command line without the TUI.
 fn run_automated(path: PathBuf) -> Result<(), anyhow::Error> {
-    let (mut player, _, _) = PlayerCreator::new(path)?;
+    let (mut player, _, _) = PlayerBuilder::new(path)?;
     let (mut line, mut length) = player.stdout();
 
     print!("{}", line);

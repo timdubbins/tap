@@ -6,7 +6,7 @@ pub mod status;
 
 pub use self::{
     audio_file::{is_valid, AudioFile},
-    creator::PlayerCreator,
+    creator::PlayerBuilder,
     opts::PlayerOpts,
     player::Player,
     status::{BytesToStatus, PlayerStatus, StatusToBytes},

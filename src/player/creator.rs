@@ -8,7 +8,7 @@ use crate::utils::{random, UserData};
 use super::{player::PlayerResult, Player, PlayerOpts};
 
 #[derive(PartialEq)]
-pub enum PlayerCreator {
+pub enum PlayerBuilder {
     FuzzyFinder,
     PreviousAlbum,
     PreviousTrack,
@@ -16,7 +16,7 @@ pub enum PlayerCreator {
     RandomTrack,
 }
 
-impl PlayerCreator {
+impl PlayerBuilder {
     pub fn from(&self, path: Option<PathBuf>, siv: &mut Cursive) -> PlayerResult {
         match self {
             Self::FuzzyFinder => Self::fuzzy(path, siv),

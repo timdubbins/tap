@@ -12,7 +12,7 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::args::Args;
 use crate::fuzzy::*;
-use crate::player::PlayerCreator;
+use crate::player::PlayerBuilder;
 use crate::utils::*;
 use crate::views::{ErrorView, PlayerView};
 
@@ -464,7 +464,7 @@ fn select_player(item: FuzzyItem, siv: &mut Cursive) {
         siv.pop_layer();
     } else {
         let path = Some(selected.to_owned());
-        match PlayerCreator::FuzzyFinder.from(path, siv) {
+        match PlayerBuilder::FuzzyFinder.from(path, siv) {
             Ok(player) => PlayerView::load(player, siv),
             Err(e) => ErrorView::load(siv, e),
         }
