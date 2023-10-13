@@ -100,7 +100,7 @@ You can install with <a href="https://brew.sh/">Homebrew</a>:
 ```bash
 > brew install timdubbins/tap/tap
 > tap --version
-0.4.6
+0.4.7
 ```
 
 </details>
@@ -116,7 +116,7 @@ such as <a href="https://github.com/Jguer/yay">yay</a>:
 ```bash
 > yay -S tap
 > tap --version
-0.4.6
+0.4.7
 ```
 The AUR package is available <a href="https://aur.archlinux.org/packages/tap">here</a>.
 <br>
@@ -127,13 +127,13 @@ The AUR package is available <a href="https://aur.archlinux.org/packages/tap">he
 <summary><b>Debian</b> (or a Debian derivative, such as <b>Ubuntu</b>)</summary>
 <br>
 
-You can install with a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.4.6">tap release</a>:
+You can install with a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.4.7">tap release</a>:
 
 ```bash
-> curl -LO https://github.com/timdubbins/tap/releases/download/v0.4.6/tap_0.4.6_amd64.deb
-> sudo dpkg -i tap_0.4.6_amd64.deb
+> curl -LO https://github.com/timdubbins/tap/releases/download/v0.4.7/tap_0.4.7_amd64.deb
+> sudo dpkg -i tap_0.4.7_amd64.deb
 > tap --version
-0.4.6
+0.4.7
 ```
 
 </details>
@@ -149,12 +149,12 @@ To compile from source, first you need a <a href="https://www.rust-lang.org/lear
 > cd tap
 > cargo install --path .
 > tap --version
-0.4.6
+0.4.7
 ```
 
 </details>
 
-The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.4.6).
+The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.4.7).
 
 ## Notes
 
