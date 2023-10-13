@@ -24,7 +24,7 @@ pub enum Opts {
 #[clap(group = ArgGroup::new("conflicts_path").conflicts_with("path"))]
 #[clap(group = ArgGroup::new("requires_path").requires("path"))]
 pub struct Args {
-    #[arg(help = "The path to play or search on. If omitted the current directory is used")]
+    #[arg(help = "The path to play or search on. Defaults to the current working directory")]
     path: Option<PathBuf>,
 
     #[arg(help = "Providing a second path overrides the first path")]
@@ -35,7 +35,7 @@ pub struct Args {
         long,
         default_value_t = false,
         group = "exclude_multiples",
-        help = "Runs an automated player without the TUI"
+        help = "Run an automated player without the TUI"
     )]
     automate: bool,
 
@@ -45,7 +45,7 @@ pub struct Args {
         default_value_t = false,
         group = "exclude_multiples",
         group = "requires_path",
-        help = "Sets a default directory using the provided path"
+        help = "Set a default directory using the provided path"
     )]
     set_default: bool,
 
@@ -55,7 +55,7 @@ pub struct Args {
         default_value_t = false,
         group = "exclude_multiples",
         group = "conflicts_path",
-        help = "Runs tap with the default directory, if set"
+        help = "Run tap with the default directory, if set"
     )]
     default: bool,
 
@@ -65,7 +65,7 @@ pub struct Args {
         default_value_t = false,
         group = "exclude_multiples",
         group = "conflicts_path",
-        help = "Prints the default directory, if set"
+        help = "Print the default directory, if set"
     )]
     print_default: bool,
 }
