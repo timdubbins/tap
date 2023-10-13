@@ -538,3 +538,113 @@ fn get_source(path: &PathBuf) -> Result<Decoder<BufReader<File>>, anyhow::Error>
 
     Ok(source)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::{create_working_dir, find_assets_dir};
+
+    #[test]
+    fn test_playlist_recurse_success() {
+        let root = create_working_dir(&["one", "one/two"], &["one/two/foo.mp3"], &[])
+            .expect("create temp dir")
+            .into_path();
+
+        let res = playlist(&root, true);
+        assert!(
+            res.expect("should be ok").0.len() == 1,
+            "Expected to find the audio file in leaf directory"
+        );
+    }
+
+    #[test]
+    fn test_playlist_recurse_error() {
+        let root = create_working_dir(&["one", "one/two"], &["one/two/foo.mp3"], &[])
+            .expect("create temp dir")
+            .into_path();
+
+        let res = playlist(&root, false);
+        assert!(
+            res.is_err(),
+            "Expected to not find the audio file in leaf directory"
+        );
+    }
+
+    #[test]
+    fn test_playlist_mp3_success() {
+        let root = find_assets_dir().join("test_audio_1.mp3");
+        let (playlist, _) = playlist(&root, false).expect("should create a valid playlist");
+
+        assert_eq!(playlist[0].title, "test_audio_mp3");
+    }
+
+    #[test]
+    fn test_playlist_flac_success() {
+        let root = find_assets_dir().join("test_audio_2.flac");
+        let (playlist, _) = playlist(&root, false).expect("should create a valid playlist");
+
+        assert_eq!(playlist[0].title, "test_audio_flac");
+    }
+
+    #[test]
+    fn test_playlist_m4a_success() {
+        let root = find_assets_dir().join("test_audio_3.m4a");
+        let (playlist, _) = playlist(&root, false).expect("should create a valid playlist");
+
+        assert_eq!(playlist[0].title, "test_audio_m4a");
+    }
+
+    // FIXME: ogg decoder
+
+    // #[test]
+    // fn test_playlist_ogg_success() {
+    //     let root = find_assets_dir().join("test_audio_4.ogg");
+    //     let (playlist, _) = playlist(&root, false).expect("should create a valid playlist");
+
+    //     assert_eq!(playlist[0].title, "test_audio_ogg");
+    // }
+
+    #[test]
+    fn test_playlist_wav_success() {
+        let root = find_assets_dir().join("test_audio_5.wav");
+        let (playlist, _) = playlist(&root, false).expect("should create a valid playlist");
+
+        assert_eq!(playlist[0].title, "test_audio_wav");
+    }
+
+    #[test]
+    fn test_playlist_assets_length() {
+        let root = find_assets_dir();
+        let (playlist, _) = playlist(&root, false).expect("should create a valid playlist");
+
+        assert_eq!(
+            playlist.len(),
+            5,
+            "\n\n\
+            {:?} contains 5 test data and 3 error injection data. \
+            The playlist should only include the test data.\n",
+            root
+        );
+    }
+
+    #[test]
+    fn test_playlist_assets_size() {
+        let root = find_assets_dir();
+        let (_, size) = playlist(&root, false).expect("should create a valid playlist");
+
+        assert_eq!((size.x, size.y), (53, 8));
+    }
+
+    #[test]
+    fn test_playlist_empty_error() {
+        let root = create_working_dir(&["one"], &[], &[])
+            .expect("create temp dir")
+            .into_path();
+
+        let res = playlist(&root, false);
+        assert!(
+            res.is_err(),
+            "Providing the path to an empty directory should yield an error"
+        );
+    }
+}
