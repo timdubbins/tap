@@ -39,6 +39,8 @@ pub fn run() -> Result<(), anyhow::Error> {
         let player = PlayerBuilder::new(path)?;
         PlayerView::load(player, &mut siv);
 
+        exit_if_test(0);
+
         siv.run();
         return Ok(());
     }
@@ -93,8 +95,18 @@ pub fn run() -> Result<(), anyhow::Error> {
         }))
     });
 
+    exit_if_test(0);
+
     siv.run();
     Ok(())
+}
+
+fn exit_if_test(_code: i32) {
+    cfg_if::cfg_if! {
+    if #[cfg(feature = "run_tests")] {
+        std::process::exit(_code)
+        }
+    }
 }
 
 // Runs an automated player in the command line without the TUI.
@@ -106,7 +118,7 @@ fn run_automated(path: PathBuf) -> Result<(), anyhow::Error> {
     stdout().flush()?;
 
     loop {
-        match player.poll_sink() {
+        match player.poll() {
             0 => return Ok(()),
             1 => {
                 // Print the number of spaces required to clear the previous line.
