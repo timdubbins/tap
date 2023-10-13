@@ -344,7 +344,7 @@ impl View for PlayerView {
     }
 
     fn layout(&mut self, size: cursive::Vec2) {
-        self.player.poll_sink();
+        self.player.poll();
         if self.player.is_randomized && self.player.is_queued {
             self.random_track();
         }
@@ -487,12 +487,14 @@ impl View for PlayerView {
 }
 
 fn ratio(value: usize, max: usize, length: usize) -> (usize, usize) {
+    if max == 0 {
+        return (0, 0);
+    }
+
     let integer = length * value / max;
     let fraction = length * value - max * integer;
 
-    let fraction = fraction * 8 / max;
-
-    (integer, fraction)
+    (integer, fraction * 8 / max)
 }
 
 fn sub_block(extra: usize) -> &'static str {

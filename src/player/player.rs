@@ -9,10 +9,9 @@ use anyhow::bail;
 use cursive::XY;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
+use super::{is_valid, AudioFile, PlayerOpts, PlayerStatus, StatusToBytes};
 use crate::args::Args;
 use crate::utils::{concatenate, random, TimerBool};
-
-use super::{is_valid, AudioFile, PlayerOpts, PlayerStatus, StatusToBytes};
 
 pub type PlayerResult = Result<(Player, bool, XY<usize>), anyhow::Error>;
 
@@ -63,7 +62,7 @@ impl Player {
         recurse: bool,
     ) -> PlayerResult {
         let (path, index) = (track.0, track.1);
-        let (playlist, size) = Player::playlist(&path, recurse)?;
+        let (playlist, size) = playlist(&path, recurse)?;
         let file = playlist[index].to_owned();
         let (_stream, _stream_handle) = OutputStream::try_default()?;
         let sink = Sink::try_new(&_stream_handle)?;
@@ -297,7 +296,7 @@ impl Player {
     // 0 => the player has completed.
     // 1 => the player has changed.
     // 2 => the player is unchanged.
-    pub fn poll_sink(&mut self) -> usize {
+    pub fn poll(&mut self) -> usize {
         if !self.is_playing() {
             return 0;
         }
@@ -343,7 +342,7 @@ impl Player {
             }
             let target = random(0..paths.len());
             let path = paths[target].to_owned();
-            if let Ok((playlist, _)) = Player::playlist(&path, false) {
+            if let Ok((playlist, _)) = playlist(&path, false) {
                 let index = random(0..playlist.len());
                 return Some((path, index));
             } else {
@@ -430,84 +429,6 @@ impl Player {
         self.is_randomized ^= true;
     }
 
-    // Returns the playlist and required size for the player on success.
-    pub fn playlist(
-        path: &PathBuf,
-        recurse: bool,
-    ) -> Result<(Vec<AudioFile>, XY<usize>), anyhow::Error> {
-        // The list of files to use in the player.
-        let mut audio_files = vec![];
-        // An intermediate value used in calculating the player width.
-        let mut width = 0;
-        // True when `path` is an empty directory.
-        let mut is_empty = true;
-        // The error we get if we can't create an audio file.
-        let mut error: Option<anyhow::Error> = None;
-
-        if path.is_dir() {
-            for entry in path.read_dir()? {
-                is_empty = false;
-                if let Ok(entry) = entry {
-                    let path = entry.path();
-                    if recurse && path.is_dir() {
-                        return Player::playlist(&path, recurse);
-                    } else if is_valid(&path) {
-                        match AudioFile::new(path) {
-                            // Grow the playlist and update width.
-                            Ok(f) => {
-                                width = max(width, f.title.len());
-                                audio_files.push(f)
-                            }
-                            // Save the error in case the playlist is empty.
-                            Err(e) => error = Some(e),
-                        }
-                    }
-                }
-            }
-        } else if is_valid(&path) {
-            match AudioFile::new(path.clone()) {
-                // Create the playlist that contains a single file.
-                Ok(f) => {
-                    width = f.title.len();
-                    audio_files.push(f)
-                }
-                // We cannot recover if the audio file is not created.
-                Err(e) => bail!(e),
-            }
-        }
-
-        match audio_files.first() {
-            Some(f) => {
-                width = max(width, f.album.len() + f.artist.len() + 1);
-                can_decode(f)?;
-            }
-            None => {
-                let path = match recurse {
-                    true => Args::search_root(),
-                    false => path.to_owned(),
-                };
-
-                // Give an appropriate error if we fail to find any valid files.
-                match is_empty {
-                    true => bail!("'{}' is empty", path.display()),
-                    false => match error {
-                        Some(e) => bail!(e),
-                        None => bail!("no audio files detected in '{}'", path.display()),
-                    },
-                }
-            }
-        }
-
-        audio_files.sort();
-
-        let size = XY {
-            x: max(width + 19, 53),
-            y: min(45, audio_files.len() + 3),
-        };
-
-        Ok((audio_files, size))
-    }
-
     pub fn stdout(&self) -> (String, usize) {
         let line = format!(
             "[tap player]: '{}' by '{}' ({}/{}) ",
@@ -520,6 +441,84 @@ impl Player {
 
         (line, length)
     }
+}
+
+// Returns the playlist and required size for the player on success.
+pub fn playlist(
+    path: &PathBuf,
+    recurse: bool,
+) -> Result<(Vec<AudioFile>, XY<usize>), anyhow::Error> {
+    // The list of files to use in the player.
+    let mut audio_files = vec![];
+    // An intermediate value used in calculating the player width.
+    let mut width = 0;
+    // True when `path` is an empty directory.
+    let mut is_empty = true;
+    // The error we get if we can't create an audio file.
+    let mut error: Option<anyhow::Error> = None;
+
+    if path.is_dir() {
+        for entry in path.read_dir()? {
+            is_empty = false;
+            if let Ok(entry) = entry {
+                let path = entry.path();
+                if recurse && path.is_dir() {
+                    return playlist(&path, recurse);
+                } else if is_valid(&path) {
+                    match AudioFile::new(path) {
+                        // Grow the playlist and update width.
+                        Ok(f) => {
+                            width = max(width, f.title.len());
+                            audio_files.push(f)
+                        }
+                        // Save the error in case the playlist is empty.
+                        Err(e) => error = Some(e),
+                    }
+                }
+            }
+        }
+    } else if is_valid(&path) {
+        match AudioFile::new(path.clone()) {
+            // Create the playlist that contains a single file.
+            Ok(f) => {
+                width = f.title.len();
+                audio_files.push(f)
+            }
+            // We cannot recover if the audio file is not created.
+            Err(e) => bail!(e),
+        }
+    }
+
+    match audio_files.first() {
+        Some(f) => {
+            width = max(width, f.album.len() + f.artist.len() + 1);
+            can_decode(f)?;
+        }
+        None => {
+            let path = match recurse {
+                true => Args::search_root(),
+                false => path.to_owned(),
+            };
+
+            // Give an appropriate error if we fail to find any valid files.
+            match is_empty {
+                true => bail!("'{}' is empty", path.display()),
+                false => match error {
+                    Some(e) => bail!(e),
+                    None => bail!("no audio files detected in '{}'", path.display()),
+                },
+            }
+        }
+    }
+
+    audio_files.sort();
+
+    let size = XY {
+        x: max(width + 19, 53),
+        y: min(45, audio_files.len() + 3),
+    };
+
+    Ok((audio_files, size))
 }
 
 // Returns `Ok` if the file can be decoded.

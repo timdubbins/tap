@@ -5,7 +5,10 @@ use cursive::Cursive;
 
 use crate::utils::{random, UserData};
 
-use super::{player::PlayerResult, Player, PlayerOpts};
+use super::{
+    player::{playlist, PlayerResult},
+    Player, PlayerOpts,
+};
 
 #[derive(PartialEq)]
 pub enum PlayerBuilder {
@@ -76,12 +79,8 @@ impl PlayerBuilder {
                     Some(track) => track,
                     None => {
                         let path = path.to_owned();
-                        let index = random(
-                            0..Player::playlist(&path, false)
-                                .expect("should always exist")
-                                .0
-                                .len(),
-                        );
+                        let index =
+                            random(0..playlist(&path, false).expect("should always exist").0.len());
                         (path, index)
                     }
                 };
