@@ -1,10 +1,14 @@
-use std::collections::VecDeque;
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::{Duration, Instant};
-use std::{ops::Range, time::SystemTime};
+use std::{
+    collections::VecDeque,
+    ops::Range,
+    path::PathBuf,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
+    thread,
+    time::{Duration, Instant, SystemTime},
+};
 
 use anyhow::bail;
 use rand::{thread_rng, Rng};
@@ -46,6 +50,9 @@ impl<T: Clone> Iterator for CycleIterator<T> {
     }
 }
 
+// A boolean that automatically switches to false after a set `duration`.
+//
+// Functions like a regular boolean if `ignores_timer` is true.
 pub struct TimerBool {
     last_set: Arc<Mutex<Instant>>,
     value: Arc<AtomicBool>,
@@ -82,6 +89,10 @@ impl TimerBool {
     }
 
     pub fn set(&mut self) {
+        if self.ignores_timer {
+            return;
+        }
+
         let last_set = self.last_set.lock().unwrap().clone();
         let now = Instant::now();
         let elapsed = now.duration_since(last_set);
@@ -131,4 +142,49 @@ pub fn last_modified(path: &PathBuf) -> Result<SystemTime, anyhow::Error> {
         },
         Err(e) => bail!(e),
     }
+}
+
+#[cfg(test)]
+// Find the test assets.
+pub fn find_assets_dir() -> PathBuf {
+    // Tests exe is in target/debug/deps, test assets are in tests/assets
+    let root = std::env::current_exe()
+        .expect("tests executable")
+        .parent()
+        .expect("tests executable directory")
+        .parent()
+        .expect("tap executable directory")
+        .parent()
+        .expect("target directory")
+        .parent()
+        .expect("project root")
+        .to_path_buf();
+
+    root.join("tests").join("assets")
+}
+
+#[cfg(test)]
+// Create the working directory and the test files.
+pub fn create_working_dir(
+    dirs: &[&'static str],
+    audio_data: &[&'static str],
+    dummy_data: &[&'static str],
+) -> Result<tempfile::TempDir, std::io::Error> {
+    let temp_dir = tempfile::Builder::new().prefix("tap-tests").tempdir()?;
+    let root = temp_dir.path();
+    let audio = find_assets_dir().join("test_audio_1.mp3");
+
+    for path in dirs {
+        std::fs::create_dir_all(root.join(path))?;
+    }
+
+    for path in audio_data {
+        std::fs::copy(&audio, root.join(path)).expect("failed to copy file");
+    }
+
+    for path in dummy_data {
+        std::fs::File::create(root.join(path))?;
+    }
+
+    Ok(temp_dir)
 }
