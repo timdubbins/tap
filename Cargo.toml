@@ -16,9 +16,13 @@ bench = false
 path = "src/main.rs"
 name = "tap"
 
+[dev-dependencies]
+tempfile = "3.6"
+
 [dependencies]
 anyhow = "1.0"
 bincode = "2.0.0-rc.3"
+cfg-if = "0.1.10"
 clap = { version = "4.1.8", features = ["derive"] }
 cursive = { git = "https://github.com/timdubbins/cursive", branch = "tap", features = ["ncurses-backend", "toml"] }
 # cursive = { version = "0.20", features = ["ncurses-backend", "toml"] }
@@ -29,3 +33,6 @@ rodio = { git = "https://github.com/timdubbins/rodio", features = ["symphonia-al
 unicode-segmentation = "1.10.1"
 unicode-width = "0.1.5"
 walkdir = "2.0"
+
+[features]
+run_tests = []
