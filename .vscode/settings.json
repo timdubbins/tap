@@ -28,6 +28,9 @@
         "SIGTERM",
         "SIGTSTP",
         "SIGWINCH",
+        "tempdir",
+        "tempfile",
+        "testenv",
         "timdubbins",
         "vline",
         "walkdir"
