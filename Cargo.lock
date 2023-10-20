@@ -552,6 +552,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "expiring_bool"
+version = "0.1.0"
+source = "git+https://github.com/timdubbins/expiring_bool#255ee6cba20c74dca7b30a0164e8e82fd9e32778"
+
+[[package]]
 name = "fastrand"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1480,7 +1485,9 @@ dependencies = [
  "cfg-if 0.1.10",
  "clap",
  "cursive",
+ "expiring_bool",
  "fuzzy-matcher",
+ "lazy_static",
  "lofty",
  "rand",
  "rodio",
