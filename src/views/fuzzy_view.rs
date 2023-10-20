@@ -369,23 +369,24 @@ impl View for FuzzyView {
             });
 
             // Draw the text input area that shows the query.
-            p.with_color(inverted(), |p| {
-                p.with_effect(Effect::Reverse, |p| {
-                    p.print_hline((0, query_row), w, " ");
-                    p.print((2, query_row), &self.query);
-                });
+            p.with_color(white(), |p| {
+                p.print_hline((0, query_row), w, " ");
+                p.print((2, query_row), &self.query);
+            });
 
-                let c = if self.cursor == self.query.len() {
-                    "_"
-                } else {
-                    &self.query[self.cursor..]
-                        .graphemes(true)
-                        .next()
-                        .expect("should find a char")
-                };
-                let offset = self.query[..self.cursor].width();
+            let c = if self.cursor == self.query.len() {
+                "_"
+            } else {
+                &self.query[self.cursor..]
+                    .graphemes(true)
+                    .next()
+                    .expect("should find a char")
+            };
+            let offset = self.query[..self.cursor].width();
+            p.with_effect(Effect::Reverse, |p| {
                 p.print((offset + 2, query_row), c);
             });
+
             // Draw the symbol to show the start of the text input area.
             p.with_color(grey(), |p| p.print((0, query_row), ">"));
         }
