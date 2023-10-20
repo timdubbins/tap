@@ -26,7 +26,9 @@ cfg-if = "0.1.10"
 clap = { version = "4.1.8", features = ["derive"] }
 cursive = { git = "https://github.com/timdubbins/cursive", branch = "tap", features = ["ncurses-backend", "toml"] }
 # cursive = { version = "0.20", features = ["ncurses-backend", "toml"] }
+expiring_bool = { git = "https://github.com/timdubbins/expiring_bool" }
 fuzzy-matcher = "*"
+lazy_static = "1.4.0"
 lofty = "0.14.0"
 rand = "0.8.5"
 rodio = { git = "https://github.com/timdubbins/rodio", features = ["symphonia-all"], default-features = false }

@@ -7,11 +7,12 @@ use cursive::theme::{ColorStyle, Effect};
 use cursive::traits::View;
 use cursive::view::Resizable;
 use cursive::{Cursive, Printer, XY};
+use expiring_bool::ExpiringBool;
 
 use crate::args::Args;
 use crate::fuzzy::create_items;
 use crate::player::{Player, PlayerBuilder, PlayerStatus};
-use crate::utils::{TimerBool, UserData};
+use crate::utils::UserData;
 use crate::views::KeysView;
 
 use super::{theme::*, FuzzyView};
@@ -24,7 +25,7 @@ pub struct PlayerView {
     // The vertical offset required to show relevant playlist rows.
     offset: usize,
     // Whether or not the current volume is displayed.
-    showing_volume: TimerBool,
+    showing_volume: ExpiringBool,
     // Callback to access the cursive root. `None` if standalone player.
     cb: Option<Sender<Box<dyn FnOnce(&mut Cursive) + Send>>>,
     // The size of the view.
@@ -42,7 +43,7 @@ impl PlayerView {
             cb,
             selected: None,
             offset: 0,
-            showing_volume: TimerBool::new(showing_volume, Duration::from_millis(1500)),
+            showing_volume: ExpiringBool::new(showing_volume, Duration::from_millis(1500)),
             size: XY { x: 0, y: 0 },
         }
     }
@@ -326,10 +327,8 @@ impl View for PlayerView {
             });
 
             // Draw the fractional part of the progress bar.
-            p.with_color(magenta().invert(), |printer| {
-                printer.with_effect(Effect::Reverse, |printer| {
-                    printer.print((length + 8, last_row), sub_block(extra));
-                });
+            p.with_color(magenta(), |printer| {
+                printer.print((length + 8, last_row), sub_block(extra));
             });
 
             // Draw the solid part of the progress bar (preceding the fractional part).

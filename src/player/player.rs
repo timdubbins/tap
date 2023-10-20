@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::bail;
 use cursive::XY;
+use expiring_bool::ExpiringBool;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
 use super::{is_valid, AudioFile, PlayerOpts, PlayerStatus, StatusToBytes};
@@ -39,7 +40,7 @@ pub struct Player {
     // The list of numbers from last keyboard input,
     pub number_keys: Vec<usize>,
     // Whether or not a double-tap event was registered.
-    pub timer_bool: TimerBool,
+    pub timer_bool: ExpiringBool,
     // The map of audio track numbers to file indices.
     indices: HashMap<u32, usize>,
     // The instant that playback started or resumed.
