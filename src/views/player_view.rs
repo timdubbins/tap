@@ -302,11 +302,11 @@ impl View for PlayerView {
 
         if h > 1 {
             // Draw the header: 'Artist, Album, Year'.
-            p.with_effect(Effect::Bold, |printer| {
-                printer.with_color(green(), |printer| printer.print((2, 0), &f.artist.as_str()));
-                printer.with_effect(Effect::Italic, |printer| {
-                    printer.with_color(yellow(), |printer| {
-                        printer.print((f.artist.len() + 4, 0), &self.album_and_year().as_str())
+            p.with_effect(Effect::Bold, |p| {
+                p.with_color(green(), |p| p.print((2, 0), &f.artist.as_str()));
+                p.with_effect(Effect::Italic, |p| {
+                    p.with_color(yellow(), |p| {
+                        p.print((f.artist.len() + 4, 0), &self.album_and_year().as_str())
                     })
                 })
             });
@@ -320,20 +320,20 @@ impl View for PlayerView {
             let last_row = h - 1;
 
             // Draw the elapsed and remaining playback times.
-            p.with_color(white(), |printer| {
+            p.with_color(white(), |p| {
                 let remaining = min(f.duration, f.duration - elapsed);
-                printer.print((0, last_row), &mins_and_secs(elapsed));
-                printer.print((column, last_row), mins_and_secs(remaining).as_str())
+                p.print((0, last_row), &mins_and_secs(elapsed));
+                p.print((column, last_row), mins_and_secs(remaining).as_str())
             });
 
             // Draw the fractional part of the progress bar.
-            p.with_color(magenta(), |printer| {
-                printer.print((length + 8, last_row), sub_block(extra));
+            p.with_color(magenta(), |p| {
+                p.print((length + 8, last_row), sub_block(extra));
             });
 
             // Draw the solid part of the progress bar (preceding the fractional part).
-            p.cropped((length + 8, h)).with_color(magenta(), |printer| {
-                printer.print_hline((8, last_row), length, "█");
+            p.cropped((length + 8, h)).with_color(magenta(), |p| {
+                p.print_hline((8, last_row), length, "█");
             });
 
             // Draw spaces to maintain consistent padding when resizing.
