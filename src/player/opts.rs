@@ -2,6 +2,8 @@ use crate::utils::IntoInner;
 
 use super::{BytesToStatus, PlayerStatus, StatusToBytes};
 
+// Options for the player constructor.
+#[derive(Debug)]
 pub struct PlayerOpts {
     pub status: PlayerStatus,
     pub volume: u8,

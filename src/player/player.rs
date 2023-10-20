@@ -11,7 +11,7 @@ use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
 use super::{is_valid, AudioFile, PlayerOpts, PlayerStatus, StatusToBytes};
 use crate::args::Args;
-use crate::utils::{concatenate, random, TimerBool};
+use crate::utils::{concatenate, random};
 
 pub type PlayerResult = Result<(Player, bool, XY<usize>), anyhow::Error>;
 
@@ -78,7 +78,7 @@ impl Player {
             previous: 0,
             number_keys: vec![],
             is_queued: false,
-            timer_bool: TimerBool::new(false, Duration::from_millis(500)),
+            timer_bool: ExpiringBool::new(false, Duration::from_millis(500)),
             status: opts.status,
             volume: opts.volume,
             is_muted: opts.is_muted,
@@ -546,9 +546,13 @@ mod tests {
 
     #[test]
     fn test_playlist_recurse_success() {
-        let root = create_working_dir(&["one", "one/two"], &["one/two/foo.mp3"], &[])
-            .expect("create temp dir")
-            .into_path();
+        let root = create_working_dir(
+            &["one", "one/two"],
+            &[("one/two/foo.mp3", "test_mp3_audio.mp3")],
+            &[],
+        )
+        .expect("create temp dir")
+        .into_path();
 
         let res = playlist(&root, true);
         assert!(
@@ -559,9 +563,13 @@ mod tests {
 
     #[test]
     fn test_playlist_recurse_error() {
-        let root = create_working_dir(&["one", "one/two"], &["one/two/foo.mp3"], &[])
-            .expect("create temp dir")
-            .into_path();
+        let root = create_working_dir(
+            &["one", "one/two"],
+            &[("one/two/foo.mp3", "test_mp3_audio.mp3")],
+            &[],
+        )
+        .expect("create temp dir")
+        .into_path();
 
         let res = playlist(&root, false);
         assert!(
@@ -572,7 +580,7 @@ mod tests {
 
     #[test]
     fn test_playlist_mp3_success() {
-        let root = find_assets_dir().join("test_audio_1.mp3");
+        let root = find_assets_dir().join("test_mp3_audio.mp3");
         let (playlist, _) = playlist(&root, false).expect("should create a valid playlist");
 
         assert_eq!(playlist[0].title, "test_audio_mp3");
@@ -580,7 +588,7 @@ mod tests {
 
     #[test]
     fn test_playlist_flac_success() {
-        let root = find_assets_dir().join("test_audio_2.flac");
+        let root = find_assets_dir().join("test_flac_audio.flac");
         let (playlist, _) = playlist(&root, false).expect("should create a valid playlist");
 
         assert_eq!(playlist[0].title, "test_audio_flac");
@@ -588,25 +596,15 @@ mod tests {
 
     #[test]
     fn test_playlist_m4a_success() {
-        let root = find_assets_dir().join("test_audio_3.m4a");
+        let root = find_assets_dir().join("test_m4a_audio.m4a");
         let (playlist, _) = playlist(&root, false).expect("should create a valid playlist");
 
         assert_eq!(playlist[0].title, "test_audio_m4a");
     }
 
-    // FIXME: ogg decoder
-
-    // #[test]
-    // fn test_playlist_ogg_success() {
-    //     let root = find_assets_dir().join("test_audio_4.ogg");
-    //     let (playlist, _) = playlist(&root, false).expect("should create a valid playlist");
-
-    //     assert_eq!(playlist[0].title, "test_audio_ogg");
-    // }
-
     #[test]
     fn test_playlist_wav_success() {
-        let root = find_assets_dir().join("test_audio_5.wav");
+        let root = find_assets_dir().join("test_wav_audio.wav");
         let (playlist, _) = playlist(&root, false).expect("should create a valid playlist");
 
         assert_eq!(playlist[0].title, "test_audio_wav");

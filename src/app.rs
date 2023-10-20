@@ -12,7 +12,7 @@ use crate::data::UserData;
 use crate::fuzzy::*;
 use crate::player::PlayerBuilder;
 use crate::serialization::*;
-use crate::utils::{CycleIterator, IntoInner};
+use crate::utils::IntoInner;
 use crate::views::{theme, FuzzyView, PlayerView};
 
 // Runs the app.
@@ -39,10 +39,7 @@ pub fn run() -> Result<(), anyhow::Error> {
         let player = PlayerBuilder::new(path)?;
         PlayerView::load(player, &mut siv);
 
-        exit_if_test(0);
-
-        siv.run();
-        return Ok(());
+        return handle_runner(siv);
     }
 
     // Load the initial fuzzy search.
@@ -95,16 +92,21 @@ pub fn run() -> Result<(), anyhow::Error> {
         }))
     });
 
-    exit_if_test(0);
-
-    siv.run();
-    Ok(())
+    handle_runner(siv)
 }
 
-fn exit_if_test(_code: i32) {
+fn handle_runner(mut siv: cursive::CursiveRunnable) -> Result<(), anyhow::Error> {
     cfg_if::cfg_if! {
-    if #[cfg(feature = "run_tests")] {
-        std::process::exit(_code)
+        if #[cfg(feature = "run_tests")] {
+            // Exits the process with an error message in test builds.
+            bail!(match siv.user_data::<crate::utils::UserData>() {
+                Some(user_data) => format!("{:?}", user_data),
+                None => "success".into(),
+            })
+        } else {
+            // Runs the Cursive event loop in production builds.
+            siv.run();
+            Ok(())
         }
     }
 }
@@ -173,7 +175,7 @@ fn process(
 
     let stdout_handle = thread::spawn(move || {
         let ellipses = vec!["   ", ".  ", ".. ", "..."];
-        let mut spinner = CycleIterator::new(ellipses);
+        let mut spinner = ellipses.iter().cycle();
 
         loop {
             match rx.try_recv() {

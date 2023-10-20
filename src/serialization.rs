@@ -19,6 +19,7 @@ use crate::utils::last_modified;
 
 pub fn get_cached<T: Decode>(file_name: &str) -> Result<T, anyhow::Error> {
     let file_path = cache_dir()?.join(file_name);
+    eprintln!("{}", file_path.display());
 
     let mut file = match File::open(file_path) {
         Ok(file) => file,
@@ -51,7 +52,15 @@ fn cache_dir() -> Result<PathBuf, anyhow::Error> {
         Err(e) => bail!(e),
     };
 
-    let cache_dir = home_dir.join(".cache").join("tap");
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "run_tests")] {
+            let path = "tap_tests";
+        } else {
+            let path = "tap";
+        }
+    }
+
+    let cache_dir = home_dir.join(".cache").join(path);
     fs::create_dir_all(&cache_dir)?;
 
     Ok(cache_dir)
@@ -79,3 +88,6 @@ pub fn update_cache(path: &PathBuf) -> Result<Vec<FuzzyItem>, anyhow::Error> {
 
     Ok(items)
 }
+
+#[cfg(test)]
+mod tests {}
