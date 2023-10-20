@@ -68,6 +68,14 @@ pub struct Args {
         help = "Print the default directory, if set"
     )]
     print_default: bool,
+
+    #[arg(
+        short,
+        long,
+        default_value_t = false,
+        help = "Use the terminal background color"
+    )]
+    terminal_bg: bool,
 }
 
 impl Args {
@@ -81,6 +89,10 @@ impl Args {
 
     pub fn search_root() -> PathBuf {
         Args::parse_args().expect("should be verified on startup").0
+    }
+
+    pub fn use_default_bg() -> bool {
+        Args::parse().terminal_bg
     }
 
     fn parse_path(args: Args) -> Result<PathBuf, anyhow::Error> {
