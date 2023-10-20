@@ -8,11 +8,19 @@ mod utils;
 mod views;
 
 fn main() {
-    let result: Result<(), anyhow::Error> = app::run();
-    match result {
-        Ok(r) => r,
-        Err(err) => {
-            eprintln!("[tap error]: {:#}", err);
+    let result = app::run();
+
+    cfg_if::cfg_if! {
+        if #[cfg(features = "run_tests")] {
+            match result {
+                Ok(_) => eprintln!("success"),
+                Err(err) => eprintln!("{err}"),
+            }
+        } else {
+            match result {
+                Ok(()) => (),
+                Err(err) => eprintln!("[tap error]: {err}"),
+            }
         }
     }
 }
