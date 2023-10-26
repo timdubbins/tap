@@ -19,7 +19,6 @@ use crate::utils::last_modified;
 
 pub fn get_cached<T: Decode>(file_name: &str) -> Result<T, anyhow::Error> {
     let file_path = cache_dir()?.join(file_name);
-    eprintln!("{}", file_path.display());
 
     let mut file = match File::open(file_path) {
         Ok(file) => file,

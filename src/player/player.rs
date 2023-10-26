@@ -11,7 +11,7 @@ use expiring_bool::ExpiringBool;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
 use super::{is_valid, AudioFile, PlayerOpts, PlayerStatus, StatusToBytes};
-use crate::args::Args;
+use crate::args::search_root;
 use crate::utils::{concatenate, random};
 
 pub type PlayerResult = Result<(Player, bool, XY<usize>), anyhow::Error>;
@@ -497,7 +497,7 @@ pub fn playlist(
         }
         None => {
             let path = match recurse {
-                true => Args::search_root(),
+                true => search_root(),
                 false => path.to_owned(),
             };
 

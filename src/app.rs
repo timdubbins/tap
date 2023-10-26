@@ -7,7 +7,7 @@ use std::time::Duration;
 use anyhow::bail;
 use cursive::event::{Event, EventResult, EventTrigger, Key, MouseButton, MouseEvent};
 
-use crate::args::{Args, Opts};
+use crate::args::{parse_args, Opts};
 use crate::data::UserData;
 use crate::fuzzy::*;
 use crate::player::PlayerBuilder;
@@ -17,7 +17,7 @@ use crate::views::{theme, FuzzyView, PlayerView};
 
 // Runs the app.
 pub fn run() -> Result<(), anyhow::Error> {
-    let (path, opts) = Args::parse_args()?;
+    let (path, opts) = parse_args()?;
 
     match opts {
         Opts::Automate => return run_automated(path),
