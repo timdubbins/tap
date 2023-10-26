@@ -60,7 +60,7 @@ fn create_palette() -> HashMap<String, Color> {
     }
 
     // Terminal background overrides user-defined background.
-    if user_colors.use_term_bg {
+    if user_colors.term_bg {
         m.insert("bg".into(), Color::TerminalDefault);
     }
 
@@ -69,14 +69,11 @@ fn create_palette() -> HashMap<String, Color> {
 
 pub struct UserColors {
     colors: Vec<(String, Color)>,
-    use_term_bg: bool,
+    term_bg: bool,
 }
 
 impl UserColors {
-    pub fn new(colors: Vec<(String, Color)>, use_term_bg: bool) -> Self {
-        UserColors {
-            colors,
-            use_term_bg,
-        }
+    pub fn new(colors: Vec<(String, Color)>, term_bg: bool) -> Self {
+        UserColors { colors, term_bg }
     }
 }

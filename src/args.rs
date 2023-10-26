@@ -78,7 +78,7 @@ pub struct Args {
         default_value_t = false,
         help = "Use the terminal background color"
     )]
-    use_term_bg: bool,
+    term_bg: bool,
 
     #[arg(
         short, 
@@ -100,7 +100,7 @@ pub fn parse_args() -> Result<(PathBuf, Opts), anyhow::Error> {
 
 pub fn parse_user_colors() -> UserColors {
     let args = Args::parse();
-    UserColors::new(args.colors, args.use_term_bg)
+    UserColors::new(args.colors, args.term_bg)
 }
 
 pub fn search_root() -> PathBuf {
