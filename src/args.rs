@@ -4,6 +4,9 @@ use anyhow::bail;
 use clap::{ArgGroup, Parser};
 
 use crate::serialization::get_cached;
+use crate::views::theme::{COLOR_KEYS, UserColors};
+
+type Color = cursive::theme::Color;
 
 #[derive(PartialEq)]
 pub enum Opts {
@@ -75,56 +78,83 @@ pub struct Args {
         default_value_t = false,
         help = "Use the terminal background color"
     )]
-    terminal_bg: bool,
+    use_term_bg: bool,
+
+    #[arg(
+        short, 
+        long, 
+        value_parser = parse_color, 
+        value_delimiter = ',', 
+        help = "Set custom colors. For example: '--color bg=<hex-color>,hl=<hex-color>'. Available fields: 'bg, hl, artist, album, track, status, prompt, bar, stop"
+    )]
+    colors: Vec<(String, Color)>,
 }
 
-impl Args {
-    pub fn parse_args() -> Result<(PathBuf, Opts), anyhow::Error> {
-        let args = Args::parse();
-        let option = Args::parse_opts(&args);
-        let path = Args::parse_path(args)?;
+pub fn parse_args() -> Result<(PathBuf, Opts), anyhow::Error> {
+    let args = Args::parse();
+    let option = parse_opts(&args);
+    let path = parse_path(&args)?;
 
-        Ok((path, option))
-    }
+    Ok((path, option))
+}
 
-    pub fn search_root() -> PathBuf {
-        Args::parse_args().expect("should be verified on startup").0
-    }
+pub fn parse_user_colors() -> UserColors {
+    let args = Args::parse();
+    UserColors::new(args.colors, args.use_term_bg)
+}
 
-    pub fn use_default_bg() -> bool {
-        Args::parse().terminal_bg
-    }
+pub fn search_root() -> PathBuf {
+    let foo = String::from("red");
+    if foo.eq("red") { panic!()}
+    parse_args().expect("should be verified on startup").0
+}
 
-    fn parse_path(args: Args) -> Result<PathBuf, anyhow::Error> {
-        let path = match args.default {
-            true => get_cached::<PathBuf>("path")?,
-            false => match args.second_path {
-                Some(p) => p,
-                None => match args.path {
-                    Some(p) => p,
-                    None => std::env::current_dir()?,
-                },
+fn parse_path(args: &Args) -> Result<PathBuf, anyhow::Error> {
+    let path = match args.default {
+        true => get_cached::<PathBuf>("path")?,
+        false => match &args.second_path {
+            Some(p) => p.to_owned(),
+            None => match &args.path {
+                Some(p) => p.to_owned(),
+                None => std::env::current_dir()?,
             },
+        },
+    };
+
+    if !path.exists() {
+        bail!("'{}' doesn't exist", path.display())
+    }
+
+    Ok(path.canonicalize()?)
+}
+
+fn parse_opts(args: &Args) -> Opts {
+    if args.automate {
+        Opts::Automate
+    } else if args.default {
+        Opts::Default
+    } else if args.set_default {
+        Opts::Set
+    } else if args.print_default {
+        Opts::Print
+    } else {
+        Opts::None
+    }
+}
+
+fn parse_color(s: &str) -> Result<(String, Color), anyhow::Error> {
+        let pos = match s.find('=') {
+            Some(pos) => pos,
+            None => bail!("invalid color argument: no `=` found in `{s}`"),
         };
 
-        if !path.exists() {
-            bail!("'{}' doesn't exist", path.display())
-        }
+    let (key, val): (String, Color) = (s[..pos].parse()?, (s[pos + 1..]).parse()?);
 
-        Ok(path.canonicalize()?)
-    }
-
-    fn parse_opts(args: &Args) -> Opts {
-        if args.automate {
-            Opts::Automate
-        } else if args.default {
-            Opts::Default
-        } else if args.set_default {
-            Opts::Set
-        } else if args.print_default {
-            Opts::Print
-        } else {
-            Opts::None
+    for color_key in COLOR_KEYS {
+        if key.eq(color_key) {
+            return Ok((key, val));
         }
     }
+
+    bail!("invalid color definition: no such definition `{key}`");
 }

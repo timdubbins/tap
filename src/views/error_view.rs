@@ -12,7 +12,7 @@ pub struct ErrorView {}
 
 impl ErrorView {
     pub fn new(content: String) -> ResizedView<OnLayoutView<FixedLayout>> {
-        let mut content = StyledString::styled(content, white());
+        let mut content = StyledString::styled(content, color_style("hl"));
         content.append_plain("  ");
         content.append(StyledString::styled(" <Ok> ", button()));
         content.append_plain("  ");
@@ -21,7 +21,10 @@ impl ErrorView {
             FixedLayout::new().child(
                 Rect::from_point(Vec2::zero()),
                 LinearLayout::horizontal()
-                    .child(Layer::with_color(TextView::new(" [error]: "), red()))
+                    .child(Layer::with_color(
+                        TextView::new(" [error]: "),
+                        color_style("stop"),
+                    ))
                     .child(TextView::new(content))
                     .full_width(),
             ),
