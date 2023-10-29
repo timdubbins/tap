@@ -4,7 +4,7 @@ use anyhow::bail;
 use clap::{ArgGroup, Parser};
 
 use crate::serialization::get_cached;
-use crate::views::theme::{COLOR_KEYS, UserColors};
+use crate::theme::{COLOR_KEYS, UserColors};
 
 type Color = cursive::theme::Color;
 
