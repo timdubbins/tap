@@ -6,7 +6,7 @@ use cursive::views::{
 };
 use cursive::Cursive;
 
-use super::theme::button;
+use crate::theme::button;
 
 pub struct KeysView {}
 

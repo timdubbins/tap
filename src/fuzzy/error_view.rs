@@ -6,7 +6,7 @@ use cursive::views::{
 };
 use cursive::{Cursive, Rect, Vec2, View};
 
-use super::theme::*;
+use crate::theme::{button, color_style};
 
 pub struct ErrorView {}
 

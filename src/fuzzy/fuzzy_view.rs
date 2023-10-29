@@ -11,12 +11,11 @@ use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
 use crate::args::search_root;
-use crate::fuzzy::*;
-use crate::player::PlayerBuilder;
-use crate::utils::*;
-use crate::views::{ErrorView, PlayerView};
+use crate::player::{PlayerBuilder, PlayerView};
+use crate::theme::color_style;
+use crate::utils::{random, UserData};
 
-use super::theme::*;
+use super::{create_items, ErrorView, FuzzyItem};
 
 #[derive(Clone)]
 pub struct FuzzyView {

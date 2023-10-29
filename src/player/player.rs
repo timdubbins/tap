@@ -10,9 +10,10 @@ use cursive::XY;
 use expiring_bool::ExpiringBool;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
-use super::{is_valid, AudioFile, PlayerOpts, PlayerStatus, StatusToBytes};
 use crate::args::search_root;
 use crate::utils::{concatenate, random};
+
+use super::{is_valid, AudioFile, PlayerOpts, PlayerStatus, StatusToBytes};
 
 pub type PlayerResult = Result<(Player, bool, XY<usize>), anyhow::Error>;
 

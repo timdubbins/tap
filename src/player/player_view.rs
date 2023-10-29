@@ -10,12 +10,11 @@ use cursive::{Cursive, Printer, XY};
 use expiring_bool::ExpiringBool;
 
 use crate::args::search_root;
-use crate::fuzzy::create_items;
-use crate::player::{Player, PlayerBuilder, PlayerStatus};
+use crate::fuzzy::{create_items, FuzzyView};
+use crate::theme::color_style;
 use crate::utils::UserData;
-use crate::views::KeysView;
 
-use super::{theme::*, FuzzyView};
+use super::{KeysView, Player, PlayerBuilder, PlayerStatus};
 
 pub struct PlayerView {
     // The currently loaded player.

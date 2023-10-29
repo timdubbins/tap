@@ -9,11 +9,10 @@ use cursive::event::{Event, EventResult, EventTrigger, Key, MouseButton, MouseEv
 
 use crate::args::{parse_args, Opts};
 use crate::data::UserData;
-use crate::fuzzy::*;
-use crate::player::PlayerBuilder;
+use crate::player::{PlayerBuilder, PlayerView};
 use crate::serialization::*;
 use crate::utils::IntoInner;
-use crate::views::{theme, FuzzyView, PlayerView};
+use crate::{fuzzy::*, theme};
 
 // Runs the app.
 pub fn run() -> Result<(), anyhow::Error> {

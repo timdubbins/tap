@@ -4,8 +4,8 @@ mod data;
 mod fuzzy;
 mod player;
 mod serialization;
+mod theme;
 mod utils;
-mod views;
 
 fn main() {
     let result = app::run();
