@@ -8,7 +8,9 @@ mod theme;
 mod utils;
 
 fn main() {
-    match app::run() {
+    let result = app::run();
+
+    match result {
         Ok(()) => (),
         Err(err) => eprintln!("[tap error]: {err}"),
     }

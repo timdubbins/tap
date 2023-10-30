@@ -23,7 +23,7 @@ impl ErrorView {
                 LinearLayout::horizontal()
                     .child(Layer::with_color(
                         TextView::new(" [error]: "),
-                        color_style("stop"),
+                        color_style("err"),
                     ))
                     .child(TextView::new(content))
                     .full_width(),

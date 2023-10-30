@@ -66,8 +66,8 @@ impl PlayerView {
     fn player_status(&self) -> (&'static str, ColorStyle, Effect) {
         match self.player.status {
             PlayerStatus::Paused => ("|", color_style("hl"), Effect::Simple),
-            PlayerStatus::Playing => (">", color_style("album"), Effect::Simple),
-            PlayerStatus::Stopped => (".", color_style("stop"), Effect::Simple),
+            PlayerStatus::Playing => (">", color_style("header+"), Effect::Simple),
+            PlayerStatus::Stopped => (".", color_style("err"), Effect::Simple),
         }
     }
 
@@ -267,7 +267,7 @@ impl View for PlayerView {
                         );
                         if column > 11 && (self.player.is_randomized || self.player.is_muted) {
                             // Draw the player options.
-                            p.with_color(color_style("status"), |p| {
+                            p.with_color(color_style("info"), |p| {
                                 p.with_effect(Effect::Italic, |p| {
                                     p.print((column - 3, i + 1 - self.offset), self.player_opts())
                                 })
@@ -280,7 +280,7 @@ impl View for PlayerView {
                     })
                 } else if i + 2 - self.offset < h {
                     // Draw the inactive rows.
-                    p.with_color(color_style("track"), |p| {
+                    p.with_color(color_style("fg"), |p| {
                         p.print(
                             (6, i + 1 - self.offset),
                             format!("{:02}  {}", f.track, f.title).as_str(),
@@ -302,11 +302,11 @@ impl View for PlayerView {
         if h > 1 {
             // Draw the header: 'Artist, Album, Year'.
             p.with_effect(Effect::Bold, |p| {
-                p.with_color(color_style("artist"), |p| {
+                p.with_color(color_style("header"), |p| {
                     p.print((2, 0), &f.artist.as_str())
                 });
                 p.with_effect(Effect::Italic, |p| {
-                    p.with_color(color_style("album"), |p| {
+                    p.with_color(color_style("header+"), |p| {
                         p.print((f.artist.len() + 4, 0), &self.album_and_year().as_str())
                     })
                 })
@@ -330,13 +330,13 @@ impl View for PlayerView {
             });
 
             // Draw the fractional part of the progress bar.
-            p.with_color(color_style("bar"), |p| {
+            p.with_color(color_style("progress"), |p| {
                 p.print((length + 8, last_row), sub_block(extra));
             });
 
             // Draw the solid part of the progress bar (preceding the fractional part).
             p.cropped((length + 8, h))
-                .with_color(color_style("bar"), |p| {
+                .with_color(color_style("progress"), |p| {
                     p.print_hline((8, last_row), length, "█");
                 });
 
