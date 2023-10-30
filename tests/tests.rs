@@ -38,7 +38,7 @@ fn test_multiple_audio_files_success() {
         ],
         &[],
     );
-    te.assert_error_msg(&[], "success");
+    te.assert_success(&[]);
 }
 
 #[test]
@@ -51,7 +51,7 @@ fn test_automate_success() {
         ],
         &[],
     );
-    te.assert_error_msg(&["--automate"], "success");
+    te.assert_success(&["--automate"]);
 }
 
 #[test]
@@ -159,5 +159,5 @@ fn test_single_audio_dir() {
         ],
         &[],
     );
-    te.assert_normalized_paths(&["success"]);
+    te.assert_success(&[]);
 }

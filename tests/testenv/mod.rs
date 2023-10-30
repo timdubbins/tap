@@ -38,6 +38,12 @@ impl TestEnv {
     }
 
     // Assert that calling tap with the specified arguments produces the expected error.
+    pub fn assert_success(&self, args: &[&str]) {
+        let output = self.run_command(".".as_ref(), args);
+        assert!(output.status.success())
+    }
+
+    // Assert that calling tap with the specified arguments produces the expected error.
     pub fn assert_error_msg(&self, args: &[&str], expected: &str) {
         let output = self.run_command(".".as_ref(), args);
         let stderr = String::from_utf8(output.stderr).expect("error message should be utf8");
@@ -46,13 +52,8 @@ impl TestEnv {
 
         assert!(
             stderr.contains(expected),
-            "\n\
-            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\
-            The error message:\n\
-            {:?}\n\
-            does not contain the expected message:\n\
-            {:?}\n\
-            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n",
+            "\nThe error message:\n`{}`\n\
+            does not contain the expected message:\n`{}`\n",
             stderr,
             expected
         );
@@ -65,13 +66,8 @@ impl TestEnv {
         for path in expected.iter() {
             assert!(
                 stderr.contains(&path.to_string()),
-                "\n\
-                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\
-                The list of paths:\n\
-                {:?}\n\
-                does not contain the expected path:\n\
-                {}\n\
-                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n",
+                "\nThe list of paths:\n{:?}\n\
+                does not contain the expected path:\n`{}`\n",
                 stderr,
                 path
             );
@@ -91,21 +87,18 @@ impl TestEnv {
 
 fn normalize(output: Output) -> Vec<String> {
     let stderr = String::from_utf8(output.stderr).unwrap();
+    eprintln!("{stderr}");
 
-    match stderr.find("[") {
-        Some(start) => {
-            let end = stderr.find("]").unwrap();
+    let slice = &stderr[38..];
+    let end = slice.find("]").unwrap();
 
-            stderr[start..end]
-                .split(",")
-                .map(|s| {
-                    let s = String::from(s);
-                    s[75..s.len() - 1].to_string()
-                })
-                .collect::<Vec<_>>()
-        }
-        None => vec![String::from("success")],
-    }
+    slice[..end]
+        .split(",")
+        .map(|s| {
+            let s = String::from(s);
+            s[75..s.len() - 1].to_string()
+        })
+        .collect::<Vec<_>>()
 }
 
 // Find the tap executable.
