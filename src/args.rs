@@ -104,8 +104,6 @@ pub fn parse_user_colors() -> UserColors {
 }
 
 pub fn search_root() -> PathBuf {
-    let foo = String::from("red");
-    if foo.eq("red") { panic!()}
     parse_args().expect("should be verified on startup").0
 }
 
