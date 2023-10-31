@@ -4,7 +4,7 @@ use anyhow::bail;
 use clap::{ArgGroup, Parser};
 
 use crate::serialization::get_cached;
-use crate::theme::{COLOR_KEYS, UserColors};
+use crate::theme::{COLOR_MAP, UserColors};
 
 type Color = cursive::theme::Color;
 
@@ -148,7 +148,7 @@ fn parse_color(s: &str) -> Result<(String, Color), anyhow::Error> {
 
     let (key, val): (String, Color) = (s[..pos].parse()?, (s[pos + 1..]).parse()?);
 
-    for color_key in COLOR_KEYS {
+    for (color_key, _) in COLOR_MAP {
         if key.eq(color_key) {
             return Ok((key, val));
         }

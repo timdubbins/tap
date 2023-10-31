@@ -11,12 +11,20 @@ use cursive::{
     With,
 };
 
-pub const COLOR_KEYS: &'static [&'static str] = &[
-    "fg", "bg", "hl", "prompt", "header", "header+", "progress", "info", "err",
+pub const COLOR_MAP: &'static [(&'static str, Color)] = &[
+    ("fg", Rgb(129, 162, 190)),       // blue #81a2be
+    ("bg", Rgb(31, 33, 29)),          // black #1f211d
+    ("hl", Rgb(197, 200, 198)),       // white #c5c8c6
+    ("prompt", Rgb(57, 54, 62)),      // grey #39363e
+    ("header", Rgb(181, 189, 104)),   // green #b5bd68
+    ("header+", Rgb(240, 198, 116)),  // yellow #f0c674
+    ("progress", Rgb(178, 148, 187)), // magenta #b294bb
+    ("info", Rgb(138, 190, 183)),     // cyan #8abeb7
+    ("err", Rgb(204, 102, 102)),      // red #cc6666
 ];
 
 lazy_static::lazy_static! {
-    static ref PALETTE: HashMap<String, Color> = create_palette();
+    pub static ref PALETTE: HashMap<String, Color> = create_palette();
 }
 
 pub fn custom() -> Theme {
@@ -40,33 +48,22 @@ pub fn button() -> ColorStyle {
     ColorStyle::new(PALETTE["bg"], PALETTE["fg"])
 }
 
-fn default_palette() -> HashMap<String, Color> {
-    let mut m = HashMap::new();
-    m.insert("fg".into(), Rgb(129, 162, 190)); // blue #81a2be
-    m.insert("bg".into(), Rgb(31, 33, 29)); // black #1f211d
-    m.insert("hl".into(), Rgb(197, 200, 198)); // white #c5c8c6
-    m.insert("prompt".into(), Rgb(57, 54, 62)); // grey #39363e
-    m.insert("header".into(), Rgb(181, 189, 104)); // green #b5bd68
-    m.insert("header+".into(), Rgb(240, 198, 116)); // yellow #f0c674
-    m.insert("progress".into(), Rgb(178, 148, 187)); // magenta #b294bb
-    m.insert("info".into(), Rgb(138, 190, 183)); // cyan #8abeb7
-    m.insert("err".into(), Rgb(204, 102, 102)); // red #cc6666
-    m
-}
-
 fn create_palette() -> HashMap<String, Color> {
-    // Define the default colors.
-    let mut m = default_palette();
-
-    // Override the default colors with any user-defined colors.
-    let user_colors = crate::args::parse_user_colors();
-    for (key, val) in user_colors.colors {
-        m.insert(key, val);
+    // Create the default colors.
+    let mut m = HashMap::new();
+    for (k, v) in COLOR_MAP {
+        m.insert(k.to_string(), *v);
     }
 
-    // Terminal background overrides user-defined background.
+    // Update any user-defined colors.
+    let user_colors = crate::args::parse_user_colors();
+    for (k, v) in user_colors.colors {
+        m.insert(k, v);
+    }
+
+    // Update background color with terminal color, if using.
     if user_colors.term_bg {
-        m.insert("bg".into(), Color::TerminalDefault);
+        m.insert("bg".to_string(), Color::TerminalDefault);
     }
 
     m
