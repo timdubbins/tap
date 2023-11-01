@@ -10,9 +10,9 @@ use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
-use crate::args::search_root;
+use crate::args;
 use crate::player::{PlayerBuilder, PlayerView};
-use crate::theme::color_style;
+use crate::theme;
 use crate::utils::{random, UserData};
 
 use super::{create_items, ErrorView, FuzzyItem};
@@ -317,12 +317,12 @@ impl View for FuzzyView {
                     // Set the color depending on whether row is currently selected or not.
                     let (primary, highlight) = if row + self.selected == start_row + self.offset {
                         // Draw the symbol to show the currently selected item.
-                        p.with_color(color_style("header+"), |p| p.print((0, row), ">"));
+                        p.with_color(theme::header2(), |p| p.print((0, row), ">"));
                         // The colors for the currently selected row.
-                        (color_style("hl"), color_style("header"))
+                        (theme::hl(), theme::header1())
                     } else {
                         // The colors for the not selected row.
-                        (color_style("fg"), color_style("hl"))
+                        (theme::fg(), theme::hl())
                     };
                     // Draw the item's display name.
                     p.with_color(primary, |p| {
@@ -344,7 +344,7 @@ impl View for FuzzyView {
             }
 
             // Draw the page count.
-            p.with_color(color_style("prompt"), |p| {
+            p.with_color(theme::prompt(), |p| {
                 let page = self.selected / start_row;
                 let pages = self.matches / start_row;
                 let digits = page.checked_ilog10().unwrap_or(0) as usize
@@ -360,7 +360,7 @@ impl View for FuzzyView {
             let query_row = h - 1;
 
             // Draw the match count and some borders.
-            p.with_color(color_style("progress"), |p| {
+            p.with_color(theme::progress(), |p| {
                 let lines = std::cmp::min(self.matches / 4, h / 4);
                 p.print_vline((w - 1, query_row - 1 - lines), lines, "│");
                 p.print_hline((2, query_row - 1), w - 3, "─");
@@ -368,7 +368,7 @@ impl View for FuzzyView {
             });
 
             // Draw the text input area that shows the query.
-            p.with_color(color_style("hl"), |p| {
+            p.with_color(theme::hl(), |p| {
                 p.print_hline((0, query_row), w, " ");
                 p.print((2, query_row), &self.query);
             });
@@ -387,7 +387,7 @@ impl View for FuzzyView {
             });
 
             // Draw the symbol to show the start of the text input area.
-            p.with_color(color_style("prompt"), |p| p.print((0, query_row), ">"));
+            p.with_color(theme::prompt(), |p| p.print((0, query_row), ">"));
         }
     }
 
@@ -437,7 +437,7 @@ impl View for FuzzyView {
                 };
 
                 parent.pop();
-                let root = search_root();
+                let root = args::search_root();
                 if parent != root {
                     parent.pop();
                 }

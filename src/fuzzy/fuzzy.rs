@@ -32,8 +32,8 @@ impl FuzzyItem {
         let path = dent.path().into();
 
         let (has_audio, sub_dirs) = match root {
-            true => (FuzzyItem::has_audio(&path)?, 0),
-            false => FuzzyItem::validate(&path)?,
+            true => (has_audio(&path)?, 0),
+            false => validate(&path)?,
         };
 
         let display = dent
@@ -64,42 +64,6 @@ impl FuzzyItem {
         };
 
         Ok(fuzzy_item)
-    }
-
-    fn has_audio(path: &PathBuf) -> Result<bool, anyhow::Error> {
-        for entry in path.read_dir()? {
-            if let Ok(entry) = entry {
-                if is_valid(&entry.path()) {
-                    return Ok(true);
-                }
-            }
-        }
-        bail!("invalid")
-    }
-
-    fn validate(path: &PathBuf) -> Result<(bool, usize), anyhow::Error> {
-        let mut has_audio = false;
-        let mut dir_count: usize = 0;
-
-        for entry in path.read_dir()? {
-            if let Ok(entry) = entry {
-                if entry.path().is_dir() {
-                    dir_count += 1;
-                } else if !has_audio {
-                    has_audio = is_valid(&entry.path());
-                }
-            }
-
-            if has_audio && dir_count > 1 {
-                break;
-            }
-        }
-
-        if !has_audio && dir_count == 0 {
-            bail!("invalid")
-        }
-
-        Ok((has_audio, dir_count))
     }
 }
 
@@ -137,16 +101,6 @@ pub fn create_items(path: &PathBuf) -> Result<Vec<FuzzyItem>, anyhow::Error> {
     }
 
     Ok(items)
-}
-
-// Whether the entry is a directory or not. Excludes hidden directories.
-fn is_non_hidden_dir(entry: &walkdir::DirEntry) -> bool {
-    entry.file_type().is_dir()
-        && !entry
-            .file_name()
-            .to_str()
-            .map(|s| s.starts_with("."))
-            .unwrap_or(false)
 }
 
 // Gets all the non-leaf items that start with the letter `key`.
@@ -194,4 +148,50 @@ pub fn leaf_paths(items: &Vec<FuzzyItem>) -> Vec<PathBuf> {
         .filter(|e| e.has_audio)
         .map(|e| e.path.to_owned())
         .collect::<Vec<PathBuf>>()
+}
+
+// Whether the entry is a directory or not. Excludes hidden directories.
+fn is_non_hidden_dir(entry: &walkdir::DirEntry) -> bool {
+    entry.file_type().is_dir()
+        && !entry
+            .file_name()
+            .to_str()
+            .map(|s| s.starts_with("."))
+            .unwrap_or(false)
+}
+
+fn has_audio(path: &PathBuf) -> Result<bool, anyhow::Error> {
+    for entry in path.read_dir()? {
+        if let Ok(entry) = entry {
+            if is_valid(&entry.path()) {
+                return Ok(true);
+            }
+        }
+    }
+    bail!("invalid")
+}
+
+fn validate(path: &PathBuf) -> Result<(bool, usize), anyhow::Error> {
+    let mut has_audio = false;
+    let mut dir_count: usize = 0;
+
+    for entry in path.read_dir()? {
+        if let Ok(entry) = entry {
+            if entry.path().is_dir() {
+                dir_count += 1;
+            } else if !has_audio {
+                has_audio = is_valid(&entry.path());
+            }
+        }
+
+        if has_audio && dir_count > 1 {
+            break;
+        }
+    }
+
+    if !has_audio && dir_count == 0 {
+        bail!("invalid")
+    }
+
+    Ok((has_audio, dir_count))
 }

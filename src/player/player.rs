@@ -10,7 +10,7 @@ use cursive::XY;
 use expiring_bool::ExpiringBool;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
-use crate::args::search_root;
+use crate::args;
 use crate::utils::{concatenate, random};
 
 use super::{is_valid, AudioFile, PlayerOpts, PlayerStatus, StatusToBytes};
@@ -498,7 +498,7 @@ pub fn playlist(
         }
         None => {
             let path = match recurse {
-                true => search_root(),
+                true => args::search_root(),
                 false => path.to_owned(),
             };
 

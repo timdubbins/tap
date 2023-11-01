@@ -9,9 +9,9 @@ use cursive::view::Resizable;
 use cursive::{Cursive, Printer, XY};
 use expiring_bool::ExpiringBool;
 
-use crate::args::search_root;
+use crate::args;
 use crate::fuzzy::{create_items, FuzzyView};
-use crate::theme::color_style;
+use crate::theme;
 use crate::utils::UserData;
 
 use super::{KeysView, Player, PlayerBuilder, PlayerStatus};
@@ -65,9 +65,9 @@ impl PlayerView {
 
     fn player_status(&self) -> (&'static str, ColorStyle, Effect) {
         match self.player.status {
-            PlayerStatus::Paused => ("|", color_style("hl"), Effect::Simple),
-            PlayerStatus::Playing => (">", color_style("header+"), Effect::Simple),
-            PlayerStatus::Stopped => (".", color_style("err"), Effect::Simple),
+            PlayerStatus::Paused => ("|", theme::hl(), Effect::Simple),
+            PlayerStatus::Playing => (">", theme::header2(), Effect::Simple),
+            PlayerStatus::Stopped => (".", theme::err(), Effect::Simple),
         }
     }
 
@@ -260,14 +260,14 @@ impl View for PlayerView {
                         p.with_effect(effect, |p| p.print((3, i + 1 - self.offset), symbol))
                     });
                     // Draw the active row.
-                    p.with_color(color_style("hl"), |p| {
+                    p.with_color(theme::hl(), |p| {
                         p.print(
                             (6, i + 1 - self.offset),
                             format!("{:02}  {}", f.track, f.title).as_str(),
                         );
                         if column > 11 && (self.player.is_randomized || self.player.is_muted) {
                             // Draw the player options.
-                            p.with_color(color_style("info"), |p| {
+                            p.with_color(theme::info(), |p| {
                                 p.with_effect(Effect::Italic, |p| {
                                     p.print((column - 3, i + 1 - self.offset), self.player_opts())
                                 })
@@ -280,7 +280,7 @@ impl View for PlayerView {
                     })
                 } else if i + 2 - self.offset < h {
                     // Draw the inactive rows.
-                    p.with_color(color_style("fg"), |p| {
+                    p.with_color(theme::fg(), |p| {
                         p.print(
                             (6, i + 1 - self.offset),
                             format!("{:02}  {}", f.track, f.title).as_str(),
@@ -302,11 +302,9 @@ impl View for PlayerView {
         if h > 1 {
             // Draw the header: 'Artist, Album, Year'.
             p.with_effect(Effect::Bold, |p| {
-                p.with_color(color_style("header"), |p| {
-                    p.print((2, 0), &f.artist.as_str())
-                });
+                p.with_color(theme::header1(), |p| p.print((2, 0), &f.artist.as_str()));
                 p.with_effect(Effect::Italic, |p| {
-                    p.with_color(color_style("header+"), |p| {
+                    p.with_color(theme::header2(), |p| {
                         p.print((f.artist.len() + 4, 0), &self.album_and_year().as_str())
                     })
                 })
@@ -314,7 +312,7 @@ impl View for PlayerView {
 
             if self.showing_volume.is_true() {
                 let column = if w > 14 { column - 5 } else { column };
-                p.with_color(color_style("prompt"), |p| {
+                p.with_color(theme::prompt(), |p| {
                     p.print((column, 0), &self.volume(w).as_str())
                 });
             };
@@ -323,20 +321,20 @@ impl View for PlayerView {
             let last_row = h - 1;
 
             // Draw the elapsed and remaining playback times.
-            p.with_color(color_style("hl"), |p| {
+            p.with_color(theme::hl(), |p| {
                 let remaining = min(f.duration, f.duration - elapsed);
                 p.print((0, last_row), &mins_and_secs(elapsed));
                 p.print((column, last_row), mins_and_secs(remaining).as_str())
             });
 
             // Draw the fractional part of the progress bar.
-            p.with_color(color_style("progress"), |p| {
+            p.with_color(theme::progress(), |p| {
                 p.print((length + 8, last_row), sub_block(extra));
             });
 
             // Draw the solid part of the progress bar (preceding the fractional part).
             p.cropped((length + 8, h))
-                .with_color(color_style("progress"), |p| {
+                .with_color(theme::progress(), |p| {
                     p.print_hline((8, last_row), length, "█");
                 });
 
@@ -447,7 +445,7 @@ impl View for PlayerView {
 
             Event::CtrlChar('p') => {
                 let mut parent = self.player.path.to_owned();
-                let root = search_root();
+                let root = args::search_root();
 
                 if parent != root {
                     parent.pop();

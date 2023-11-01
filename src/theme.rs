@@ -11,19 +11,10 @@ use cursive::{
     With,
 };
 
-pub const COLOR_MAP: &'static [(&'static str, Color)] = &[
-    ("fg", Rgb(129, 162, 190)),       // blue #81a2be
-    ("bg", Rgb(31, 33, 29)),          // black #1f211d
-    ("hl", Rgb(197, 200, 198)),       // white #c5c8c6
-    ("prompt", Rgb(57, 54, 62)),      // grey #39363e
-    ("header", Rgb(181, 189, 104)),   // green #b5bd68
-    ("header+", Rgb(240, 198, 116)),  // yellow #f0c674
-    ("progress", Rgb(178, 148, 187)), // magenta #b294bb
-    ("info", Rgb(138, 190, 183)),     // cyan #8abeb7
-    ("err", Rgb(204, 102, 102)),      // red #cc6666
-];
+use crate::args;
 
 lazy_static::lazy_static! {
+    pub static ref COLOR_MAP: HashMap<String, Color> = default_palette();
     pub static ref PALETTE: HashMap<String, Color> = create_palette();
 }
 
@@ -40,8 +31,36 @@ pub fn custom() -> Theme {
     }
 }
 
-pub fn color_style(key: &'static str) -> ColorStyle {
-    ColorStyle::front(PALETTE[key])
+pub fn fg() -> ColorStyle {
+    ColorStyle::front(PALETTE["fg"])
+}
+
+pub fn hl() -> ColorStyle {
+    ColorStyle::front(PALETTE["hl"])
+}
+
+pub fn prompt() -> ColorStyle {
+    ColorStyle::front(PALETTE["prompt"])
+}
+
+pub fn header1() -> ColorStyle {
+    ColorStyle::front(PALETTE["header"])
+}
+
+pub fn header2() -> ColorStyle {
+    ColorStyle::front(PALETTE["header+"])
+}
+
+pub fn progress() -> ColorStyle {
+    ColorStyle::front(PALETTE["progress"])
+}
+
+pub fn info() -> ColorStyle {
+    ColorStyle::front(PALETTE["info"])
+}
+
+pub fn err() -> ColorStyle {
+    ColorStyle::front(PALETTE["err"])
 }
 
 pub fn button() -> ColorStyle {
@@ -49,33 +68,31 @@ pub fn button() -> ColorStyle {
 }
 
 fn create_palette() -> HashMap<String, Color> {
-    // Create the default colors.
-    let mut m = HashMap::new();
-    for (k, v) in COLOR_MAP {
-        m.insert(k.to_string(), *v);
-    }
+    // Get the default colors.
+    let mut m = COLOR_MAP.to_owned();
 
     // Update any user-defined colors.
-    let user_colors = crate::args::parse_user_colors();
-    for (k, v) in user_colors.colors {
-        m.insert(k, v);
-    }
+    let (user_colors, term_bg) = args::user_colors();
+    m.extend(user_colors);
 
     // Update background color with terminal color, if using.
-    if user_colors.term_bg {
+    if term_bg {
         m.insert("bg".to_string(), Color::TerminalDefault);
     }
 
     m
 }
 
-pub struct UserColors {
-    colors: Vec<(String, Color)>,
-    term_bg: bool,
-}
-
-impl UserColors {
-    pub fn new(colors: Vec<(String, Color)>, term_bg: bool) -> Self {
-        UserColors { colors, term_bg }
-    }
+fn default_palette() -> HashMap<String, Color> {
+    let mut m = HashMap::new();
+    m.insert("fg".into(), Rgb(129, 162, 190)); // blue #81a2be
+    m.insert("bg".into(), Rgb(31, 33, 29)); // black #1f211d
+    m.insert("hl".into(), Rgb(197, 200, 198)); // white #c5c8c6
+    m.insert("prompt".into(), Rgb(57, 54, 62)); // grey #39363e
+    m.insert("header".into(), Rgb(181, 189, 104)); // green #b5bd68
+    m.insert("header+".into(), Rgb(240, 198, 116)); // yellow #f0c674
+    m.insert("progress".into(), Rgb(178, 148, 187)); // magenta #b294bb
+    m.insert("info".into(), Rgb(138, 190, 183)); // cyan #8abeb7
+    m.insert("err".into(), Rgb(204, 102, 102)); // red #cc6666
+    m
 }

@@ -7,16 +7,17 @@ use std::time::Duration;
 use anyhow::bail;
 use cursive::event::{Event, EventResult, EventTrigger, Key, MouseButton, MouseEvent};
 
-use crate::args::{parse_args, Opts};
+use crate::args::{self, Opts};
 use crate::data::UserData;
+use crate::fuzzy::*;
 use crate::player::{PlayerBuilder, PlayerView};
 use crate::serialization::*;
+use crate::theme;
 use crate::utils::IntoInner;
-use crate::{fuzzy::*, theme};
 
-// Runs the app.
+// Run the app.
 pub fn run() -> Result<(), anyhow::Error> {
-    let (path, opts) = parse_args()?;
+    let (path, opts) = args::parse()?;
 
     match opts {
         Opts::Automate => return run_automated(path),
@@ -111,7 +112,7 @@ fn handle_runner(mut siv: cursive::CursiveRunnable) -> Result<(), anyhow::Error>
     }
 }
 
-// Runs an automated player in the command line without the TUI.
+// Run an automated player in the command line without the TUI.
 fn run_automated(path: PathBuf) -> Result<(), anyhow::Error> {
     let (mut player, _, _) = PlayerBuilder::new(path)?;
     let (mut line, mut length) = player.stdout();
