@@ -4,7 +4,7 @@ use anyhow::bail;
 use clap::{ArgGroup, Parser};
 
 use crate::serialization::get_cached;
-use crate::theme::COLOR_MAP;
+use crate::theme;
 
 type Color = cursive::theme::Color;
 
@@ -33,9 +33,6 @@ pub enum Opts {
 pub struct Args {
     #[arg(help = "The path to play or search on. Defaults to the current working directory")]
     path: Option<PathBuf>,
-
-    #[arg(help = "Providing a second path overrides the first path")]
-    second_path: Option<PathBuf>,
 
     #[arg(
         short,
@@ -108,15 +105,12 @@ pub fn search_root() -> PathBuf {
 }
 
 fn parse_path() -> Result<PathBuf, anyhow::Error> {
-    let path = match ARGS.default {
-        true => get_cached::<PathBuf>("path")?,
-        false => match &ARGS.second_path {
-            Some(p) => p.to_owned(),
-            None => match &ARGS.path {
-                Some(p) => p.to_owned(),
-                None => std::env::current_dir()?,
-            },
-        },
+    let path = match &ARGS.path {
+        Some(p) => p.to_owned(),
+        None => match &ARGS.default {
+            true => get_cached::<PathBuf>("path")?,
+            false => std::env::current_dir()?,
+        }
     };
 
     if !path.exists() {
@@ -129,7 +123,7 @@ fn parse_path() -> Result<PathBuf, anyhow::Error> {
 fn parse_opts() -> Opts {
     if ARGS.automate {
         Opts::Automate
-    } else if ARGS.default {
+    } else if ARGS.default && ARGS.path.is_none() {
         Opts::Default
     } else if ARGS.set_default {
         Opts::Set
@@ -148,7 +142,7 @@ fn parse_color(s: &str) -> Result<(String, Color), anyhow::Error> {
 
     let (key, val): (String, Color) = (s[..pos].parse()?, (s[pos + 1..]).parse()?);
 
-    for color_key in COLOR_MAP.keys() {
+    for color_key in theme::COLOR_MAP.keys() {
         if key.eq(color_key) {
             return Ok((key, val));
         }
