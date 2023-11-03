@@ -53,9 +53,9 @@ pub struct Args {
     #[arg( short, long, default_value_t = false)]
     term_bg: bool,
 
-    /// Set custom colors using <NAME>=<HEX>
+    /// Set the color scheme with <NAME>=<HEX>
     /// For example: 
-    ///'--colors fg=268bd2,bg=002b36,hl=fdf6e3,prompt=586e75,header=859900,header+=cb4b16,progress=6c71c4,info=2aa198,err=dc322f'
+    ///'--color fg=268bd2,bg=002b36,hl=fdf6e3,prompt=586e75,header=859900,header+=cb4b16,progress=6c71c4,info=2aa198,err=dc322f'
     #[arg(
         short,
         long, 
@@ -63,7 +63,7 @@ pub struct Args {
         value_delimiter = ',',
         verbatim_doc_comment,
     )]
-    colors: Vec<(String, Color)>,
+    color: Vec<(String, Color)>,
 }
 
 pub fn parse() -> Result<(PathBuf, Opts), anyhow::Error> {
@@ -71,7 +71,7 @@ pub fn parse() -> Result<(PathBuf, Opts), anyhow::Error> {
 }
 
 pub fn user_colors() -> (Vec<(String, Color)>, bool) {
-    (ARGS.colors.to_owned(), ARGS.term_bg)
+    (ARGS.color.to_owned(), ARGS.term_bg)
 }
 
 pub fn search_root() -> PathBuf {
@@ -100,9 +100,9 @@ fn parse_color(s: &str) -> Result<(String, Color), anyhow::Error> {
     let pos = match s.find('=') {
         Some(pos) => pos,
         None => bail!(
-            "{}invalid color argument: no '=' found in '{s}' for '--colors <COLORS>'\n\n\
+            "{}invalid color argument: no '=' found in '{s}' for '--color <COLOR>'\n\n\
             for example, to set the foreground and background colors use:\n\n\
-            '--colors fg=<HEX>,bg=<HEX>'", 
+            '--color fg=<HEX>,bg=<HEX>'", 
             format_stderr(s)
         ),
     };
@@ -112,7 +112,7 @@ fn parse_color(s: &str) -> Result<(String, Color), anyhow::Error> {
     let hex: Color = match is_valid_hex_string(&color) && color.len() == 6 {
         true => color.parse()?,
         false => bail!(
-            "{}invalid hex value '{color}' for '--colors <COLORS>'\n\n\
+            "{}invalid hex value '{color}' for '--color <COLOR>'\n\n\
             valid values are in range '000000' -> 'ffffff'",
             format_stderr(s),
         ),
@@ -121,7 +121,7 @@ fn parse_color(s: &str) -> Result<(String, Color), anyhow::Error> {
     match theme::COLOR_MAP.contains_key(&name) {
         true => Ok((name, hex)),
         false => bail!(
-            "{}invalid color name '{name}' for '--colors <COLORS>'\n\n\
+            "{}invalid color name '{name}' for '--color <COLOR>'\n\n\
             available names:\n\
             'fg', 'bg', 'hl', 'prompt', 'header', 'header+', 'progress', 'info', 'err'",
             format_stderr(s),
