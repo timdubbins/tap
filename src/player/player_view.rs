@@ -1,4 +1,3 @@
-use std::cmp::min;
 use std::time::Duration;
 
 use cursive::event::{Event, EventResult, Key, MouseButton, MouseEvent};
@@ -240,11 +239,6 @@ impl View for PlayerView {
         // The values needed to draw the progress bar.
         let (length, extra) = ratio(elapsed, f.duration, length);
 
-        // This is to guard against a potential division by zero.
-        if f.duration < elapsed {
-            return;
-        }
-
         // Draw the playlist, with rows: 'Track, Title, Duration'.
         if h > 2 {
             for (i, f) in self.player.playlist.iter().enumerate() {
@@ -253,42 +247,32 @@ impl View for PlayerView {
                     continue;
                 }
 
+                let row = i + 1 - self.offset;
+
                 if i == self.player.index {
                     // Draw the player status.
                     let (symbol, color, effect) = self.player_status();
                     p.with_color(color, |p| {
-                        p.with_effect(effect, |p| p.print((3, i + 1 - self.offset), symbol))
+                        p.with_effect(effect, |p| p.print((3, row), symbol))
                     });
                     // Draw the active row.
                     p.with_color(theme::hl(), |p| {
-                        p.print(
-                            (6, i + 1 - self.offset),
-                            format!("{:02}  {}", f.track, f.title).as_str(),
-                        );
+                        p.print((6, row), format!("{:02}  {}", f.track, f.title).as_str());
                         if column > 11 && (self.player.is_randomized || self.player.is_muted) {
                             // Draw the player options.
                             p.with_color(theme::info(), |p| {
                                 p.with_effect(Effect::Italic, |p| {
-                                    p.print((column - 3, i + 1 - self.offset), self.player_opts())
+                                    p.print((column - 3, row), self.player_opts())
                                 })
                             })
                         }
-                        p.print(
-                            (column, i + 1 - self.offset),
-                            mins_and_secs(f.duration).as_str(),
-                        );
+                        p.print((column, row), mins_and_secs(f.duration).as_str());
                     })
                 } else if i + 2 - self.offset < h {
                     // Draw the inactive rows.
                     p.with_color(theme::fg(), |p| {
-                        p.print(
-                            (6, i + 1 - self.offset),
-                            format!("{:02}  {}", f.track, f.title).as_str(),
-                        );
-                        p.print(
-                            (column, i + 1 - self.offset),
-                            mins_and_secs(f.duration).as_str(),
-                        );
+                        p.print((6, row), format!("{:02}  {}", f.track, f.title).as_str());
+                        p.print((column, row), mins_and_secs(f.duration).as_str());
                     })
                 }
 
@@ -316,13 +300,19 @@ impl View for PlayerView {
                     p.print((column, 0), &self.volume(w).as_str())
                 });
             };
+        }
 
+        if h > 0 {
             // The last row we can draw on.
             let last_row = h - 1;
 
             // Draw the elapsed and remaining playback times.
             p.with_color(theme::hl(), |p| {
-                let remaining = min(f.duration, f.duration - elapsed);
+                let remaining = if elapsed > f.duration {
+                    0
+                } else {
+                    f.duration - elapsed
+                };
                 p.print((0, last_row), &mins_and_secs(elapsed));
                 p.print((column, last_row), mins_and_secs(remaining).as_str())
             });
