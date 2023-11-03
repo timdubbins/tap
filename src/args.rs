@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::bail;
-use clap::{ArgGroup, Parser};
+use clap::Parser;
 
 use crate::serialization::get_cached;
 use crate::theme;
@@ -25,75 +25,49 @@ pub enum Opts {
 #[command(
     author = "Tim Dubbins",
     about = "An audio player for the terminal with fuzzy-finder",
-    version = "0.4.7"
+    version = "0.4.8"
 )]
-#[clap(group = ArgGroup::new("exclude_multiples").multiple(false))]
-#[clap(group = ArgGroup::new("conflicts_path").conflicts_with("path"))]
-#[clap(group = ArgGroup::new("requires_path").requires("path"))]
 pub struct Args {
-    #[arg(help = "The path to play or search on. Defaults to the current working directory")]
+    /// The path to play or search on. Defaults to the current working directory
     path: Option<PathBuf>,
 
-    #[arg(
-        short,
-        long,
-        default_value_t = false,
-        group = "exclude_multiples",
-        help = "Run an automated player without the TUI"
-    )]
+    /// Run an automated player without the TUI
+    #[arg( short, long, default_value_t = false)]
     automate: bool,
 
-    #[arg(
-        short,
-        long,
-        default_value_t = false,
-        group = "exclude_multiples",
-        group = "requires_path",
-        help = "Set a default directory using the provided path"
-    )]
+    /// Set a default directory using the provided path
+    #[arg( short, long, default_value_t = false)]
     set_default: bool,
 
-    #[arg(
-        short,
-        long,
-        default_value_t = false,
-        group = "exclude_multiples",
-        help = "Run tap with the default directory, if set"
-    )]
-    default: bool,
+    /// Run tap with the default directory, if set
+    #[clap( short, long, default_value_t = 0, action = clap::ArgAction::Count)]
+    // We use `u8` instead of `bool` so that this flag can be passed multiple 
+    // times. Defined as `false` if 0, `true` otherwise.
+    default: u8,
 
-    #[arg(
-        short,
-        long,
-        default_value_t = false,
-        group = "exclude_multiples",
-        group = "conflicts_path",
-        help = "Print the default directory, if set"
-    )]
+    /// Print the default directory, if set
+    #[arg( short, long, default_value_t = false)]
     print_default: bool,
 
-    #[arg(
-        short,
-        long,
-        default_value_t = false,
-        help = "Use the terminal background color"
-    )]
+    /// Use the terminal background color
+    #[arg( short, long, default_value_t = false)]
     term_bg: bool,
 
+    /// Set custom colors using <NAME>=<HEX>
+    /// For example: 
+    ///'--colors fg=268bd2,bg=002b36,hl=fdf6e3,prompt=586e75,header=859900,header+=cb4b16,progress=6c71c4,info=2aa198,err=dc322f'
     #[arg(
-        short, 
+        short,
         long, 
         value_parser = parse_color, 
-        value_delimiter = ',', 
-        help = "Set custom colors using <color-key>=<hex-value>. 
-        For example:
-            '--colors fg=268bd2,bg=002b36,hl=fdf6e3,prompt=586e75,header=859900,header+=cb4b16,progress=6c71c4,info=2aa198,err=dc322f'"
+        value_delimiter = ',',
+        verbatim_doc_comment,
     )]
     colors: Vec<(String, Color)>,
 }
 
 pub fn parse() -> Result<(PathBuf, Opts), anyhow::Error> {
-    Ok((parse_path()?, parse_opts()))
+    Ok((parse_path()?, parse_opts()?))
 }
 
 pub fn user_colors() -> (Vec<(String, Color)>, bool) {
@@ -107,7 +81,7 @@ pub fn search_root() -> PathBuf {
 fn parse_path() -> Result<PathBuf, anyhow::Error> {
     let path = match &ARGS.path {
         Some(p) => p.to_owned(),
-        None => match &ARGS.default {
+        None => match ARGS.default > 0 {
             true => get_cached::<PathBuf>("path")?,
             false => std::env::current_dir()?,
         }
@@ -120,33 +94,96 @@ fn parse_path() -> Result<PathBuf, anyhow::Error> {
     Ok(path.canonicalize()?)
 }
 
-fn parse_opts() -> Opts {
-    if ARGS.automate {
-        Opts::Automate
-    } else if ARGS.default && ARGS.path.is_none() {
-        Opts::Default
-    } else if ARGS.set_default {
-        Opts::Set
-    } else if ARGS.print_default {
-        Opts::Print
-    } else {
-        Opts::None
+
+
+fn parse_color(s: &str) -> Result<(String, Color), anyhow::Error> {
+    let pos = match s.find('=') {
+        Some(pos) => pos,
+        None => bail!(
+            "{}invalid color argument: no '=' found in '{s}' for '--colors <COLORS>'\n\n\
+            for example, to set the foreground and background colors use:\n\n\
+            '--colors fg=<HEX>,bg=<HEX>'", 
+            format_stderr(s)
+        ),
+    };
+
+    let (name, color): (String, String) = (s[..pos].parse()?, (s[pos + 1..]).parse()?);
+
+    let hex: Color = match is_valid_hex_string(&color) && color.len() == 6 {
+        true => color.parse()?,
+        false => bail!(
+            "{}invalid hex value '{color}' for '--colors <COLORS>'\n\n\
+            valid values are in range '000000' -> 'ffffff'",
+            format_stderr(s),
+        ),
+    };
+
+    match theme::COLOR_MAP.contains_key(&name) {
+        true => Ok((name, hex)),
+        false => bail!(
+            "{}invalid color name '{name}' for '--colors <COLORS>'\n\n\
+            available names:\n\
+            'fg', 'bg', 'hl', 'prompt', 'header', 'header+', 'progress', 'info', 'err'",
+            format_stderr(s),
+        ),
     }
 }
 
-fn parse_color(s: &str) -> Result<(String, Color), anyhow::Error> {
-        let pos = match s.find('=') {
-            Some(pos) => pos,
-            None => bail!("invalid color argument: no `=` found in `{s}`"),
-        };
+fn parse_opts() -> Result<Opts, anyhow::Error> {
+    exclude_multiple()?;
+    conflicts_path()?;
+    
+    if ARGS.automate {
+        Ok(Opts::Automate)
+    } else if ARGS.set_default {
+        Ok(Opts::Set)
+    } else if ARGS.print_default {
+        Ok(Opts::Print)
+    } else if ARGS.default > 0 && ARGS.path.is_none() {
+        Ok(Opts::Default)
+    } else {
+        Ok(Opts::None)
+    }
+}
 
-    let (key, val): (String, Color) = (s[..pos].parse()?, (s[pos + 1..]).parse()?);
-
-    for color_key in theme::COLOR_MAP.keys() {
-        if key.eq(color_key) {
-            return Ok((key, val));
-        }
+fn exclude_multiple() -> Result<(), anyhow::Error> {
+    if ARGS.automate && ARGS.print_default {
+        bail!("'--automate' cannot be used with '--print-default'")
+    } else if ARGS.automate && ARGS.set_default {
+        bail!("'--automate' cannot be used with '--set-default'")
+    } else if ARGS.print_default && ARGS.set_default {
+        bail!("'--print-default' cannot be used with '--set-default'")
     }
 
-    bail!("invalid color definition: no such definition `{key}`");
+    Ok(())
+}
+
+fn conflicts_path() -> Result<(), anyhow::Error> {
+    if ARGS.automate && ARGS.path.is_none() {
+            bail!("'--automate' requires a 'path' argument")
+    } else if ARGS.set_default && ARGS.path.is_none() {
+            bail!("'--set-default' requires a 'path' argument")
+    } else if ARGS.print_default && ARGS.path.is_some() {
+            bail!("'--print-default' cannot be used with a 'path' argument")
+    }
+
+    Ok(())
+}
+
+fn is_valid_hex_string(s: &str) -> bool {
+    for c in s.chars() {
+        if !c.is_digit(16)  {
+            return false;
+        }
+    }
+    true
+}
+
+// Hack used to format error messages by overwriting clap stderr
+// with 'spaces'.
+fn format_stderr(s: &str) -> String {
+    // There are 50 chars in the clap error message, excluding
+    // the chars from user input.
+    let spaces = s.len() + 50;
+    format!("\r{: <1$}\r[tap error]: ", " ", spaces)
 }
