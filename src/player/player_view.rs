@@ -8,10 +8,10 @@ use cursive::view::Resizable;
 use cursive::{Cursive, Printer, XY};
 use expiring_bool::ExpiringBool;
 
-use crate::args;
 use crate::fuzzy::{create_items, FuzzyView};
 use crate::theme;
 use crate::utils::UserData;
+use crate::{args, utils};
 
 use super::{KeysView, Player, PlayerBuilder, PlayerStatus};
 
@@ -444,6 +444,11 @@ impl View for PlayerView {
                         FuzzyView::load(items, siv)
                     });
                 }
+            }
+
+            Event::CtrlChar('o') => {
+                let path = self.player.path.to_owned();
+                _ = utils::open_file_manager(path);
             }
 
             Event::Char('0') => self.player.number_keys.push(0),

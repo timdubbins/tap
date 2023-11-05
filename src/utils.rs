@@ -38,6 +38,41 @@ pub fn last_modified(path: &PathBuf) -> Result<SystemTime, anyhow::Error> {
     }
 }
 
+// Attempts to open the path with the default file manager.
+// Requires 'xdg-open' on linux systems. Uses 'open' on macos.
+pub fn open_file_manager(path: PathBuf) -> Result<(), anyhow::Error> {
+    let p = match std::fs::metadata(&path) {
+        Ok(meta) => match meta.is_dir() {
+            true => path,
+            false => path.parent().unwrap().to_path_buf(),
+        },
+        Err(err) => bail!(err),
+    };
+
+    let s = p
+        .as_os_str()
+        .to_str()
+        .expect("should be a valid UTF-8 path");
+
+    #[cfg(target_os = "macos")]
+    {
+        let status = std::process::Command::new("open").arg(s).status();
+        match status {
+            Ok(_) => Ok(()),
+            Err(err) => bail!(err),
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let status = std::process::Command::new("xdg-open").arg(s).status();
+        match status {
+            Ok(_) => Ok(()),
+            Err(err) => bail!(err),
+        }
+    }
+}
+
 #[cfg(test)]
 // Find the test assets.
 pub fn find_assets_dir() -> PathBuf {

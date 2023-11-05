@@ -29,7 +29,8 @@ impl KeysView {
                                 .child("album search:", TextView::new("Ctrl + s"))
                                 .child("parent search:", TextView::new("Ctrl + p"))
                                 .child("previous album:", TextView::new("-"))
-                                .child("random album:", TextView::new("=")),
+                                .child("random album:", TextView::new("="))
+                                .child("open file manager", TextView::new("Ctrl + o")),
                         ),
                     )
                     .child(DummyView.fixed_height(1))

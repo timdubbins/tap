@@ -10,10 +10,10 @@ use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
-use crate::args;
 use crate::player::{PlayerBuilder, PlayerView};
 use crate::theme;
 use crate::utils::{random, UserData};
+use crate::{args, utils};
 
 use super::{create_items, ErrorView, FuzzyItem};
 
@@ -430,6 +430,7 @@ impl View for FuzzyView {
             Event::Key(Key::Home) => self.cursor = 0,
             Event::Key(Key::End) => self.cursor = self.query.len(),
             Event::CtrlChar('u') => self.clear(),
+
             Event::CtrlChar('p') => {
                 let mut parent = match self.items.first() {
                     Some(parent) => parent.path.to_owned(),
@@ -448,6 +449,12 @@ impl View for FuzzyView {
                     }
                 });
             }
+
+            Event::CtrlChar('o') => {
+                let path = self.items[self.selected].path.to_owned();
+                _ = utils::open_file_manager(path);
+            }
+
             _ => return EventResult::Ignored,
         }
 
