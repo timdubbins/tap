@@ -6,18 +6,35 @@ use std::time::SystemTime;
 use anyhow::bail;
 use bincode::{config, Decode};
 
-use crate::fuzzy::{create_items, FuzzyItem};
-use crate::utils::last_modified;
+use crate::fuzzy::{self, FuzzyItem};
+use crate::utils;
 
-// ~/.cache/tap/path
-// ~/.cache/tap/last_modified
-// ~/.cache/tap/items
+pub fn cached_path() -> Result<PathBuf, anyhow::Error> {
+    // ~/.cache/tap/path
+    get_cached::<PathBuf>("path")
+}
 
-// benchmark:
-// test directory size: 200GB, cache size: 350KB
-// load test directory: 1.8s, load cache: 0.3s
+pub fn cached_items() -> Result<Vec<FuzzyItem>, anyhow::Error> {
+    // ~/.cache/tap/items
+    get_cached::<Vec<FuzzyItem>>("items")
+}
 
-pub fn get_cached<T: Decode>(file_name: &str) -> Result<T, anyhow::Error> {
+fn cached_last_modified() -> Result<SystemTime, anyhow::Error> {
+    // ~/.cache/tap/last_modified
+    get_cached::<SystemTime>("last_modified")
+}
+
+pub fn needs_update(path: &PathBuf) -> Result<bool, anyhow::Error> {
+    let res = utils::last_modified(path)?.eq(&cached_last_modified()?);
+    Ok(!res)
+}
+
+pub fn uses_default(path: &PathBuf) -> bool {
+    let cached_path = cached_path().unwrap_or_default();
+    cached_path.eq(path)
+}
+
+fn get_cached<T: Decode>(file_name: &str) -> Result<T, anyhow::Error> {
     let file_path = cache_dir()?.join(file_name);
 
     let mut file = match File::open(file_path) {
@@ -33,16 +50,6 @@ pub fn get_cached<T: Decode>(file_name: &str) -> Result<T, anyhow::Error> {
     let (ret, _): (T, _) = bincode::decode_from_slice(&encoded[..], config)?;
 
     Ok(ret)
-}
-
-pub fn needs_update(path: &PathBuf) -> Result<bool, anyhow::Error> {
-    let cached_modified = get_cached::<SystemTime>("last_modified")?;
-    Ok(!last_modified(path)?.eq(&cached_modified))
-}
-
-pub fn uses_default(path: &PathBuf) -> bool {
-    let cached_path = get_cached::<PathBuf>("path").unwrap_or_default();
-    cached_path.eq(path)
 }
 
 fn cache_dir() -> Result<PathBuf, anyhow::Error> {
@@ -67,8 +74,8 @@ fn cache_dir() -> Result<PathBuf, anyhow::Error> {
 }
 
 pub fn update_cache(path: &PathBuf) -> Result<Vec<FuzzyItem>, anyhow::Error> {
-    let last_modified = last_modified(path)?;
-    let items = create_items(path)?;
+    let last_modified = utils::last_modified(path)?;
+    let items = fuzzy::create_items(path)?;
 
     let config = config::standard();
     let cache_dir = cache_dir()?;

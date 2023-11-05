@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use anyhow::bail;
 use clap::Parser;
 
-use crate::serialization::get_cached;
+use crate::serde;
 use crate::theme;
 
 type Color = cursive::theme::Color;
@@ -82,7 +82,7 @@ fn parse_path() -> Result<PathBuf, anyhow::Error> {
     let path = match &ARGS.path {
         Some(p) => p.to_owned(),
         None => match ARGS.default > 0 {
-            true => get_cached::<PathBuf>("path")?,
+            true => serde::cached_path()?,
             false => std::env::current_dir()?,
         }
     };

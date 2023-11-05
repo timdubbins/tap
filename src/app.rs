@@ -11,7 +11,7 @@ use crate::args::{self, Opts};
 use crate::data::UserData;
 use crate::fuzzy::*;
 use crate::player::{PlayerBuilder, PlayerView};
-use crate::serialization::*;
+use crate::serde;
 use crate::theme;
 use crate::utils::IntoInner;
 
@@ -138,7 +138,7 @@ fn run_automated(path: PathBuf) -> Result<(), anyhow::Error> {
 }
 
 fn process_cache(path: PathBuf, action: &'static str) -> Result<(), anyhow::Error> {
-    match process(update_cache, &path, action) {
+    match process(serde::update_cache, &path, action) {
         Ok(_) => {
             println!("\r[tap]: {}...", action);
             println!("[tap]: done!");
@@ -149,20 +149,20 @@ fn process_cache(path: PathBuf, action: &'static str) -> Result<(), anyhow::Erro
 }
 
 fn print_cached_path() -> Result<(), anyhow::Error> {
-    let cached_path = get_cached::<PathBuf>("path")?;
+    let cached_path = serde::cached_path()?;
     println!("[tap]: default set to '{}'", cached_path.display());
 
     Ok(())
 }
 
 fn get_items(path: &PathBuf, opts: Opts) -> Result<Vec<FuzzyItem>, anyhow::Error> {
-    match opts == Opts::Default || uses_default(path) {
-        true => match needs_update(path)? {
-            true => process(update_cache, path, "updating"),
-            false => match get_cached::<Vec<FuzzyItem>>("items") {
+    match opts == Opts::Default || serde::uses_default(path) {
+        true => match serde::needs_update(path)? {
+            true => process(serde::update_cache, path, "updating"),
+            false => match serde::cached_items() {
                 Ok(items) => Ok(items),
                 // Try an update before bailing.
-                Err(_) => process(update_cache, path, "updating"),
+                Err(_) => process(serde::update_cache, path, "updating"),
             },
         },
         false => process(create_items, path, "loading"),
