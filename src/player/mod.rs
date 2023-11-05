@@ -7,7 +7,7 @@ pub mod player_view;
 pub mod status;
 
 pub use self::{
-    audio_file::{is_valid, AudioFile},
+    audio_file::{valid_audio_ext, AudioFile},
     builder::PlayerBuilder,
     keys_view::KeysView,
     opts::PlayerOpts,

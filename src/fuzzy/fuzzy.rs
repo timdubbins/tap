@@ -4,7 +4,7 @@ use anyhow::bail;
 use bincode::{Decode, Encode};
 use walkdir::{DirEntry, WalkDir};
 
-use crate::player::is_valid;
+use crate::player::valid_audio_ext;
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, Encode, Decode)]
 pub struct FuzzyItem {
@@ -163,7 +163,7 @@ fn is_non_hidden_dir(entry: &walkdir::DirEntry) -> bool {
 fn has_audio(path: &PathBuf) -> Result<bool, anyhow::Error> {
     for entry in path.read_dir()? {
         if let Ok(entry) = entry {
-            if is_valid(&entry.path()) {
+            if valid_audio_ext(&entry.path()) {
                 return Ok(true);
             }
         }
@@ -180,7 +180,7 @@ fn validate(path: &PathBuf) -> Result<(bool, usize), anyhow::Error> {
             if entry.path().is_dir() {
                 dir_count += 1;
             } else if !has_audio {
-                has_audio = is_valid(&entry.path());
+                has_audio = valid_audio_ext(&entry.path());
             }
         }
 

@@ -1,11 +1,13 @@
 use core::cmp::Ordering;
-use std::path::PathBuf;
+use std::{collections::HashSet, path::PathBuf};
 
 use anyhow::bail;
 use lofty::{Accessor, AudioFile as LoftyAudioFile, Probe, TaggedFileExt};
 
-// The list of valid file extensions.
-const FORMATS: &'static [&'static str] = &["aac", "flac", "mp3", "m4a", "ogg", "wav", "wma"];
+// The set of valid audio file extensions.
+lazy_static::lazy_static! {
+    pub static ref AUDIO_FORMATS: HashSet<&'static str> = create_set();
+}
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord)]
 pub struct AudioFile {
@@ -71,7 +73,19 @@ impl PartialOrd for AudioFile {
 }
 
 // Returns true if the file extension is a valid format.
-pub fn is_valid(p: &PathBuf) -> bool {
+pub fn valid_audio_ext(p: &PathBuf) -> bool {
     let ext = p.extension().unwrap_or_default().to_str().unwrap();
-    FORMATS.contains(&ext)
+    AUDIO_FORMATS.contains(&ext)
+}
+
+fn create_set() -> HashSet<&'static str> {
+    let mut m = HashSet::new();
+    m.insert("aac");
+    m.insert("flac");
+    m.insert("mp3");
+    m.insert("m4a");
+    m.insert("ogg");
+    m.insert("wav");
+    m.insert("wma");
+    m
 }

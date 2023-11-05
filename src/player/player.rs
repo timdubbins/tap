@@ -11,9 +11,9 @@ use expiring_bool::ExpiringBool;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
 use crate::args;
-use crate::utils::{concatenate, random};
+use crate::utils;
 
-use super::{is_valid, AudioFile, PlayerOpts, PlayerStatus, StatusToBytes};
+use super::{valid_audio_ext, AudioFile, PlayerOpts, PlayerStatus, StatusToBytes};
 
 pub type PlayerResult = Result<(Player, bool, XY<usize>), anyhow::Error>;
 
@@ -208,7 +208,7 @@ impl Player {
 
     // Select the track to play from the stored keyboard input.
     fn select_track_number(&mut self) -> bool {
-        let track_number = concatenate(&self.number_keys) as u32;
+        let track_number = utils::concatenate(&self.number_keys) as u32;
 
         match self.indices.get(&track_number) {
             Some(i) => {
@@ -342,10 +342,10 @@ impl Player {
                 // Give up after a while.
                 return None;
             }
-            let target = random(0..paths.len());
+            let target = utils::random(0..paths.len());
             let path = paths[target].to_owned();
             if let Ok((playlist, _)) = playlist(&path, false) {
-                let index = random(0..playlist.len());
+                let index = utils::random(0..playlist.len());
                 return Some((path, index));
             } else {
                 count += 1;
@@ -357,10 +357,10 @@ impl Player {
     // Sets the current track in a playlist randomly.
     pub fn next_random(&mut self) {
         if self.playlist.len() > 1 {
-            let mut index = random(0..self.playlist.len());
+            let mut index = utils::random(0..self.playlist.len());
             if index == self.index {
                 // A second chance to find a new index.
-                index = random(0..self.playlist.len());
+                index = utils::random(0..self.playlist.len());
             }
             self.previous = self.index;
             self.index = index;
@@ -466,7 +466,7 @@ pub fn playlist(
                 let path = entry.path();
                 if recurse && path.is_dir() {
                     return playlist(&path, recurse);
-                } else if is_valid(&path) {
+                } else if valid_audio_ext(&path) {
                     match AudioFile::new(path) {
                         // Grow the playlist and update width.
                         Ok(f) => {
@@ -479,7 +479,7 @@ pub fn playlist(
                 }
             }
         }
-    } else if is_valid(&path) {
+    } else if valid_audio_ext(&path) {
         match AudioFile::new(path.clone()) {
             // Create the playlist that contains a single file.
             Ok(f) => {
