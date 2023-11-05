@@ -96,19 +96,21 @@ pub fn run() -> Result<(), anyhow::Error> {
 }
 
 fn handle_runner(mut siv: cursive::CursiveRunnable) -> Result<(), anyhow::Error> {
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "run_tests")] {
-            // Exit the process in test builds.
-            match siv.user_data::<crate::utils::UserData>() {
-                // Output user data as stderr, if available.
-                Some(user_data) => bail!("{:?}", user_data),
-                None => Ok(()),
-            }
-        } else {
-            // Run the Cursive event loop in production builds.
-            siv.run();
-            Ok(())
+    // Exit the process in test builds.
+    #[cfg(feature = "run_tests")]
+    {
+        match siv.user_data::<crate::utils::UserData>() {
+            // Output user data as stderr, if available.
+            Some(user_data) => bail!("{:?}", user_data),
+            None => Ok(()),
         }
+    }
+
+    // Run the Cursive event loop in production builds.
+    #[cfg(not(feature = "run_tests"))]
+    {
+        siv.run();
+        Ok(())
     }
 }
 
