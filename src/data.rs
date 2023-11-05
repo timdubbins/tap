@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use anyhow::bail;
 
-use crate::fuzzy::{leaf_paths, FuzzyItem};
+use crate::fuzzy::{self, FuzzyItem};
 use crate::player::{Player, PlayerOpts};
 use crate::utils::IntoInner;
 
@@ -22,7 +22,7 @@ pub struct UserData {
 
 impl UserData {
     pub fn new(path: &PathBuf, items: &Vec<FuzzyItem>) -> Result<Self, anyhow::Error> {
-        let paths = leaf_paths(&items);
+        let paths = fuzzy::leaf_paths(&items);
         let queue: VecDeque<Track> = match Player::randomized(&paths) {
             Some(first) => VecDeque::from([first]),
             None => bail!("no audio files detected in '{}'", path.display()),

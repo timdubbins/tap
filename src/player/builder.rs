@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use anyhow::bail;
 use cursive::Cursive;
 
-use crate::utils::{random, UserData};
+use crate::utils::{self, UserData};
 
 use super::{
     player::{playlist, PlayerResult},
@@ -79,8 +79,9 @@ impl PlayerBuilder {
                     Some(track) => track,
                     None => {
                         let path = path.to_owned();
-                        let index =
-                            random(0..playlist(&path, false).expect("should always exist").0.len());
+                        let upper_bound =
+                            playlist(&path, false).expect("should always exist").0.len();
+                        let index = utils::random(0..upper_bound);
                         (path, index)
                     }
                 };

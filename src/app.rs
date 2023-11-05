@@ -9,7 +9,7 @@ use cursive::event::{Event, EventResult, EventTrigger, Key, MouseButton, MouseEv
 
 use crate::args::{self, Opts};
 use crate::data::UserData;
-use crate::fuzzy::*;
+use crate::fuzzy::{self, FuzzyItem, FuzzyView};
 use crate::player::{PlayerBuilder, PlayerView};
 use crate::serde;
 use crate::theme;
@@ -72,17 +72,17 @@ pub fn run() -> Result<(), anyhow::Error> {
         let c = event.char().unwrap_or('0');
 
         if matches!(c, 'A'..='Z') {
-            let items = key_items(c, &items);
+            let items = fuzzy::key_items(c, &items);
             return Some(EventResult::with_cb(move |siv| {
                 FuzzyView::with(items.to_owned(), c, siv)
             }));
         }
 
         let items = match c {
-            'a' => non_leaf_items(&items),
-            's' => audio_items(&items),
+            'a' => fuzzy::non_leaf_items(&items),
+            's' => fuzzy::audio_items(&items),
             _ => match event.f_num() {
-                Some(depth) => depth_items(depth, &items),
+                Some(depth) => fuzzy::depth_items(depth, &items),
                 None => items.to_owned(),
             },
         };
@@ -165,7 +165,7 @@ fn get_items(path: &PathBuf, opts: Opts) -> Result<Vec<FuzzyItem>, anyhow::Error
                 Err(_) => process(serde::update_cache, path, "updating"),
             },
         },
-        false => process(create_items, path, "loading"),
+        false => process(fuzzy::create_items, path, "loading"),
     }
 }
 

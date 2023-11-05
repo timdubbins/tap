@@ -12,7 +12,7 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::player::{PlayerBuilder, PlayerView};
 use crate::theme;
-use crate::utils::{random, UserData};
+use crate::utils::UserData;
 use crate::{args, utils};
 
 use super::{create_items, ErrorView, FuzzyItem};
@@ -126,7 +126,7 @@ impl FuzzyView {
         }
 
         let pages = self.items.len() / (self.available_y) + 1;
-        let page = random(0..pages);
+        let page = utils::random(0..pages);
         let y = page * (self.available_y);
 
         if y == self.offset {

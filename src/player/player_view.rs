@@ -8,7 +8,7 @@ use cursive::view::Resizable;
 use cursive::{Cursive, Printer, XY};
 use expiring_bool::ExpiringBool;
 
-use crate::fuzzy::{create_items, FuzzyView};
+use crate::fuzzy::{self, FuzzyView};
 use crate::theme;
 use crate::utils::UserData;
 use crate::{args, utils};
@@ -440,7 +440,7 @@ impl View for PlayerView {
                 if parent != root {
                     parent.pop();
                     return EventResult::with_cb(move |siv| {
-                        let items = create_items(&parent).expect("should always exist");
+                        let items = fuzzy::create_items(&parent).expect("should always exist");
                         FuzzyView::load(items, siv)
                     });
                 }

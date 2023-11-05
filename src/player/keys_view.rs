@@ -6,7 +6,7 @@ use cursive::views::{
 };
 use cursive::Cursive;
 
-use crate::theme::button;
+use crate::theme;
 
 pub struct KeysView {}
 
@@ -65,7 +65,9 @@ impl KeysView {
                         ),
                     )
                     .child(DummyView.fixed_height(2))
-                    .child(TextView::new(StyledString::styled(" <Back> ", button())).center()),
+                    .child(
+                        TextView::new(StyledString::styled(" <Back> ", theme::button())).center(),
+                    ),
             )
             .show_scrollbars(false),
         )
