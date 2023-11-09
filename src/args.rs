@@ -32,25 +32,25 @@ pub struct Args {
     path: Option<PathBuf>,
 
     /// Run an automated player without the TUI
-    #[arg( short, long, default_value_t = false)]
+    #[arg(short, long, default_value_t = false)]
     automate: bool,
 
     /// Set a default directory using the provided path
-    #[arg( short, long, default_value_t = false)]
+    #[arg(short, long, default_value_t = false)]
     set_default: bool,
 
     /// Run tap with the default directory, if set
-    #[clap( short, long, default_value_t = 0, action = clap::ArgAction::Count)]
+    #[clap(short, long, default_value_t = 0, action = clap::ArgAction::Count)]
     // We use `u8` instead of `bool` so that this flag can be passed multiple 
     // times. Defined as `false` if 0, `true` otherwise.
     default: u8,
 
     /// Print the default directory, if set
-    #[arg( short, long, default_value_t = false)]
+    #[arg(short, long, default_value_t = false)]
     print_default: bool,
 
     /// Use the terminal background color
-    #[arg( short, long, default_value_t = false)]
+    #[arg(short, long, default_value_t = false)]
     term_bg: bool,
 
     /// Set the color scheme with <NAME>=<HEX>
@@ -93,8 +93,6 @@ fn parse_path() -> Result<PathBuf, anyhow::Error> {
 
     Ok(path.canonicalize()?)
 }
-
-
 
 fn parse_color(s: &str) -> Result<(String, Color), anyhow::Error> {
     let pos = match s.find('=') {
