@@ -18,8 +18,8 @@ use super::{KeysView, Player, PlayerBuilder, PlayerStatus};
 pub struct PlayerView {
     // The currently loaded player.
     player: Player,
-    // The last track index selected by mouse input, if any.
-    selected: Option<usize>,
+    // The last track index selected by mouse input.
+    mouse_selected_index: usize,
     // The vertical offset required to show relevant playlist rows.
     offset: usize,
     // Whether or not the current volume is displayed.
@@ -36,10 +36,11 @@ impl PlayerView {
         showing_volume: bool,
         cb: Option<Sender<Box<dyn FnOnce(&mut Cursive) + Send>>>,
     ) -> Self {
+        let index = player.index;
         Self {
             player,
             cb,
-            selected: None,
+            mouse_selected_index: index,
             offset: 0,
             showing_volume: ExpiringBool::new(showing_volume, Duration::from_millis(1500)),
             size: XY { x: 0, y: 0 },
@@ -70,7 +71,7 @@ impl PlayerView {
         }
     }
 
-    fn player_opts(&self) -> &'static str {
+    fn player_info(&self) -> &'static str {
         match (self.player.is_randomized, self.player.is_muted) {
             (true, true) => " *m",
             (true, false) => "  *",
@@ -94,47 +95,47 @@ impl PlayerView {
         }
     }
 
+    #[inline]
     fn update_offset(&self) -> usize {
-        let available_y = self.size.y;
-        let needs_offset = self.player.index > 0 && available_y < self.player.playlist.len() + 2;
         let index = self.player.index;
+        let length = self.player.playlist.len();
+        let available_y = self.size.y;
+        let required_y = length + 2;
 
-        match needs_offset {
-            true => match available_y {
-                3 => index,
-                4 => match index == self.player.playlist.len() - 1 {
-                    true => index - 1,
-                    false => index,
-                },
-                _ => {
-                    let diff = self.player.playlist.len() + 2 - available_y;
-                    match index <= diff {
-                        true => index - 1,
-                        false => diff,
-                    }
-                }
-            },
-            false => 0,
+        if index == 0 || available_y >= required_y {
+            return 0;
+        }
+
+        let offset = required_y - available_y;
+        if index <= offset {
+            index
+        } else {
+            offset
         }
     }
 
     fn mouse_select(&mut self, m_off_y: usize, event: Event) -> EventResult {
-        let m_pos_y = event.mouse_position().unwrap_or_default().y;
+        let m_abs_y = event.mouse_position().unwrap_or_default().y;
 
-        // Restrict values to visible rows of the playlist.
-        if m_pos_y <= m_off_y || m_pos_y >= m_off_y + self.size.y - 2 {
+        let m_pos_y = match m_abs_y.checked_sub(m_off_y) {
+            Some(y) => y,
+            None => return EventResult::Consumed(None),
+        };
+
+        let available_y = self.size.y - 2;
+        if m_pos_y == 0 || m_pos_y >= available_y {
             return EventResult::Consumed(None);
         }
 
-        // The mouse selected track index.
-        let selected = self.offset + m_pos_y - m_off_y - 1;
+        // The index of the track under the mouse cursor.
+        let index = m_pos_y + self.offset - 1;
 
-        if selected == self.player.index {
+        if index == self.player.index {
             self.player.play_or_pause();
-        } else if Some(selected) == self.selected {
-            self.player.select_track_index(selected);
+        } else if index == self.mouse_selected_index {
+            self.player.play_mouse_selected(index);
         } else {
-            self.selected = Some(selected);
+            self.mouse_selected_index = index;
         }
 
         EventResult::Consumed(None)
@@ -182,42 +183,72 @@ impl PlayerView {
     }
 
     fn set_status(&mut self, status: u8) -> EventResult {
-        return match self.cb {
-            Some(_) => EventResult::with_cb(move |siv| {
+        if self.cb.is_some() {
+            EventResult::with_cb(move |siv| {
                 siv.with_user_data(|(opts, _, _): &mut UserData| {
                     opts.0 = status;
                 });
-            }),
-            None => EventResult::Consumed(None),
-        };
+            })
+        } else {
+            EventResult::Consumed(None)
+        }
     }
 
     fn toggle_randomization(&mut self) -> EventResult {
-        if self.cb.is_none() && self.player.playlist.len() < 2 {
-            return EventResult::Consumed(None);
-        }
-
-        self.player.toggle_randomization();
-
-        if self.player.is_randomized {
-            let current_index = self.player.index;
-
-            return match self.cb {
-                Some(_) => EventResult::with_cb(move |siv| {
+        if self.player.toggle_randomization() {
+            let curr_index = self.player.index;
+            if self.cb.is_some() {
+                return EventResult::with_cb(move |siv| {
                     siv.with_user_data(|(_, _, queue): &mut UserData| {
                         if let Some((_, index)) = queue.get_mut(1) {
-                            *index = current_index;
+                            *index = curr_index;
                         }
                     });
-                }),
-                None => {
-                    if self.player.playlist.len() > 1 {
-                        EventResult::with_cb(move |siv| siv.set_user_data(current_index))
-                    } else {
-                        EventResult::Consumed(None)
-                    }
-                }
-            };
+                });
+            } else if self.player.playlist.len() > 1 {
+                return EventResult::with_cb(move |siv| siv.set_user_data(curr_index));
+            }
+        }
+        EventResult::Consumed(None)
+    }
+
+    fn parent(&self) -> EventResult {
+        let mut parent = self.player.path.to_owned();
+        let root = args::search_root();
+
+        if parent != root {
+            parent.pop();
+            return EventResult::with_cb(move |siv| {
+                let items = fuzzy::create_items(&parent).expect("should always exist");
+                FuzzyView::load(items, siv)
+            });
+        }
+        EventResult::Consumed(None)
+    }
+
+    // Toggles whether the player is muted and updates user data.
+    fn toggle_mute(&mut self) -> EventResult {
+        let is_muted = self.player.toggle_mute();
+        if self.cb.is_some() {
+            EventResult::with_cb(move |siv| {
+                siv.with_user_data(|(opts, _, _): &mut UserData| {
+                    opts.2 = is_muted;
+                });
+            })
+        } else {
+            EventResult::Consumed(None)
+        }
+    }
+
+    // Toggles whether or not the volume is displayed and updates user data.
+    fn toggle_volume_display(&mut self) -> EventResult {
+        let showing_volume = self.showing_volume.toggle();
+        if self.cb.is_some() {
+            EventResult::with_cb(move |siv| {
+                siv.with_user_data(|(opts, _, _): &mut UserData| {
+                    opts.3 = showing_volume;
+                });
+            })
         } else {
             EventResult::Consumed(None)
         }
@@ -262,7 +293,7 @@ impl View for PlayerView {
                             // Draw the player options.
                             p.with_color(theme::info(), |p| {
                                 p.with_effect(Effect::Italic, |p| {
-                                    p.print((column - 3, row), self.player_opts())
+                                    p.print((column - 3, row), self.player_info())
                                 })
                             })
                         }
@@ -336,7 +367,7 @@ impl View for PlayerView {
 
     fn layout(&mut self, size: cursive::Vec2) {
         self.player.poll();
-        if self.player.is_randomized && self.player.is_queued {
+        if self.player.is_randomized && self.player.needs_update {
             self.random_track();
         }
         self.size = size;
@@ -346,7 +377,7 @@ impl View for PlayerView {
     // Keybindings for the player view.
     fn on_event(&mut self, event: Event) -> EventResult {
         match event {
-            Event::Char('g') => self.player.play_selection(),
+            Event::Char('g') => self.player.play_key_selection(),
             Event::CtrlChar('g') => self.player.play_last_track(),
 
             #[allow(unused_variables)]
@@ -406,66 +437,31 @@ impl View for PlayerView {
                 let volume = self.player.decrease_volume();
                 return self.set_volume(volume);
             }
-            Event::Char('v') => {
-                let showing_volume = self.showing_volume.toggle();
-
-                return match self.cb {
-                    Some(_) => EventResult::with_cb(move |siv| {
-                        siv.with_user_data(|(opts, _, _): &mut UserData| {
-                            opts.3 = showing_volume;
-                        });
-                    }),
-                    None => EventResult::Consumed(None),
-                };
-            }
-            Event::Char('m') => {
-                let is_muted = self.player.toggle_mute();
-
-                return match self.cb {
-                    Some(_) => EventResult::with_cb(move |siv| {
-                        siv.with_user_data(|(opts, _, _): &mut UserData| {
-                            opts.2 = is_muted;
-                        });
-                    }),
-                    None => EventResult::Consumed(None),
-                };
-            }
-
+            Event::Char('v') => return self.toggle_volume_display(),
+            Event::Char('m') => return self.toggle_mute(),
             Event::Char('*' | 'r') => return self.toggle_randomization(),
-
-            Event::CtrlChar('p') => {
-                let mut parent = self.player.path.to_owned();
-                let root = args::search_root();
-
-                if parent != root {
-                    parent.pop();
-                    return EventResult::with_cb(move |siv| {
-                        let items = fuzzy::create_items(&parent).expect("should always exist");
-                        FuzzyView::load(items, siv)
-                    });
-                }
-            }
+            Event::CtrlChar('p') => return self.parent(),
 
             Event::CtrlChar('o') => {
                 let path = self.player.path.to_owned();
                 _ = utils::open_file_manager(path);
             }
 
-            Event::Char('0') => self.player.number_keys.push(0),
-            Event::Char('1') => self.player.number_keys.push(1),
-            Event::Char('2') => self.player.number_keys.push(2),
-            Event::Char('3') => self.player.number_keys.push(3),
-            Event::Char('4') => self.player.number_keys.push(4),
-            Event::Char('5') => self.player.number_keys.push(5),
-            Event::Char('6') => self.player.number_keys.push(6),
-            Event::Char('7') => self.player.number_keys.push(7),
-            Event::Char('8') => self.player.number_keys.push(8),
-            Event::Char('9') => self.player.number_keys.push(9),
+            Event::Char('0') => self.player.num_keys.push(0),
+            Event::Char('1') => self.player.num_keys.push(1),
+            Event::Char('2') => self.player.num_keys.push(2),
+            Event::Char('3') => self.player.num_keys.push(3),
+            Event::Char('4') => self.player.num_keys.push(4),
+            Event::Char('5') => self.player.num_keys.push(5),
+            Event::Char('6') => self.player.num_keys.push(6),
+            Event::Char('7') => self.player.num_keys.push(7),
+            Event::Char('8') => self.player.num_keys.push(8),
+            Event::Char('9') => self.player.num_keys.push(9),
 
             Event::Char('?') => {
                 return EventResult::with_cb(|siv| {
                     KeysView::load(siv);
-                });
+                })
             }
 
             Event::Char('q') => {
@@ -477,7 +473,6 @@ impl View for PlayerView {
             _ => return EventResult::Ignored,
         }
 
-        self.selected = None;
         EventResult::Consumed(None)
     }
 }

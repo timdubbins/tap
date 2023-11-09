@@ -290,6 +290,26 @@ impl FuzzyView {
             EventResult::Consumed(None)
         }
     }
+
+    // Loads a fuzzy view for the parent of the current directory.
+    fn parent(&self) -> EventResult {
+        let mut parent = match self.items.first() {
+            Some(parent) => parent.path.to_owned(),
+            None => return EventResult::Ignored,
+        };
+
+        parent.pop();
+        let root = args::search_root();
+        if parent != root {
+            parent.pop();
+        }
+
+        return EventResult::with_cb(move |siv| {
+            if let Ok(items) = create_items(&parent) {
+                FuzzyView::load(items, siv);
+            }
+        });
+    }
 }
 
 impl View for FuzzyView {
@@ -430,25 +450,7 @@ impl View for FuzzyView {
             Event::Key(Key::Home) => self.cursor = 0,
             Event::Key(Key::End) => self.cursor = self.query.len(),
             Event::CtrlChar('u') => self.clear(),
-
-            Event::CtrlChar('p') => {
-                let mut parent = match self.items.first() {
-                    Some(parent) => parent.path.to_owned(),
-                    None => return EventResult::Ignored,
-                };
-
-                parent.pop();
-                let root = args::search_root();
-                if parent != root {
-                    parent.pop();
-                }
-
-                return EventResult::with_cb(move |siv| {
-                    if let Ok(items) = create_items(&parent) {
-                        FuzzyView::load(items, siv);
-                    }
-                });
-            }
+            Event::CtrlChar('p') => return self.parent(),
 
             Event::CtrlChar('o') => {
                 let path = self.items[self.selected].path.to_owned();
@@ -491,14 +493,13 @@ fn on_cancel() -> EventResult {
 
 // The path of the current player, if any.
 pub fn current_path(siv: &mut Cursive) -> Option<PathBuf> {
-    let curr_path = match siv.user_data::<UserData>() {
+    match siv.user_data::<UserData>() {
         Some((_, _, queue)) => match queue.get(1) {
             Some((p, _)) => Some(p.to_owned()),
             None => None,
         },
         None => None,
-    };
-    curr_path
+    }
 }
 
 fn remove_layer(siv: &mut Cursive) {
