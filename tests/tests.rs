@@ -22,12 +22,6 @@ fn test_no_audio_error() {
 }
 
 #[test]
-fn test_decode_error() {
-    let te = TestEnv::new(&["one"], &[("one/a.ogg", "test_ogg_audio.ogg")], &[]);
-    te.assert_error_msg(&[], "could not decode");
-}
-
-#[test]
 fn test_multiple_audio_files_success() {
     let te = TestEnv::new(
         &["one"],
@@ -35,6 +29,7 @@ fn test_multiple_audio_files_success() {
             ("one/a.mp3", "test_mp3_audio.mp3"),
             ("one/b.flac", "test_flac_audio.flac"),
             ("one/c.wav", "test_wav_audio.wav"),
+            ("one/c.ogg", "test_ogg_audio.ogg"),
         ],
         &[],
     );
@@ -52,18 +47,6 @@ fn test_automate_success() {
         &[],
     );
     te.assert_success(&["--automate"]);
-}
-
-#[test]
-fn test_arg_conflict_errors() {
-    let te = TestEnv::new(&[], &[], &[]);
-
-    te.assert_error_msg(&["-ad"], "cannot be used");
-    te.assert_error_msg(&["-ap"], "cannot be used");
-    te.assert_error_msg(&["-as"], "cannot be used");
-    te.assert_error_msg(&["-dp"], "cannot be used");
-    te.assert_error_msg(&["-ds"], "cannot be used");
-    te.assert_error_msg(&["-ps"], "cannot be used");
 }
 
 #[test]

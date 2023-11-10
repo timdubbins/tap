@@ -58,19 +58,9 @@ fn cache_dir() -> Result<PathBuf, anyhow::Error> {
         Err(e) => bail!(e),
     };
 
-    #[cfg(feature = "run_tests")]
-    {
-        let cache_dir = home_dir.join(".cache").join("tap_tests");
-        fs::create_dir_all(&cache_dir)?;
-        Ok(cache_dir)
-    }
-
-    #[cfg(not(feature = "run_tests"))]
-    {
-        let cache_dir = home_dir.join(".cache").join("tap");
-        fs::create_dir_all(&cache_dir)?;
-        Ok(cache_dir)
-    }
+    let cache_dir = home_dir.join(".cache").join("tap");
+    fs::create_dir_all(&cache_dir)?;
+    Ok(cache_dir)
 }
 
 pub fn update_cache(path: &PathBuf) -> Result<Vec<FuzzyItem>, anyhow::Error> {

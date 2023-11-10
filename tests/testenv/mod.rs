@@ -18,12 +18,6 @@ pub struct TestEnv {
     tap_exe: PathBuf,
 }
 
-impl Drop for TestEnv {
-    fn drop(&mut self) {
-        clean_test_cache()
-    }
-}
-
 impl TestEnv {
     pub fn new(
         dirs: &[&'static str],
@@ -33,7 +27,6 @@ impl TestEnv {
         let temp_dir =
             create_working_dir(dirs, audio_files, dummy_files).expect("working directory");
         let tap_exe = find_exe();
-
         TestEnv { temp_dir, tap_exe }
     }
 
@@ -47,8 +40,6 @@ impl TestEnv {
     pub fn assert_error_msg(&self, args: &[&str], expected: &str) {
         let output = self.run_command(".".as_ref(), args);
         let stderr = String::from_utf8(output.stderr).expect("error message should be utf8");
-
-        eprintln!("{}", self.temp_dir.path().display());
 
         assert!(
             stderr.contains(expected),
@@ -87,8 +78,6 @@ impl TestEnv {
 
 fn normalize(output: Output) -> Vec<String> {
     let stderr = String::from_utf8(output.stderr).unwrap();
-    eprintln!("{stderr}");
-
     let slice = &stderr[38..];
     let end = slice.find("]").unwrap();
 
@@ -113,10 +102,4 @@ fn find_exe() -> PathBuf {
         .to_path_buf();
 
     root.join("tap")
-}
-
-fn clean_test_cache() {
-    let home_dir = PathBuf::from(std::env::var("HOME").unwrap());
-    let cache_dir = home_dir.join(".cache").join("tap_tests");
-    _ = std::fs::remove_dir_all(&cache_dir);
 }
