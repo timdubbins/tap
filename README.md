@@ -8,13 +8,21 @@ tap is an audio player for the terminal. Jump to any album in your library with 
 
 ## How to use
 ```bash
-> tap [-adps] [path]
+> tap [options] [path]
 ```
-Run `tap` in a directory that contains music folders to open a `fuzzy-finder`, allowing you to select an album to play. Playback starts on selection and you can return to the fuzzy-finder by pressing `Tab`.
+Run `tap` in a directory that contains music folders to open a `fuzzy-finder`, allowing you to select an album to play. Playback starts on selection and you can return to the fuzzy-finder by pressing `Tab`:
+```bash
+> cd ~/path/to/my_music
+> tap
+``` 
 
-To open a player without the fuzzy-finder provide a `path` to an audio file or album.
 
-`path` can be a file or directory. If it is omitted the current directory is used. A second path will override the first.
+To open a player without the fuzzy-finder provide a `path` to an audio file or album:
+```bash
+> tap ~/path/to/my_album
+```
+
+`path` can be a file or directory. If it is omitted the current directory is used.
 
 Option                  | Description
 ---                     |---
@@ -22,6 +30,10 @@ Option                  | Description
 `-d` `--default`        | Run from the default directory, if set.
 `-p` `--print`          | Print the path of the default directory, if set.
 `-s` `--set-default`    | Set `path` as the default directory. This can significantly reduce the time it takes to load this directory. See [Notes](#notes).
+`b` `--term-bg`         | Use the terminal background color.
+`c` `--term-color`      | Use the terminal background and foreground colors only.
+`--color <COLOR>`       | Set colors using \<NAME>=\<HEX>. See [Notes](#notes) for available names.
+
 
 ## Bindings
 
@@ -39,6 +51,7 @@ album search        | `Ctrl` + `s`  | <i>all albums, sorted alphabetically</i>
 parent search       | `Ctrl` + `p`  | <i>folders up one level</i>
 previous album      | `-`           |
 random album        | `=`           |
+open file manager   | `Ctrl` + `o`  | See [Notes](#notes).
 
 Player              | Keybinding
 ---                 |---
@@ -100,7 +113,7 @@ You can install with <a href="https://brew.sh/">Homebrew</a>:
 ```bash
 > brew install timdubbins/tap/tap
 > tap --version
-0.4.7
+0.4.8
 ```
 
 </details>
@@ -116,7 +129,7 @@ such as <a href="https://github.com/Jguer/yay">yay</a>:
 ```bash
 > yay -S tap
 > tap --version
-0.4.7
+0.4.8
 ```
 The AUR package is available <a href="https://aur.archlinux.org/packages/tap">here</a>.
 <br>
@@ -127,13 +140,13 @@ The AUR package is available <a href="https://aur.archlinux.org/packages/tap">he
 <summary><b>Debian</b> (or a Debian derivative, such as <b>Ubuntu</b>)</summary>
 <br>
 
-You can install with a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.4.7">tap release</a>:
+You can install with a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.4.8">tap release</a>:
 
 ```bash
-> curl -LO https://github.com/timdubbins/tap/releases/download/v0.4.7/tap_0.4.7_amd64.deb
-> sudo dpkg -i tap_0.4.7_amd64.deb
+> curl -LO https://github.com/timdubbins/tap/releases/download/v0.4.8/tap_0.4.8_amd64.deb
+> sudo dpkg -i tap_0.4.8_amd64.deb
 > tap --version
-0.4.7
+0.4.8
 ```
 
 </details>
@@ -149,23 +162,46 @@ To compile from source, first you need a <a href="https://www.rust-lang.org/lear
 > cd tap
 > cargo install --path .
 > tap --version
-0.4.7
+0.4.8
 ```
 
 </details>
 
-The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.4.7).
+The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.4.8).
 
 ## Notes
 
-- Supports gapless playback.
-- Supports `aac`, `flac`, `mp3`, `m4a`, `ogg` and `wav`.
+**Supports:**
+- Gapless playback.
+- `aac`, `flac`, `mp3`, `m4a`, `ogg` and `wav`.
+
+
+**Setting colors:**
+
+The following `--color` example will set a [Solarized](https://ethanschoonover.com/solarized/) theme:
+```
+--color fg=268bd2,bg=002b36,hl=fdf6e3,prompt=586e75,header=859900,header+=cb4b16,progress=6c71c4,info=2aa198,err=dc322f 
+```
+
+**Setting an alias:**
+
+It can be useful to create an `alias` if you set a default directory or want to persist your color scheme. Put something like the following in your shell config (for `zsh` users this would be your `.zshrc`):
+
+```bash
+alias tap="tap -db --color fg=268bd2,bg=002b36,hl=fdf6e3,prompt=586e75,header=859900,header+=cb4b16,progress=6c71c4,info=2aa198,err=dc322f"
+```
+
+Running `tap` from any directory will now load the cached default path and set the colors to those defined in the alias (as well as setting the background color to use the terminal background). We can still use commands like `tap .` and `tap <PATH> --color fg=ff9999` with this alias. 
 
 **Setting the default directory:**
 
 This will write a small amount of encoded data to `~/.cache/tap`. This is the only place that `tap` will write to and the data is guaranteed to be at least as small as the in-memory data. Changes in the default directory will be updated in ~/.cache/tap the next time it is accessed by tap.
 
 As a benchmark, setting a directory that is 200GB as the default produces a ~/.cache/tap  that has size 350KB (equivalent to an mp3 that is 2 seconds long) and decreases the load time by ~6x.
+
+**Opening your file manager:**
+
+You can open your preferred file manager from within tap with `Ctrl` + `o` Requires `xdg-open` on linux. From the fuzzy-finder this opens the currently selected directory. From the player it opens the parent of the loaded audio file. 
 
 ## Contributing
 
