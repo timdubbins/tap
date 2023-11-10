@@ -1,6 +1,6 @@
 [package]
 name = "tap"
-version = "0.4.7"
+version = "0.4.8"
 authors = ["Tim Dubbins <timdubbins@gmail.com>"]
 description = "An audio player for the terminal with fuzzy-finder"
 documentation = "https://github.com/timdubbins/tap"
@@ -22,16 +22,14 @@ tempfile = "3.6"
 [dependencies]
 anyhow = "1.0"
 bincode = "2.0.0-rc.3"
-cfg-if = "0.1.10"
 clap = { version = "4.1.8", features = ["derive"] }
 cursive = { git = "https://github.com/timdubbins/cursive", branch = "tap", features = ["ncurses-backend", "toml"] }
-# cursive = { version = "0.20", features = ["ncurses-backend", "toml"] }
 expiring_bool = { git = "https://github.com/timdubbins/expiring_bool" }
-fuzzy-matcher = "*"
+fuzzy-matcher = "0.3.7"
 lazy_static = "1.4.0"
 lofty = "0.14.0"
 rand = "0.8.5"
-rodio = { git = "https://github.com/timdubbins/rodio", features = ["symphonia-all"], default-features = false }
+rodio = { git = "https://github.com/timdubbins/rodio", features = ["symphonia-aac", "symphonia-flac", "symphonia-mp3", "symphonia-isomp4", "symphonia-wav", "vorbis"], default-features = false }
 unicode-segmentation = "1.10.1"
 unicode-width = "0.1.5"
 walkdir = "2.0"
