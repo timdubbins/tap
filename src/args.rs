@@ -50,14 +50,17 @@ pub struct Args {
     print_default: bool,
 
     /// Use the terminal background color
-    #[arg(short, long, default_value_t = false)]
+    #[arg(short = 'b', long, default_value_t = false)]
     term_bg: bool,
+
+    /// Use the terminal foreground and background colors only
+    #[arg(short='c', long, default_value_t = false)]
+    term_color: bool,
 
     /// Set the color scheme with <NAME>=<HEX>
     /// For example: 
     ///'--color fg=268bd2,bg=002b36,hl=fdf6e3,prompt=586e75,header=859900,header+=cb4b16,progress=6c71c4,info=2aa198,err=dc322f'
     #[arg(
-        short,
         long, 
         value_parser = parse_color, 
         value_delimiter = ',',
@@ -72,6 +75,10 @@ pub fn parse() -> Result<(PathBuf, Opts), anyhow::Error> {
 
 pub fn user_colors() -> (Vec<(String, Color)>, bool) {
     (ARGS.color.to_owned(), ARGS.term_bg)
+}
+
+pub fn term_color() -> bool {
+    ARGS.term_color
 }
 
 pub fn search_root() -> PathBuf {

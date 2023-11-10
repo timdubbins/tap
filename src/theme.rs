@@ -71,15 +71,21 @@ fn create_palette() -> HashMap<String, Color> {
     // Get the default colors.
     let mut m = COLOR_MAP.to_owned();
 
-    // Update any user-defined colors.
-    let (user_colors, term_bg) = args::user_colors();
-    m.extend(user_colors);
+    if args::term_color() {
+        // Use terminal colors for foreground and background.
+        for (_, value) in m.iter_mut() {
+            *value = Color::TerminalDefault;
+        }
+    } else {
+        // Update any user-defined colors.
+        let (user_colors, term_bg) = args::user_colors();
+        m.extend(user_colors);
 
-    // Update background color with terminal color, if using.
-    if term_bg {
-        m.insert("bg".to_string(), Color::TerminalDefault);
+        // Update background color with terminal color, if using.
+        if term_bg {
+            m.insert("bg".to_string(), Color::TerminalDefault);
+        }
     }
-
     m
 }
 
