@@ -367,7 +367,7 @@ impl View for PlayerView {
 
     fn layout(&mut self, size: cursive::Vec2) {
         self.player.poll();
-        if self.player.is_randomized && self.player.needs_update {
+        if self.player.is_randomized && self.player.next_track_queued {
             self.random_track();
         }
         self.size = size;
@@ -446,6 +446,9 @@ impl View for PlayerView {
                 let path = self.player.path.to_owned();
                 _ = utils::open_file_manager(path);
             }
+            Event::Char('s') => self.player.seek(),
+            Event::Char('>') => self.player.step_forward(),
+            Event::Char('<') => self.player.step_backward(),
 
             Event::Char('0') => self.player.num_keys.push(0),
             Event::Char('1') => self.player.num_keys.push(1),

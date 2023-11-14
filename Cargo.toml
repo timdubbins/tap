@@ -29,7 +29,7 @@ fuzzy-matcher = "0.3.7"
 lazy_static = "1.4.0"
 lofty = "0.14.0"
 rand = "0.8.5"
-rodio = { git = "https://github.com/timdubbins/rodio", features = ["symphonia-aac", "symphonia-flac", "symphonia-mp3", "symphonia-isomp4", "symphonia-wav", "vorbis"], default-features = false }
+rodio = { git = "https://github.com/timdubbins/rodio", branch = "seek", features = ["symphonia-aac", "symphonia-flac", "symphonia-mp3", "symphonia-isomp4", "symphonia-wav", "vorbis"], default-features = false }
 unicode-segmentation = "1.10.1"
 unicode-width = "0.1.5"
 walkdir = "2.0"

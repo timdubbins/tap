@@ -17,6 +17,9 @@ use super::{valid_audio_ext, AudioFile, PlayerOpts, PlayerStatus, StatusToBytes}
 
 pub type PlayerResult = Result<(Player, bool, XY<usize>), anyhow::Error>;
 
+const SEEK_TIME: Duration = Duration::from_millis(10000);
+const SEEK_TIME_PLUS: Duration = Duration::from_millis(10500);
+
 pub struct Player {
     // The path used to create the playlist.
     pub path: PathBuf,
@@ -35,7 +38,7 @@ pub struct Player {
     // Whether or not the next track will be selected randomly.
     pub is_randomized: bool,
     // Whether or not the next track is queued.
-    pub needs_update: bool,
+    pub next_track_queued: bool,
     // Whether the player is playing, paused or stopped.
     pub status: PlayerStatus,
     // The list of numbers from last keyboard input,
@@ -76,10 +79,10 @@ impl Player {
 
         let mut player = Self {
             last_started: Instant::now(),
-            last_elapsed: Duration::default(),
+            last_elapsed: Duration::ZERO,
             previous: 0,
             num_keys: vec![],
-            needs_update: false,
+            next_track_queued: false,
             timer_bool: ExpiringBool::new(false, Duration::from_millis(500)),
             status: opts.status,
             volume: opts.volume,
@@ -118,7 +121,7 @@ impl Player {
         if self.status != PlayerStatus::Stopped {
             self.sink.stop();
             self.status = PlayerStatus::Stopped;
-            self.last_elapsed = Duration::default()
+            self.last_elapsed = Duration::ZERO;
         }
         self.status.to_u8()
     }
@@ -135,7 +138,7 @@ impl Player {
     }
 
     pub fn play_or_pause(&mut self) -> u8 {
-        self.clear();
+        // self.clear();
         match self.status {
             PlayerStatus::Paused => self.resume(),
             PlayerStatus::Playing => self.pause(),
@@ -180,8 +183,10 @@ impl Player {
         if self.index < self.last_index() {
             self.index += 1;
             self.file = self.playlist[self.index].clone();
+            self.set_playback();
+        } else {
+            self.stop();
         }
-        self.set_playback();
     }
 
     // Skip to previous track in the playlist.
@@ -231,7 +236,7 @@ impl Player {
     // Toggles `is_randomized` and removes the current next
     // track from the sink when `is_randomized` is true.
     pub fn toggle_randomization(&mut self) -> bool {
-        self.needs_update = false;
+        self.next_track_queued = false;
         self.is_randomized ^= true;
         if self.is_randomized {
             self.sink.pop();
@@ -266,7 +271,7 @@ impl Player {
             self.index = self.previous;
             self.previous = current;
             self.file = self.playlist[self.index].to_owned();
-            self.needs_update = false;
+            self.next_track_queued = false;
             self.set_playback();
         }
     }
@@ -282,8 +287,76 @@ impl Player {
             self.previous = self.index;
             self.index = index;
             self.file = self.playlist[index].to_owned();
-            self.needs_update = false;
+            self.next_track_queued = false;
             self.set_playback();
+        }
+    }
+
+    pub fn seek(&mut self) {
+        if !self.num_keys.is_empty() {
+            let secs = utils::concatenate(&self.num_keys) as u64;
+            let time = Duration::new(secs, 0);
+            let elapsed = self.elapsed();
+            if time < elapsed {
+                let diff = elapsed - time;
+                self.seek_backward(diff, elapsed);
+            } else {
+                let diff = time - elapsed;
+                self.seek_forward(diff, elapsed);
+            }
+            self.num_keys.clear();
+        }
+    }
+
+    pub fn step_forward(&mut self) {
+        let elapsed = self.elapsed();
+        self.seek_forward(SEEK_TIME, elapsed);
+    }
+
+    pub fn step_backward(&mut self) {
+        let elapsed = self.elapsed();
+        self.seek_backward(SEEK_TIME, elapsed);
+    }
+
+    #[inline]
+    fn seek_forward(&mut self, time: Duration, elapsed: Duration) {
+        if !self.is_playing() {
+            self.play_or_pause();
+        }
+        // let elapsed = self.elapsed();
+        let duration = Duration::new(self.file.duration as u64, 0);
+        if duration - elapsed < time + Duration::new(0, 500) {
+            self.next()
+        } else {
+            let future = elapsed + time;
+            if let Ok(_) = self.sink.try_seek(future) {
+                self.last_started -= time;
+            }
+        }
+    }
+
+    #[inline]
+    fn seek_backward(&mut self, time: Duration, elapsed: Duration) {
+        if !self.is_playing() {
+            self.play_or_pause();
+        }
+        // let elapsed = self.elapsed();
+        if elapsed < time + Duration::new(0, 500) {
+            self.stop();
+            self.play();
+        } else {
+            let past = elapsed - time;
+            if let Ok(_) = self.sink.try_seek(past) {
+                if self.last_elapsed == Duration::ZERO {
+                    self.last_started += time;
+                } else if self.last_elapsed >= time {
+                    self.last_elapsed -= time;
+                } else {
+                    let diff = time - self.last_elapsed;
+                    self.last_elapsed = Duration::ZERO;
+                    self.last_started += diff;
+                }
+            }
         }
     }
 
@@ -309,21 +382,22 @@ impl Player {
         }
         if self.is_randomized {
             if self.sink.empty() {
-                self.needs_update = true;
+                self.next_track_queued = true;
             }
         } else if self.sink.len() == 1 {
-            if self.needs_update {
+            if self.next_track_queued {
                 self.last_started = Instant::now();
+                self.last_elapsed = Duration::ZERO;
                 self.index += 1;
                 self.file = self.playlist[self.index].clone();
-                self.needs_update = false;
+                self.next_track_queued = false;
                 return 1;
             } else if self.index < self.playlist.len() - 1 {
                 let file = self.playlist[self.index + 1].clone();
                 let path = &file.path;
                 if let Ok(source) = get_source(path) {
                     self.sink.append(source);
-                    self.needs_update = true;
+                    self.next_track_queued = true;
                 } else {
                     self.next();
                 }
@@ -359,7 +433,7 @@ impl Player {
 
     // Removes the stored keyboard inputs.
     fn clear(&mut self) {
-        self.needs_update = false;
+        self.next_track_queued = false;
         self.num_keys.clear();
         self.timer_bool.set_false();
     }
@@ -376,7 +450,7 @@ impl Player {
     // Convenience method to maintain `status` in new player instances.
     fn set_playback(&mut self) {
         self.sink.stop();
-        self.last_elapsed = Duration::default();
+        self.last_elapsed = Duration::ZERO;
 
         if self.status != PlayerStatus::Stopped {
             if let Ok(source) = get_source(&self.file.path) {
