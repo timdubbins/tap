@@ -44,7 +44,11 @@ pub fn open_file_manager(path: PathBuf) -> Result<(), anyhow::Error> {
     let p = match std::fs::metadata(&path) {
         Ok(meta) => match meta.is_dir() {
             true => path,
-            false => path.parent().unwrap().to_path_buf(),
+            // false => path.parent().unwrap().to_path_buf(),
+            false => match path.parent() {
+                Some(parent) => parent.to_path_buf(),
+                None => bail!("No parent"),
+            },
         },
         Err(err) => bail!(err),
     };

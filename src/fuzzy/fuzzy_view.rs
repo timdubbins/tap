@@ -453,8 +453,10 @@ impl View for FuzzyView {
             Event::CtrlChar('p') => return self.parent(),
 
             Event::CtrlChar('o') => {
-                let path = self.items[self.selected].path.to_owned();
-                _ = utils::open_file_manager(path);
+                if self.selected < self.items.len() {
+                    let path = self.items[self.selected].path.to_owned();
+                    _ = utils::open_file_manager(path);
+                }
             }
 
             _ => return EventResult::Ignored,
