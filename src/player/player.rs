@@ -17,8 +17,7 @@ use super::{valid_audio_ext, AudioFile, PlayerOpts, PlayerStatus, StatusToBytes}
 
 pub type PlayerResult = Result<(Player, bool, XY<usize>), anyhow::Error>;
 
-const SEEK_TIME: Duration = Duration::from_millis(10000);
-const SEEK_TIME_PLUS: Duration = Duration::from_millis(10500);
+const SEEK_TIME: Duration = Duration::from_secs(10);
 
 pub struct Player {
     // The path used to create the playlist.
@@ -104,18 +103,21 @@ impl Player {
         Ok((player, opts.showing_volume, size))
     }
 
+    // Resumes a paused sink and records the start time.
     pub fn resume(&mut self) {
         self.sink.play();
         self.status = PlayerStatus::Playing;
         self.last_started = Instant::now();
     }
 
+    // Pauses the sink and records the elapsed time.
     pub fn pause(&mut self) {
         self.last_elapsed = self.elapsed();
         self.sink.pause();
         self.status = PlayerStatus::Paused;
     }
 
+    // Empties the sink, clears the current inputs and elapsed time.
     pub fn stop(&mut self) -> u8 {
         self.clear();
         if self.status != PlayerStatus::Stopped {
@@ -126,6 +128,7 @@ impl Player {
         self.status.to_u8()
     }
 
+    // Decodes and appends `file` to the sink, starts playback and records start time.
     pub fn play(&mut self) {
         if let Ok(source) = get_source(&self.file.path) {
             self.sink.append(source);
@@ -137,8 +140,8 @@ impl Player {
         }
     }
 
+    // Starts playback if not playing, pauses otherwise.
     pub fn play_or_pause(&mut self) -> u8 {
-        // self.clear();
         match self.status {
             PlayerStatus::Paused => self.resume(),
             PlayerStatus::Playing => self.pause(),
@@ -292,38 +295,56 @@ impl Player {
         }
     }
 
-    pub fn seek(&mut self) {
+    // Seeks the playback to the input time in seconds.
+    pub fn seek_to_sec(&mut self) {
         if !self.num_keys.is_empty() {
             let secs = utils::concatenate(&self.num_keys) as u64;
-            let time = Duration::new(secs, 0);
-            let elapsed = self.elapsed();
-            if time < elapsed {
-                let diff = elapsed - time;
-                self.seek_backward(diff, elapsed);
-            } else {
-                let diff = time - elapsed;
-                self.seek_forward(diff, elapsed);
-            }
-            self.num_keys.clear();
+            let seek_time = Duration::new(secs, 0);
+            self.seek_to_time(seek_time)
         }
     }
 
+    // Seeks the playback to the input time in minutes.
+    pub fn seek_to_min(&mut self) {
+        if !self.num_keys.is_empty() {
+            let secs = utils::concatenate(&self.num_keys) as u64;
+            let seek_time = Duration::new(secs * 60, 0);
+            self.seek_to_time(seek_time)
+        }
+    }
+
+    // Increments the playback position by SEEK_TIME.
     pub fn step_forward(&mut self) {
         let elapsed = self.elapsed();
         self.seek_forward(SEEK_TIME, elapsed);
     }
 
+    // Decrements the playback position by SEEK_TIME.
     pub fn step_backward(&mut self) {
         let elapsed = self.elapsed();
         self.seek_backward(SEEK_TIME, elapsed);
     }
 
+    // Seeks the playback to the provided seek_time, in seconds.
+    #[inline]
+    pub fn seek_to_time(&mut self, seek_time: Duration) {
+        let elapsed = self.elapsed();
+        if seek_time < elapsed {
+            let diff = elapsed - seek_time;
+            self.seek_backward(diff, elapsed);
+        } else {
+            let diff = seek_time - elapsed;
+            self.seek_forward(diff, elapsed);
+        }
+        self.num_keys.clear();
+    }
+
+    // Performs the seek operation in the forward direction.
     #[inline]
     fn seek_forward(&mut self, time: Duration, elapsed: Duration) {
         if !self.is_playing() {
             self.play_or_pause();
         }
-        // let elapsed = self.elapsed();
         let duration = Duration::new(self.file.duration as u64, 0);
         if duration - elapsed < time + Duration::new(0, 500) {
             self.next()
@@ -335,12 +356,12 @@ impl Player {
         }
     }
 
+    // Performs the seek operation in the backward direction.
     #[inline]
     fn seek_backward(&mut self, time: Duration, elapsed: Duration) {
         if !self.is_playing() {
             self.play_or_pause();
         }
-        // let elapsed = self.elapsed();
         if elapsed < time + Duration::new(0, 500) {
             self.stop();
             self.play();
@@ -371,6 +392,18 @@ impl Player {
             }
     }
 
+    // Performs the function of a mixer by polling the player
+    // sink during the layout phase of PlayerView.
+    //
+    // If playback is not randomized and there is a succeeding
+    // track in the playlist, the next track is queued before the
+    // current track completes. This is to ensure gapless playback.
+    //
+    // If playback is randomized, the next track is queued when
+    // the current track completes.
+    //
+    // Finally, playback is stopped when the sink is emptied.
+    //
     // Return values are for the automated player, where:
     // 0 => the player has completed.
     // 1 => the player has changed.

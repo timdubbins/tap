@@ -18,8 +18,8 @@ use super::{KeysView, Player, PlayerBuilder, PlayerStatus};
 pub struct PlayerView {
     // The currently loaded player.
     player: Player,
-    // The last track index selected by mouse input.
-    mouse_selected_index: usize,
+    // The time to seek to, in seconds. `Some` when seeking has been initiated.
+    mouse_seek_time: Option<usize>,
     // The vertical offset required to show relevant playlist rows.
     offset: usize,
     // Whether or not the current volume is displayed.
@@ -36,11 +36,10 @@ impl PlayerView {
         showing_volume: bool,
         cb: Option<Sender<Box<dyn FnOnce(&mut Cursive) + Send>>>,
     ) -> Self {
-        let index = player.index;
         Self {
             player,
             cb,
-            mouse_selected_index: index,
+            mouse_seek_time: None,
             offset: 0,
             showing_volume: ExpiringBool::new(showing_volume, Duration::from_millis(1500)),
             size: XY { x: 0, y: 0 },
@@ -63,6 +62,9 @@ impl PlayerView {
         remove_layers_to_top(siv);
     }
 
+    // Draw methods
+
+    // Formats the display for the current playback status.
     fn player_status(&self) -> (&'static str, ColorStyle, Effect) {
         match self.player.status {
             PlayerStatus::Paused => ("|", theme::hl(), Effect::Simple),
@@ -71,6 +73,7 @@ impl PlayerView {
         }
     }
 
+    // Formats the display showing whether the player is muted or randomized.
     fn player_info(&self) -> &'static str {
         match (self.player.is_randomized, self.player.is_muted) {
             (true, true) => " *m",
@@ -80,6 +83,7 @@ impl PlayerView {
         }
     }
 
+    // Formats the player header.
     fn album_and_year(&self) -> String {
         if let Some(year) = self.player.file.year {
             return format!("{} ({})", self.player.file.album, year);
@@ -88,6 +92,7 @@ impl PlayerView {
         }
     }
 
+    // Formats the volume display.
     fn volume(&self, w: usize) -> String {
         match w > 14 {
             true => format!("  vol: {:>3} %  ", self.player.volume),
@@ -95,6 +100,17 @@ impl PlayerView {
         }
     }
 
+    // The elapsed playback time to display. When seeking with the mouse we use the
+    // elapsed time had the seeking process completed.
+    fn elapsed(&self) -> usize {
+        if self.mouse_seek_time.is_some() && self.player.status == PlayerStatus::Paused {
+            self.mouse_seek_time.unwrap()
+        } else {
+            self.player.elapsed().as_secs() as usize
+        }
+    }
+
+    // Computes the y offset needed to show the results of the fuzzy match.
     #[inline]
     fn update_offset(&self) -> usize {
         let index = self.player.index;
@@ -114,33 +130,9 @@ impl PlayerView {
         }
     }
 
-    fn mouse_select(&mut self, m_off_y: usize, event: Event) -> EventResult {
-        let m_abs_y = event.mouse_position().unwrap_or_default().y;
+    // Event methods
 
-        let m_pos_y = match m_abs_y.checked_sub(m_off_y) {
-            Some(y) => y,
-            None => return EventResult::Consumed(None),
-        };
-
-        let available_y = self.size.y - 2;
-        if m_pos_y == 0 || m_pos_y >= available_y {
-            return EventResult::Consumed(None);
-        }
-
-        // The index of the track under the mouse cursor.
-        let index = m_pos_y + self.offset - 1;
-
-        if index == self.player.index {
-            self.player.play_or_pause();
-        } else if index == self.mouse_selected_index {
-            self.player.play_mouse_selected(index);
-        } else {
-            self.mouse_selected_index = index;
-        }
-
-        EventResult::Consumed(None)
-    }
-
+    // Loads the next random track.
     fn random_track(&mut self) {
         match &self.cb {
             Some(cb) => {
@@ -155,6 +147,7 @@ impl PlayerView {
         }
     }
 
+    // Loads the previous random track.
     fn previous_random(&mut self) {
         match &self.cb {
             Some(cb) => {
@@ -169,19 +162,23 @@ impl PlayerView {
         }
     }
 
+    // Sets the current volume. If the volume is not being shown
+    // it will be displayed temporarily by setting `showing_volume` true.
     fn set_volume(&mut self, volume: u8) -> EventResult {
         self.showing_volume.set();
 
-        return match self.cb {
-            Some(_) => EventResult::with_cb(move |siv| {
+        if self.cb.is_some() {
+            EventResult::with_cb(move |siv| {
                 siv.with_user_data(|(opts, _, _): &mut UserData| {
                     opts.1 = volume;
                 });
-            }),
-            None => EventResult::Consumed(None),
-        };
+            })
+        } else {
+            EventResult::Consumed(None)
+        }
     }
 
+    // Updates user data with the current status.
     fn set_status(&mut self, status: u8) -> EventResult {
         if self.cb.is_some() {
             EventResult::with_cb(move |siv| {
@@ -194,6 +191,7 @@ impl PlayerView {
         }
     }
 
+    // Toggles the track order between in-order and random.
     fn toggle_randomization(&mut self) -> EventResult {
         if self.player.toggle_randomization() {
             let curr_index = self.player.index;
@@ -212,6 +210,7 @@ impl PlayerView {
         EventResult::Consumed(None)
     }
 
+    // Loads a fuzzy view for the parent of the current audio file.
     fn parent(&self) -> EventResult {
         let mut parent = self.player.path.to_owned();
         let root = args::search_root();
@@ -253,9 +252,151 @@ impl PlayerView {
             EventResult::Consumed(None)
         }
     }
+
+    // Loads the next track in the queue.
+    fn next(&mut self) {
+        if self.player.is_randomized {
+            self.random_track();
+        } else {
+            self.player.next();
+        }
+    }
+
+    // Loads the previous track in the queue.
+    fn previous(&mut self) {
+        if self.player.is_randomized {
+            self.previous_random();
+        } else {
+            self.player.previous()
+        }
+    }
+
+    // Opens the parent of the current audio file in the
+    // preferred file manager.
+    fn open_file_manager(&self) {
+        let path = self.player.path.to_owned();
+        _ = utils::open_file_manager(path);
+    }
+
+    // Increments the volume and updates user data.
+    fn increase_volume(&mut self) -> EventResult {
+        let volume = self.player.increase_volume();
+        return self.set_volume(volume);
+    }
+
+    // Decrements the volume and updates user data.
+    fn decrease_volume(&mut self) -> EventResult {
+        let volume = self.player.decrease_volume();
+        return self.set_volume(volume);
+    }
+
+    // Stops the player and updates user data.
+    fn stop(&mut self) -> EventResult {
+        let status = self.player.stop();
+        return self.set_status(status);
+    }
+
+    // Plays or pauses the player and updates user data.
+    fn play_or_pause(&mut self) -> EventResult {
+        let status = self.player.play_or_pause();
+        return self.set_status(status);
+    }
+
+    // Handles the mouse left button press actions.
+    fn mouse_button_left(&mut self, offset: XY<usize>, position: XY<usize>) {
+        // Whether or not the mouse cursor is outside the area containing
+        // the playlist and the progress bar.
+        let outside_area = position.y <= offset.y
+            || position.y - offset.y >= self.size.y
+            || position.x <= offset.x + 1
+            || position.x + 2 - offset.x >= self.size.x;
+
+        if outside_area {
+            self.play_or_pause();
+            return;
+        }
+
+        // The y position of the mouse cursor relative to the view.
+        let translation_y = position.y - offset.y;
+
+        // Initiate seeking if the mouse cursor is over progress bar.
+        if translation_y + 1 == self.size.y {
+            if self.size.x > 16 {
+                self.mouse_hold_seek(offset, position);
+            } else {
+                self.player.play_or_pause();
+            }
+            return;
+        }
+
+        // Select the track under the mouse cursor.
+        let index = translation_y + self.offset - 1;
+        if index == self.player.index {
+            self.player.play_or_pause();
+        } else if index < self.player.playlist.len() {
+            self.player.play_mouse_selected(index);
+        }
+    }
+
+    // Updates the seek position from mouse input.
+    fn mouse_hold_seek(&mut self, offset: XY<usize>, position: XY<usize>) {
+        if self.size.x > 16 && position.x > offset.x {
+            if self.player.status == PlayerStatus::Stopped {
+                self.player.play();
+            }
+            self.player.pause();
+            let mouse_seek_pos = utils::clamp(position.x - offset.x, 8, self.size.x - 8) - 8;
+            self.mouse_seek_time =
+                Some(mouse_seek_pos * self.player.file.duration / (self.size.x - 16));
+        }
+    }
+
+    // Performs the seek operation from mouse input.
+    fn mouse_release_seek(&mut self) {
+        if let Some(secs) = self.mouse_seek_time {
+            let seek_time = Duration::new(secs as u64, 0);
+            self.player.seek_to_time(seek_time);
+        }
+        self.mouse_seek_time = None;
+    }
+
+    // Handles the mouse wheel (scrolling) actions.
+    fn mouse_wheel(&mut self, event: MouseEvent, offset: XY<usize>, position: XY<usize>) {
+        // Whether or not the mouse cursor is outside the area containing
+        // the playlist.
+        let outside_playlist = position.y <= offset.y
+            || position.y + 1 - offset.y >= self.size.y
+            || position.x <= offset.x + 1
+            || position.x + 2 - offset.x >= self.size.x;
+
+        if event == MouseEvent::WheelUp {
+            if outside_playlist {
+                self.increase_volume();
+            } else {
+                self.previous();
+            }
+        } else if event == MouseEvent::WheelDown {
+            if outside_playlist {
+                self.decrease_volume();
+            } else {
+                if self.player.index != self.player.playlist.len() - 1 {
+                    self.next();
+                }
+            }
+        }
+    }
 }
 
 impl View for PlayerView {
+    fn layout(&mut self, size: cursive::Vec2) {
+        self.player.poll();
+        if self.player.is_randomized && self.player.next_track_queued {
+            self.random_track();
+        }
+        self.size = size;
+        self.offset = self.update_offset();
+    }
+
     fn draw(&self, p: &Printer) {
         // The size of the screen we can draw on.
         let (w, h) = (p.size.x, p.size.y);
@@ -266,7 +407,7 @@ impl View for PlayerView {
         // The length of the progress bar.
         let length = if w > 16 { w - 16 } else { 0 };
         // The time elapsed since playback started.
-        let elapsed = self.player.elapsed().as_secs() as usize;
+        let elapsed = self.elapsed();
         // The values needed to draw the progress bar.
         let (length, extra) = ratio(elapsed, f.duration, length);
 
@@ -365,90 +506,27 @@ impl View for PlayerView {
         }
     }
 
-    fn layout(&mut self, size: cursive::Vec2) {
-        self.player.poll();
-        if self.player.is_randomized && self.player.next_track_queued {
-            self.random_track();
-        }
-        self.size = size;
-        self.offset = self.update_offset();
-    }
-
     // Keybindings for the player view.
     fn on_event(&mut self, event: Event) -> EventResult {
         match event {
-            Event::Char('g') => self.player.play_key_selection(),
-            Event::CtrlChar('g') => self.player.play_last_track(),
+            Event::Char('h' | ' ') | Event::Key(Key::Left) => return self.play_or_pause(),
+            Event::Char('j') | Event::Key(Key::Down) => self.next(),
+            Event::Char('k') | Event::Key(Key::Up) => self.previous(),
+            Event::Char('l') | Event::Key(Key::Enter | Key::Right) => return self.stop(),
 
-            #[allow(unused_variables)]
-            Event::Mouse {
-                offset: XY { x, y },
-                event: MouseEvent::Press(MouseButton::Left),
-                ..
-            } => return self.mouse_select(y, event),
-
-            Event::Char('h') | Event::Char(' ') | Event::Key(Key::Left) => {
-                let status = self.player.play_or_pause();
-                return self.set_status(status);
-            }
-
-            Event::Char('l')
-            | Event::Key(Key::Enter)
-            | Event::Key(Key::Right)
-            | Event::Mouse {
-                event: MouseEvent::Press(MouseButton::Right),
-                ..
-            } => {
-                let status = self.player.stop();
-                return self.set_status(status);
-            }
-
-            Event::Char('j')
-            | Event::Key(Key::Down)
-            | Event::Mouse {
-                event: MouseEvent::WheelDown,
-                ..
-            } => {
-                if self.player.is_randomized {
-                    self.random_track();
-                } else {
-                    self.player.next();
-                }
-            }
-
-            Event::Char('k')
-            | Event::Key(Key::Up)
-            | Event::Mouse {
-                event: MouseEvent::WheelUp,
-                ..
-            } => {
-                if self.player.is_randomized {
-                    self.previous_random();
-                } else {
-                    self.player.previous()
-                }
-            }
-
-            Event::Char(']') => {
-                let volume = self.player.increase_volume();
-                return self.set_volume(volume);
-            }
-            Event::Char('[') => {
-                let volume = self.player.decrease_volume();
-                return self.set_volume(volume);
-            }
+            Event::Char(']') => return self.increase_volume(),
+            Event::Char('[') => return self.decrease_volume(),
             Event::Char('v') => return self.toggle_volume_display(),
             Event::Char('m') => return self.toggle_mute(),
-            Event::Char('*' | 'r') => return self.toggle_randomization(),
-            Event::CtrlChar('p') => return self.parent(),
 
-            Event::CtrlChar('o') => {
-                let path = self.player.path.to_owned();
-                _ = utils::open_file_manager(path);
-            }
-            Event::Char('s') => self.player.seek(),
-            Event::Char('>') => self.player.step_forward(),
-            Event::Char('<') => self.player.step_backward(),
+            Event::Char('\'') => self.player.seek_to_min(),
+            Event::Char('"') => self.player.seek_to_sec(),
+            Event::Char('}') => self.player.step_forward(),
+            Event::Char('{') => self.player.step_backward(),
+
+            Event::Char('*' | 'r') => return self.toggle_randomization(),
+            Event::Char('g') => self.player.play_key_selection(),
+            Event::CtrlChar('g') => self.player.play_last_track(),
 
             Event::Char('0') => self.player.num_keys.push(0),
             Event::Char('1') => self.player.num_keys.push(1),
@@ -461,25 +539,50 @@ impl View for PlayerView {
             Event::Char('8') => self.player.num_keys.push(8),
             Event::Char('9') => self.player.num_keys.push(9),
 
-            Event::Char('?') => {
-                return EventResult::with_cb(|siv| {
-                    KeysView::load(siv);
-                })
-            }
+            Event::CtrlChar('p') => return self.parent(),
+            Event::CtrlChar('o') => self.open_file_manager(),
+            Event::Char('?') => return load_keys_view(),
+            Event::Char('q') => return quit(),
 
-            Event::Char('q') => {
-                return EventResult::with_cb(|siv| {
-                    siv.quit();
-                });
-            }
-
-            _ => return EventResult::Ignored,
+            Event::Mouse {
+                event,
+                offset,
+                position,
+            } => match event {
+                MouseEvent::Press(MouseButton::Left) => self.mouse_button_left(offset, position),
+                MouseEvent::Press(MouseButton::Right) => return self.stop(),
+                MouseEvent::Release(MouseButton::Left) => self.mouse_release_seek(),
+                MouseEvent::Hold(MouseButton::Left) => {
+                    if self.mouse_seek_time.is_some() {
+                        self.mouse_hold_seek(offset, position);
+                    }
+                }
+                MouseEvent::WheelUp | MouseEvent::WheelDown => {
+                    self.mouse_wheel(event, offset, position)
+                }
+                _ => (),
+            },
+            _ => (),
         }
-
         EventResult::Consumed(None)
     }
 }
 
+// Quit the app.
+fn quit() -> EventResult {
+    return EventResult::with_cb(|siv| {
+        siv.quit();
+    });
+}
+
+// Shows the keys_view popup.
+fn load_keys_view() -> EventResult {
+    return EventResult::with_cb(|siv| {
+        KeysView::load(siv);
+    });
+}
+
+// Computes the values required to draw the progress bar.
 fn ratio(value: usize, max: usize, length: usize) -> (usize, usize) {
     if max == 0 {
         return (0, 0);
@@ -491,6 +594,7 @@ fn ratio(value: usize, max: usize, length: usize) -> (usize, usize) {
     (integer, fraction * 8 / max)
 }
 
+// The characters needed to draw the fractional part of the progress bar.
 fn sub_block(extra: usize) -> &'static str {
     match extra {
         0 => " ",
@@ -505,11 +609,12 @@ fn sub_block(extra: usize) -> &'static str {
     }
 }
 
+// Formats the playback time.
 fn mins_and_secs(secs: usize) -> String {
     format!("  {:02}:{:02}  ", secs / 60, secs % 60)
 }
 
-// Remove all layers from the StackView except the top layer.
+// Remove all layers from the view stack except the top layer.
 fn remove_layers_to_top(siv: &mut Cursive) {
     while siv.screen().len() > 1 {
         siv.screen_mut()
