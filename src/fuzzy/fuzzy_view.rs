@@ -26,7 +26,7 @@ pub struct FuzzyView {
     // The index of the selected item.
     selected: usize,
     // The vertical offset required to show `selected`.
-    offset: usize,
+    offset_y: usize,
     // The number of fuzzy matches.
     matches: usize,
     // The items to fuzzy search on.
@@ -43,7 +43,7 @@ impl FuzzyView {
             query: String::new(),
             cursor: 0,
             selected: 0,
-            offset: 0,
+            offset_y: 0,
             matches: items.len(),
             items,
             available_y: 0,
@@ -51,11 +51,14 @@ impl FuzzyView {
         }
     }
 
+    // Loads a new FuzzyView from the provided items.
     pub fn load(items: Vec<FuzzyItem>, siv: &mut Cursive) {
         siv.add_layer(FuzzyView::new(items).full_screen());
         remove_layer(siv);
     }
 
+    // Loads a new FuzzyView from the provided items and with the
+    // preloaded character `key` in the query.
     pub fn with(items: Vec<FuzzyItem>, key: char, siv: &mut Cursive) {
         let mut fuzzy = FuzzyView::new(items);
 
@@ -69,8 +72,8 @@ impl FuzzyView {
         if self.selected == 0 {
             return;
         }
-        if self.selected == self.offset {
-            self.offset -= 1;
+        if self.selected == self.offset_y {
+            self.offset_y -= 1;
         }
         self.selected -= 1;
     }
@@ -80,8 +83,8 @@ impl FuzzyView {
         if self.selected == self.matches - 1 {
             return;
         }
-        if self.selected - self.offset >= self.available_y {
-            self.offset += 1;
+        if self.selected - self.offset_y >= self.available_y {
+            self.offset_y += 1;
         }
         self.selected += 1;
     }
@@ -92,12 +95,12 @@ impl FuzzyView {
             return;
         }
         if self.selected + self.available_y <= self.matches - 1 {
-            self.offset += self.available_y;
+            self.offset_y += self.available_y;
             self.selected += self.available_y;
         } else {
             self.selected = self.matches - 1;
-            if self.offset + self.available_y < self.selected {
-                self.offset += self.available_y;
+            if self.offset_y + self.available_y < self.selected {
+                self.offset_y += self.available_y;
             }
         }
     }
@@ -112,10 +115,10 @@ impl FuzzyView {
         } else {
             self.selected = 0;
         }
-        if self.offset > self.available_y {
-            self.offset -= self.available_y
+        if self.offset_y > self.available_y {
+            self.offset_y -= self.available_y
         } else {
-            self.offset = 0;
+            self.offset_y = 0;
         }
     }
 
@@ -129,11 +132,11 @@ impl FuzzyView {
         let page = utils::random(0..pages);
         let y = page * (self.available_y);
 
-        if y == self.offset {
+        if y == self.offset_y {
             self.random_page();
         } else {
             self.clear();
-            self.offset = y;
+            self.offset_y = y;
             self.selected = y;
         }
     }
@@ -208,14 +211,14 @@ impl FuzzyView {
             }
             self.matches = self.items.len();
             self.selected = 0;
-            self.offset = 0;
+            self.offset_y = 0;
             return;
         }
 
         self.matches = self.fuzzy_match(pattern);
         self.sort();
         self.selected = 0;
-        self.offset = 0;
+        self.offset_y = 0;
     }
 
     // Sort the items by `weight` in descending order.
@@ -223,6 +226,7 @@ impl FuzzyView {
         self.items.sort_by(|a, b| b.weight.cmp(&a.weight))
     }
 
+    // Computes the weights for the items on fuzzy matching with the query.
     fn fuzzy_match(&mut self, pattern: &str) -> usize {
         let mut count = 0;
         let matcher = Box::new(SkimMatcherV2::default());
@@ -244,7 +248,7 @@ impl FuzzyView {
         format!("{}/{} ", self.matches, self.items.len())
     }
 
-    // Handle a fuzzy match being selected.
+    // Handles a fuzzy match being selected.
     fn on_select(&mut self) -> EventResult {
         if self.items.is_empty() {
             return EventResult::with_cb(|siv| {
@@ -274,14 +278,13 @@ impl FuzzyView {
         })
     }
 
-    fn mouse_select(&mut self, event: Event) -> EventResult {
-        let mouse_y = event.mouse_position().unwrap_or_default().y;
-
-        if mouse_y < 1 || mouse_y > self.available_y + 1 {
+    // Handles a selection from mouse input.
+    fn mouse_select(&mut self, position: XY<usize>) -> EventResult {
+        if position.y < 1 || position.y > self.available_y + 1 {
             return EventResult::Consumed(None);
         }
 
-        let next_selected = self.available_y + 1 + self.offset - mouse_y;
+        let next_selected = self.available_y + 1 + self.offset_y - position.y;
 
         if next_selected == self.selected {
             return self.on_select();
@@ -310,6 +313,14 @@ impl FuzzyView {
             }
         });
     }
+
+    // Opens the current selected item in the preferred file manager.
+    fn open_file_manager(&self) {
+        if self.selected < self.items.len() {
+            let path = self.items[self.selected].path.to_owned();
+            _ = utils::open_file_manager(path);
+        }
+    }
 }
 
 impl View for FuzzyView {
@@ -326,16 +337,16 @@ impl View for FuzzyView {
             // The first row of the list.
             let start_row = h - 3;
             // The number of visible rows.
-            let visible = std::cmp::min(self.matches - self.offset, h - 2);
+            let visible = std::cmp::min(self.matches - self.offset_y, h - 2);
 
             for y in 0..visible {
-                let index = y + self.offset;
+                let index = y + self.offset_y;
                 // The items are drawn in ascending order, starting on third row from bottom.
                 let row = start_row - y;
                 // Only draw items that have matches.
                 if self.items[index].weight != 0 {
                     // Set the color depending on whether row is currently selected or not.
-                    let (primary, highlight) = if row + self.selected == start_row + self.offset {
+                    let (primary, highlight) = if row + self.selected == start_row + self.offset_y {
                         // Draw the symbol to show the currently selected item.
                         p.with_color(theme::header2(), |p| p.print((0, row), ">"));
                         // The colors for the currently selected row.
@@ -416,30 +427,9 @@ impl View for FuzzyView {
         match event {
             Event::Char(ch) => self.insert(ch),
             Event::Key(Key::Enter) => return self.on_select(),
-
-            Event::Key(Key::Esc)
-            | Event::Mouse {
-                event: MouseEvent::Press(MouseButton::Right),
-                ..
-            } => return on_cancel(),
-
-            Event::Mouse {
-                event: MouseEvent::Press(MouseButton::Left),
-                ..
-            } => return self.mouse_select(event),
-
-            Event::Key(Key::Down)
-            | Event::Mouse {
-                event: MouseEvent::WheelDown,
-                ..
-            } => self.move_down(),
-
-            Event::Key(Key::Up)
-            | Event::Mouse {
-                event: MouseEvent::WheelUp,
-                ..
-            } => self.move_up(),
-
+            Event::Key(Key::Esc) => return on_cancel(),
+            Event::Key(Key::Down) => self.move_down(),
+            Event::Key(Key::Up) => self.move_up(),
             Event::Key(Key::PageUp) | Event::CtrlChar('h') => self.page_up(),
             Event::Key(Key::PageDown) | Event::CtrlChar('l') => self.page_down(),
             Event::CtrlChar('z') => self.random_page(),
@@ -451,17 +441,19 @@ impl View for FuzzyView {
             Event::Key(Key::End) => self.cursor = self.query.len(),
             Event::CtrlChar('u') => self.clear(),
             Event::CtrlChar('p') => return self.parent(),
+            Event::CtrlChar('o') => self.open_file_manager(),
 
-            Event::CtrlChar('o') => {
-                if self.selected < self.items.len() {
-                    let path = self.items[self.selected].path.to_owned();
-                    _ = utils::open_file_manager(path);
-                }
-            }
-
-            _ => return EventResult::Ignored,
+            Event::Mouse {
+                event, position, ..
+            } => match event {
+                MouseEvent::Press(MouseButton::Right) => return on_cancel(),
+                MouseEvent::Press(MouseButton::Left) => return self.mouse_select(position),
+                MouseEvent::WheelDown => self.move_down(),
+                MouseEvent::WheelUp => self.move_up(),
+                _ => (),
+            },
+            _ => (),
         }
-
         EventResult::Consumed(None)
     }
 }
@@ -504,6 +496,8 @@ pub fn current_path(siv: &mut Cursive) -> Option<PathBuf> {
     }
 }
 
+// Pops views from the view stack until there are only two remaining:
+// the current FuzzyView and the underlying PlayerView.
 fn remove_layer(siv: &mut Cursive) {
     while siv.screen().len() > 2 {
         siv.screen_mut().remove_layer(LayerPosition::FromFront(1));
