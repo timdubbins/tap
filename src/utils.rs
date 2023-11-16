@@ -27,6 +27,17 @@ pub fn random(range: Range<usize>) -> usize {
     thread_rng().gen_range(range)
 }
 
+// Bounds a value by a minimum and maximum value.
+pub fn clamp<T: PartialOrd>(input: T, min: T, max: T) -> T {
+    if input < min {
+        min
+    } else if input > max {
+        max
+    } else {
+        input
+    }
+}
+
 // Gets the last modification time listed in the metadata for the path.
 pub fn last_modified(path: &PathBuf) -> Result<SystemTime, anyhow::Error> {
     match std::fs::metadata(&path) {
