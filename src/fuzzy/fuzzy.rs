@@ -27,13 +27,15 @@ pub struct FuzzyItem {
 }
 
 impl FuzzyItem {
-    pub fn new(res: Result<DirEntry, walkdir::Error>, root: bool) -> Result<Self, anyhow::Error> {
+    fn new(res: Result<DirEntry, walkdir::Error>) -> Result<Self, anyhow::Error> {
         let dent = res?;
         let path = dent.path().into();
+        let depth = dent.depth();
 
-        let (has_audio, sub_dirs) = match root {
-            true => (has_audio(&path)?, 0),
-            false => validate(&path)?,
+        // Add the search root as a FuzzyItem iff it contains audio files.
+        let (has_audio, sub_dirs) = match depth {
+            0 => (has_audio(&path)?, 0),
+            _ => validate(&path)?,
         };
 
         let display = dent
@@ -51,7 +53,6 @@ impl FuzzyItem {
         let fuzzy_item = FuzzyItem {
             has_audio,
             child_count: sub_dirs,
-            depth: dent.depth(),
             indices: vec![],
             // We assign a default weight so that the weights of
             // items are equal before fuzzy matching. The weight
@@ -59,6 +60,7 @@ impl FuzzyItem {
             // from being displayed. So we choose the value one.
             weight: 1,
             path,
+            depth,
             display,
             key,
         };
@@ -82,33 +84,24 @@ impl PartialOrd for FuzzyItem {
 
 // Creates the list of fuzzy items from the non-hidden subdirectories of `path`.
 pub fn create_items(path: &PathBuf) -> Result<Vec<FuzzyItem>, anyhow::Error> {
-    let mut items = WalkDir::new(path)
-        .min_depth(1)
+    let items = WalkDir::new(path)
         .into_iter()
         .filter_entry(is_non_hidden_dir)
-        .filter_map(|res| FuzzyItem::new(res, false).ok())
+        .filter_map(|res| FuzzyItem::new(res).ok())
         .collect::<Vec<FuzzyItem>>();
-
-    if let Some(first) = WalkDir::new(path)
-        .max_depth(0)
-        .contents_first(true)
-        .into_iter()
-        .filter_map(|res| FuzzyItem::new(res, true).ok())
-        .collect::<Vec<_>>()
-        .first()
-    {
-        items.push(first.to_owned())
-    }
-
     Ok(items)
 }
 
 // Gets all the non-leaf items that start with the letter `key`.
-pub fn key_items(key: char, items: &Vec<FuzzyItem>) -> Vec<FuzzyItem> {
-    items
-        .into_iter()
-        .filter(|e| e.child_count > 0 && e.key == key)
-        .collect()
+pub fn key_items(key: Option<char>, items: &Vec<FuzzyItem>) -> Vec<FuzzyItem> {
+    if let Some(key) = key {
+        items
+            .into_iter()
+            .filter(|e| e.child_count > 0 && e.key == key)
+            .collect()
+    } else {
+        vec![]
+    }
 }
 
 // Gets all the items that are `depth` level directories, sorted alphabetically.

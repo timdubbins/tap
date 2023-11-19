@@ -51,18 +51,15 @@ impl FuzzyView {
         }
     }
 
-    // Loads a new FuzzyView from the provided items.
-    pub fn load(items: Vec<FuzzyItem>, siv: &mut Cursive) {
-        siv.add_layer(FuzzyView::new(items).full_screen());
-        remove_layer(siv);
-    }
-
-    // Loads a new FuzzyView from the provided items and with the
-    // preloaded character `key` in the query.
-    pub fn with(items: Vec<FuzzyItem>, key: char, siv: &mut Cursive) {
+    // Loads a new FuzzyView from the provided items. Providing a `key` will
+    // pre-match the results using the char.
+    pub fn load(items: Vec<FuzzyItem>, key: Option<char>, siv: &mut Cursive) {
         let mut fuzzy = FuzzyView::new(items);
 
-        fuzzy.insert(key.to_ascii_lowercase());
+        if let Some(key) = key {
+            fuzzy.insert(key.to_ascii_lowercase());
+        }
+
         siv.add_layer(fuzzy.full_screen());
         remove_layer(siv);
     }
@@ -273,7 +270,7 @@ impl FuzzyView {
                     }
                 }
 
-                FuzzyView::load(items, siv);
+                FuzzyView::load(items, None, siv);
             }
         })
     }
@@ -309,7 +306,7 @@ impl FuzzyView {
 
         return EventResult::with_cb(move |siv| {
             if let Ok(items) = create_items(&parent) {
-                FuzzyView::load(items, siv);
+                FuzzyView::load(items, None, siv);
             }
         });
     }
@@ -459,18 +456,19 @@ impl View for FuzzyView {
 }
 
 fn select_player(item: FuzzyItem, siv: &mut Cursive) {
-    let selected = item.path.to_owned();
+    let selected = Some(item.path);
     let current = current_path(siv);
 
-    if Some(selected.to_owned()).eq(&current) {
-        // Don't reload the player if the selection hasn't changed.
-        siv.pop_layer();
-    } else {
-        let path = Some(selected.to_owned());
-        match PlayerBuilder::FuzzyFinder.from(path, siv) {
-            Ok(player) => PlayerView::load(player, siv),
-            Err(e) => ErrorView::load(siv, e),
+    match PlayerBuilder::FuzzyFinder.from(selected.to_owned(), siv) {
+        Ok(player) => {
+            // Don't reload the player if the selection hasn't changed.
+            if selected.eq(&current) {
+                siv.pop_layer();
+            } else {
+                PlayerView::load(player, siv);
+            }
         }
+        Err(e) => ErrorView::load(siv, e),
     }
 }
 
