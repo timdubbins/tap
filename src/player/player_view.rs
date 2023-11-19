@@ -219,7 +219,7 @@ impl PlayerView {
             parent.pop();
             return EventResult::with_cb(move |siv| {
                 let items = fuzzy::create_items(&parent).expect("should always exist");
-                FuzzyView::load(items, siv)
+                FuzzyView::load(items, None, siv)
             });
         }
         EventResult::Consumed(None)
@@ -307,7 +307,7 @@ impl PlayerView {
         // Whether or not the mouse cursor is outside the area containing
         // the playlist and the progress bar.
         let outside_area = position.y <= offset.y
-            || position.y - offset.y >= self.size.y
+            || position.y - offset.y > self.size.y
             || position.x <= offset.x + 1
             || position.x + 2 - offset.x >= self.size.x;
 
@@ -319,8 +319,8 @@ impl PlayerView {
         // The y position of the mouse cursor relative to the view.
         let translation_y = position.y - offset.y;
 
-        // Initiate seeking if the mouse cursor is over progress bar.
-        if translation_y + 1 == self.size.y {
+        // Initiate seeking if the mouse cursor is over progress bar or line below.
+        if translation_y == self.size.y || translation_y + 1 == self.size.y {
             if self.size.x > 16 {
                 self.mouse_hold_seek(offset, position);
             } else {
