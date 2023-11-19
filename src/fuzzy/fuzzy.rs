@@ -1,4 +1,7 @@
-use std::{cmp::Ordering, path::PathBuf};
+use std::{
+    cmp::Ordering,
+    path::{Path, PathBuf},
+};
 
 use anyhow::bail;
 use bincode::{Decode, Encode};
@@ -124,6 +127,41 @@ pub fn non_leaf_items(items: &Vec<FuzzyItem>) -> Vec<FuzzyItem> {
     items
 }
 
+// Returns the path to the directory or file that either contains or is an an audio file,
+// if there is only one such directory or file.
+pub fn only_audio_path(path: &PathBuf, items: &Vec<FuzzyItem>) -> Option<PathBuf> {
+    if items.is_empty() {
+        Some(path.to_owned())
+    } else {
+        let mut path = None;
+        for item in items.iter() {
+            if item.has_audio {
+                if path.is_some() {
+                    return None;
+                } else {
+                    path = Some(item.path.to_owned())
+                }
+            }
+        }
+        path
+    }
+}
+
+// Returns the path to the first directory that contains audio, if any.
+pub fn first_audio_path(path: &PathBuf) -> Result<PathBuf, anyhow::Error> {
+    let entries = WalkDir::new(path)
+        .into_iter()
+        .filter_entry(is_non_hidden_dir)
+        .filter_map(|entry| entry.ok());
+
+    for entry in entries {
+        if let Ok(_) = has_audio(entry.path()) {
+            return Ok(path.to_owned());
+        }
+    }
+    bail!("no audio files detected in '{}'", path.display())
+}
+
 // Gets all the leaf items, sorted alphabetically.
 pub fn audio_items(items: &Vec<FuzzyItem>) -> Vec<FuzzyItem> {
     let mut items = items
@@ -153,8 +191,9 @@ fn is_non_hidden_dir(entry: &walkdir::DirEntry) -> bool {
             .unwrap_or(false)
 }
 
-fn has_audio(path: &PathBuf) -> Result<bool, anyhow::Error> {
-    for entry in path.read_dir()? {
+// Whether or not the path is a directory that contains audio.
+fn has_audio<P: AsRef<Path>>(path: P) -> Result<bool, anyhow::Error> {
+    for entry in path.as_ref().read_dir()? {
         if let Ok(entry) = entry {
             if valid_audio_ext(&entry.path()) {
                 return Ok(true);
@@ -164,6 +203,8 @@ fn has_audio(path: &PathBuf) -> Result<bool, anyhow::Error> {
     bail!("invalid")
 }
 
+// Whether or not a directory is a valid FuzzyItem; that is, does
+// the directory contain at least one audio file or child directory.
 fn validate(path: &PathBuf) -> Result<(bool, usize), anyhow::Error> {
     let mut has_audio = false;
     let mut dir_count: usize = 0;

@@ -13,7 +13,7 @@ use crate::theme;
 use crate::utils::UserData;
 use crate::{args, utils};
 
-use super::{KeysView, Player, PlayerBuilder, PlayerStatus};
+use super::{AudioFile, KeysView, Player, PlayerBuilder, PlayerStatus};
 
 pub struct PlayerView {
     // The currently loaded player.
@@ -84,11 +84,11 @@ impl PlayerView {
     }
 
     // Formats the player header.
-    fn album_and_year(&self) -> String {
-        if let Some(year) = self.player.file.year {
-            return format!("{} ({})", self.player.file.album, year);
+    fn album_and_year(&self, f: &AudioFile) -> String {
+        if let Some(year) = f.year {
+            return format!("{} ({})", f.album, year);
         } else {
-            return format!("{}", self.player.file.album);
+            return format!("{}", f.album);
         }
     }
 
@@ -212,7 +212,7 @@ impl PlayerView {
 
     // Loads a fuzzy view for the parent of the current audio file.
     fn parent(&self) -> EventResult {
-        let mut parent = self.player.path.to_owned();
+        let mut parent = self.player.path().to_owned();
         let root = args::search_root();
 
         if parent != root {
@@ -274,7 +274,7 @@ impl PlayerView {
     // Opens the parent of the current audio file in the
     // preferred file manager.
     fn open_file_manager(&self) {
-        let path = self.player.path.to_owned();
+        let path = self.player.path().to_owned();
         _ = utils::open_file_manager(path);
     }
 
@@ -345,9 +345,9 @@ impl PlayerView {
                 self.player.play();
             }
             self.player.pause();
+            let duration = self.player.file().duration;
             let mouse_seek_pos = utils::clamp(position.x - offset.x, 8, self.size.x - 8) - 8;
-            self.mouse_seek_time =
-                Some(mouse_seek_pos * self.player.file.duration / (self.size.x - 16));
+            self.mouse_seek_time = Some(mouse_seek_pos * duration / (self.size.x - 16));
         }
     }
 
@@ -401,7 +401,7 @@ impl View for PlayerView {
         // The size of the screen we can draw on.
         let (w, h) = (p.size.x, p.size.y);
         // The file currently loaded in the player.
-        let f = &self.player.file;
+        let f = self.player.file();
         // The start of the duration column.
         let column = if w > 9 { w - 9 } else { 0 };
         // The length of the progress bar.
@@ -461,7 +461,7 @@ impl View for PlayerView {
                 p.with_color(theme::header1(), |p| p.print((2, 0), &f.artist.as_str()));
                 p.with_effect(Effect::Italic, |p| {
                     p.with_color(theme::header2(), |p| {
-                        p.print((f.artist.len() + 4, 0), &self.album_and_year().as_str())
+                        p.print((f.artist.len() + 4, 0), &self.album_and_year(f).as_str())
                     })
                 })
             });

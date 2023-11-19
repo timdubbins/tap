@@ -29,10 +29,8 @@ impl PlayerBuilder {
     }
 
     pub fn new(path: PathBuf) -> PlayerResult {
-        let track = (path, 0);
         let opts = PlayerOpts::default();
-
-        Player::new(track, opts, false, true)
+        Player::new(path, 0, opts, false)
     }
 
     fn previous(&self, siv: &mut Cursive) -> PlayerResult {
@@ -57,7 +55,7 @@ impl PlayerBuilder {
         let is_randomized = Self::PreviousTrack.eq(self);
 
         match path {
-            Some(path) => Player::new((path, index), opts, is_randomized, false),
+            Some(path) => Player::new(path, index, opts, is_randomized),
             None => bail!("path not set"),
         }
     }
@@ -79,8 +77,7 @@ impl PlayerBuilder {
                     Some(track) => track,
                     None => {
                         let path = path.to_owned();
-                        let upper_bound =
-                            playlist(&path, false).expect("should always exist").0.len();
+                        let upper_bound = playlist(&path).expect("should always exist").0.len();
                         let index = utils::random(0..upper_bound);
                         (path, index)
                     }
@@ -96,28 +93,28 @@ impl PlayerBuilder {
             index = 0;
         }
 
-        Player::new((path, index), opts, Self::RandomTrack.eq(self), false)
+        Player::new(path, index, opts, Self::RandomTrack.eq(self))
     }
 
     fn fuzzy(path: Option<PathBuf>, siv: &mut Cursive) -> PlayerResult {
-        let track = (path.expect("path should be provided by fuzzy-finder"), 0);
+        let path = path.expect("path should be provided by fuzzy-finder");
 
         let opts = siv
             .with_user_data(|(opts, _, queue): &mut UserData| {
                 let opts: PlayerOpts = (*opts).into();
 
                 if queue.len() == 1 {
-                    queue.push_front(track.clone());
-                    queue.push_front(track.clone());
+                    queue.push_front((path.clone(), 0));
+                    queue.push_front((path.clone(), 0));
                 } else {
                     queue.pop_front();
-                    queue.insert(1, track.clone());
+                    queue.insert(1, (path.clone(), 0));
                 }
 
                 opts
             })
             .expect("should be set on init");
 
-        Player::new(track, opts, false, false)
+        Player::new(path, 0, opts, false)
     }
 }

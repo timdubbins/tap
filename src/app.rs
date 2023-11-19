@@ -1,4 +1,4 @@
-use std::io::{stdout, Write};
+use std::io::{stdin, stdout, Write};
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::thread::{self, sleep};
@@ -37,7 +37,7 @@ pub fn run() -> Result<(), anyhow::Error> {
     siv.set_fps(15);
 
     if items.len() < 2 {
-        return run_standalone(items, path, siv);
+        return run_standalone(path, siv);
     }
 
     // Load the initial fuzzy search.
@@ -90,15 +90,7 @@ fn handle_runner(mut siv: CursiveRunnable) -> Result<(), anyhow::Error> {
 }
 
 // Runs a standalone player without the fuzzy finder.
-fn run_standalone(
-    items: Vec<FuzzyItem>,
-    path: PathBuf,
-    mut siv: CursiveRunnable,
-) -> Result<(), anyhow::Error> {
-    let path = match items.first() {
-        Some(item) => item.path.to_owned(),
-        None => path,
-    };
+fn run_standalone(path: PathBuf, mut siv: CursiveRunnable) -> Result<(), anyhow::Error> {
     let player = PlayerBuilder::new(path)?;
     PlayerView::load(player, &mut siv);
 
@@ -107,6 +99,7 @@ fn run_standalone(
 
 // Run an automated player in the command line without the TUI.
 fn run_automated(path: PathBuf) -> Result<(), anyhow::Error> {
+    let path = fuzzy::first_audio_path(&path)?;
     let (mut player, _, _) = PlayerBuilder::new(path)?;
     let (mut line, mut length) = player.stdout();
 

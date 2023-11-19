@@ -1,5 +1,4 @@
 use std::cmp::{max, min};
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
@@ -10,7 +9,6 @@ use cursive::XY;
 use expiring_bool::ExpiringBool;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
-use crate::args;
 use crate::utils;
 
 use super::{valid_audio_ext, AudioFile, PlayerOpts, PlayerStatus, StatusToBytes};
@@ -20,13 +18,9 @@ pub type PlayerResult = Result<(Player, bool, XY<usize>), anyhow::Error>;
 const SEEK_TIME: Duration = Duration::from_secs(10);
 
 pub struct Player {
-    // The path used to create the playlist.
-    pub path: PathBuf,
     // The list of audio files for the player.
     pub playlist: Vec<AudioFile>,
-    // The current audio file.
-    pub file: AudioFile,
-    // The index of the current audio file.
+    // // The index of the current audio file.
     pub index: usize,
     // The index of the previous audio file, used with standalone player.
     pub previous: usize,
@@ -40,12 +34,10 @@ pub struct Player {
     pub next_track_queued: bool,
     // Whether the player is playing, paused or stopped.
     pub status: PlayerStatus,
-    // The list of numbers from last keyboard input,
+    // The list of numbers from last keyboard input.
     pub num_keys: Vec<usize>,
     // Whether or not a double-tap event was registered.
     pub timer_bool: ExpiringBool,
-    // The map of audio track numbers to file indices.
-    indices: HashMap<u32, usize>,
     // The instant that playback started or resumed.
     last_started: Instant,
     // The instant that the player was paused. Reset when player is stopped.
@@ -59,22 +51,10 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(
-        track: (PathBuf, usize),
-        opts: PlayerOpts,
-        is_randomized: bool,
-        recurse: bool,
-    ) -> PlayerResult {
-        let (path, index) = (track.0, track.1);
-        let (playlist, size) = playlist(&path, recurse)?;
-        let file = playlist[index].to_owned();
+    pub fn new(path: PathBuf, index: usize, opts: PlayerOpts, is_randomized: bool) -> PlayerResult {
+        let (playlist, size) = playlist(&path)?;
         let (_stream, _stream_handle) = OutputStream::try_default()?;
         let sink = Sink::try_new(&_stream_handle)?;
-        let mut indices = HashMap::new();
-
-        for (i, f) in playlist.iter().enumerate() {
-            indices.insert(f.track, i);
-        }
 
         let mut player = Self {
             last_started: Instant::now(),
@@ -86,11 +66,8 @@ impl Player {
             status: opts.status,
             volume: opts.volume,
             is_muted: opts.is_muted,
-            path,
             index,
             playlist,
-            file,
-            indices,
             is_randomized,
             sink,
             _stream,
@@ -101,6 +78,16 @@ impl Player {
         player.set_playback();
 
         Ok((player, opts.showing_volume, size))
+    }
+
+    // The current audio file.
+    pub fn file(&self) -> &AudioFile {
+        &self.playlist[self.index]
+    }
+
+    // The path used to create the playlist.
+    pub fn path(&self) -> &PathBuf {
+        &self.file().path
     }
 
     // Resumes a paused sink and records the start time.
@@ -130,7 +117,7 @@ impl Player {
 
     // Decodes and appends `file` to the sink, starts playback and records start time.
     pub fn play(&mut self) {
-        if let Ok(source) = decode(&self.file.path) {
+        if let Ok(source) = decode(self.path()) {
             self.sink.append(source);
             self.sink.play();
             self.status = PlayerStatus::Playing;
@@ -162,8 +149,8 @@ impl Player {
         // Play the track from number key inputs.
         } else {
             let track_number = utils::concatenate(&self.num_keys) as u32;
-            if let Some(index) = self.indices.get(&track_number) {
-                self.play_index(index.clone() as usize);
+            if let Some(index) = self.playlist.iter().position(|f| f.track == track_number) {
+                self.play_index(index.clone());
             } else {
                 self.clear();
             }
@@ -185,7 +172,6 @@ impl Player {
         self.clear();
         if self.index < self.last_index() {
             self.index += 1;
-            self.file = self.playlist[self.index].clone();
             self.set_playback();
         } else {
             self.stop();
@@ -197,7 +183,6 @@ impl Player {
         self.clear();
         if self.index > 0 {
             self.index -= 1;
-            self.file = self.playlist[self.index].clone();
         }
         self.set_playback();
     }
@@ -256,7 +241,7 @@ impl Player {
         while count < 10 {
             let target = utils::random(0..paths.len());
             let path = paths[target].to_owned();
-            if let Ok((playlist, _)) = playlist(&path, false) {
+            if let Ok((playlist, _)) = playlist(&path) {
                 let index = utils::random(0..playlist.len());
                 return Some((path, index));
             } else {
@@ -273,7 +258,6 @@ impl Player {
             let current = self.index;
             self.index = self.previous;
             self.previous = current;
-            self.file = self.playlist[self.index].to_owned();
             self.next_track_queued = false;
             self.set_playback();
         }
@@ -289,7 +273,6 @@ impl Player {
             }
             self.previous = self.index;
             self.index = index;
-            self.file = self.playlist[index].to_owned();
             self.next_track_queued = false;
             self.set_playback();
         }
@@ -345,7 +328,7 @@ impl Player {
         if !self.is_playing() {
             self.play_or_pause();
         }
-        let duration = Duration::new(self.file.duration as u64, 0);
+        let duration = Duration::new(self.file().duration as u64, 0);
         if duration - elapsed < time + Duration::new(0, 500) {
             self.next()
         } else {
@@ -392,7 +375,7 @@ impl Player {
             }
     }
 
-    // Performs the function of a mixer by polling the player
+    // Performs the function of a mixer. Polls the player
     // sink during the layout phase of PlayerView.
     //
     // If playback is not randomized and there is a succeeding
@@ -422,13 +405,10 @@ impl Player {
                 self.last_started = Instant::now();
                 self.last_elapsed = Duration::ZERO;
                 self.index += 1;
-                self.file = self.playlist[self.index].clone();
                 self.next_track_queued = false;
                 return 1;
             } else if self.index < self.playlist.len() - 1 {
-                let file = self.playlist[self.index + 1].clone();
-                let path = &file.path;
-                if let Ok(source) = decode(path) {
+                if let Ok(source) = decode(self.path()) {
                     self.sink.append(source);
                     self.next_track_queued = true;
                 } else {
@@ -443,10 +423,11 @@ impl Player {
 
     // Stdout for the automated player.
     pub fn stdout(&self) -> (String, usize) {
+        let file = self.file();
         let line = format!(
             "[tap player]: '{}' by '{}' ({}/{}) ",
-            self.file.title,
-            self.file.artist,
+            file.title,
+            file.artist,
             self.index + 1,
             self.playlist.len()
         );
@@ -475,7 +456,6 @@ impl Player {
     fn play_index(&mut self, index: usize) {
         self.stop();
         self.index = index;
-        self.file = self.playlist[index].clone();
         self.clear();
         self.play();
     }
@@ -486,7 +466,7 @@ impl Player {
         self.last_elapsed = Duration::ZERO;
 
         if self.status != PlayerStatus::Stopped {
-            if let Ok(source) = decode(&self.file.path) {
+            if let Ok(source) = decode(self.path()) {
                 self.sink.append(source);
                 self.last_started = Instant::now();
             }
@@ -507,72 +487,56 @@ impl Player {
 }
 
 // Returns the playlist and required size for the player on success.
-pub fn playlist(
-    path: &PathBuf,
-    recurse: bool,
-) -> Result<(Vec<AudioFile>, XY<usize>), anyhow::Error> {
-    // The list of files to use in the player.
-    let mut list: Vec<AudioFile> = vec![];
+pub fn playlist(path: &PathBuf) -> Result<(Vec<AudioFile>, XY<usize>), anyhow::Error> {
     // A value used to set an appropriate width for the player view.
     let mut width = 0;
     // The error we get if we can't create an audio file.
     let mut error: Option<anyhow::Error> = None;
-    // The first child directory to recurse into.
-    let mut next_path: Option<PathBuf> = None;
 
-    // Build the playlist.
-    if let Ok(iter) = path.read_dir() {
-        for entry in iter {
-            if let Ok(entry) = entry {
-                let path = entry.path();
-                if recurse && path.is_dir() && next_path.is_none() {
-                    next_path = Some(path);
-                } else {
-                    update_playlist(&mut list, &mut width, &mut error, path)
+    // Collect the potential audio file paths.
+    let paths = match path.read_dir() {
+        Ok(path) => path
+            .filter_map(|entry| entry.ok())
+            .map(|entry| entry.path())
+            .filter(|entry| entry.is_file())
+            .collect::<Vec<_>>(),
+        Err(_) => {
+            vec![path.to_owned()]
+        }
+    };
+
+    if paths.is_empty() {
+        bail!("'{}' is empty", path.display())
+    }
+
+    // The audio files comprising our playlist.
+    let mut list = {
+        paths
+            .into_iter()
+            .filter(|path| valid_audio_ext(path))
+            .filter_map(|path| match AudioFile::new(path) {
+                Ok(file) => {
+                    width = max(width, file.title.len());
+                    Some(file)
                 }
-            }
-        }
-    } else {
-        // If `path` is a file, create a playlist containing it.
-        update_playlist(&mut list, &mut width, &mut error, path.clone())
+                Err(e) => {
+                    if error.is_none() {
+                        error = Some(e)
+                    }
+                    None
+                }
+            })
     }
+    .collect::<Vec<AudioFile>>();
 
-    //     for path in iter.filter_map(|e| e.ok()).map(|e| e.path()) {
-
-    //         if recurse && path.is_dir() {
-    //             return playlist(&path, recurse);
-    //         } else {
-    //             update_playlist(&mut list, &mut width, &mut error, path)
-    //         }
-    //     }
-    // } else {
-    //     // If `path` is a file, create a playlist containing it.
-    //     update_playlist(&mut list, &mut width, &mut error, path.clone())
-    // }
-
-    if let Some(next_path) = next_path {
-        if list.is_empty() {
-            return playlist(&next_path, recurse);
-        }
-    }
-
+    // Check the first track can be decoded and calculate the required width.
     if let Some(first) = list.first() {
         width = max(width, first.album.len() + first.artist.len() + 1);
         _ = decode(&first.path)?;
     } else {
-        // Use the correct path in error messages.
-        let path = match recurse {
-            true => args::search_root(),
-            false => path.to_owned(),
-        };
-        // Handle errors.
-        if list.is_empty() {
-            bail!("'{}' is empty", path.display())
-        } else {
-            match error {
-                Some(e) => bail!(e),
-                None => bail!("no audio files detected in '{}'", path.display()),
-            }
+        match error {
+            Some(e) => bail!(e),
+            None => bail!("no audio files detected in '{}'", path.display()),
         }
     }
 
@@ -584,31 +548,6 @@ pub fn playlist(
     };
 
     Ok((list, size))
-}
-
-#[inline]
-fn update_playlist(
-    list: &mut Vec<AudioFile>,
-    width: &mut usize,
-    error: &mut Option<anyhow::Error>,
-    path: PathBuf,
-) {
-    if valid_audio_ext(&path) {
-        match AudioFile::new(path) {
-            // Grow the `playlist` and update `width`.
-            Ok(f) => {
-                *width = max(*width, f.title.len());
-                list.push(f)
-            }
-            // Save the first error encountered for error handling
-            // in the event of an empty playlist.
-            Err(e) => {
-                if error.is_none() {
-                    *error = Some(e)
-                }
-            }
-        }
-    }
 }
 
 pub fn decode(path: &PathBuf) -> Result<Decoder<BufReader<File>>, anyhow::Error> {
@@ -628,43 +567,9 @@ mod tests {
     use crate::utils::{create_working_dir, find_assets_dir};
 
     #[test]
-    fn test_playlist_recurse_success() {
-        let root = create_working_dir(
-            &["one", "one/two"],
-            &[("one/two/foo.mp3", "test_mp3_audio.mp3")],
-            &[],
-        )
-        .expect("create temp dir")
-        .into_path();
-
-        let res = playlist(&root, true);
-        assert!(
-            res.expect("should be ok").0.len() == 1,
-            "Expected to find the audio file in leaf directory"
-        );
-    }
-
-    #[test]
-    fn test_playlist_recurse_error() {
-        let root = create_working_dir(
-            &["one", "one/two"],
-            &[("one/two/foo.mp3", "test_mp3_audio.mp3")],
-            &[],
-        )
-        .expect("create temp dir")
-        .into_path();
-
-        let res = playlist(&root, false);
-        assert!(
-            res.is_err(),
-            "Expected to not find the audio file in leaf directory"
-        );
-    }
-
-    #[test]
     fn test_playlist_mp3_success() {
         let root = find_assets_dir().join("test_mp3_audio.mp3");
-        let (playlist, _) = playlist(&root, false).expect("should create a valid playlist");
+        let (playlist, _) = playlist(&root).expect("should create a valid playlist");
 
         assert_eq!(playlist[0].title, "test_audio_mp3");
     }
@@ -672,7 +577,7 @@ mod tests {
     #[test]
     fn test_playlist_flac_success() {
         let root = find_assets_dir().join("test_flac_audio.flac");
-        let (playlist, _) = playlist(&root, false).expect("should create a valid playlist");
+        let (playlist, _) = playlist(&root).expect("should create a valid playlist");
 
         assert_eq!(playlist[0].title, "test_audio_flac");
     }
@@ -680,7 +585,7 @@ mod tests {
     #[test]
     fn test_playlist_m4a_success() {
         let root = find_assets_dir().join("test_m4a_audio.m4a");
-        let (playlist, _) = playlist(&root, false).expect("should create a valid playlist");
+        let (playlist, _) = playlist(&root).expect("should create a valid playlist");
 
         assert_eq!(playlist[0].title, "test_audio_m4a");
     }
@@ -688,7 +593,7 @@ mod tests {
     #[test]
     fn test_playlist_wav_success() {
         let root = find_assets_dir().join("test_wav_audio.wav");
-        let (playlist, _) = playlist(&root, false).expect("should create a valid playlist");
+        let (playlist, _) = playlist(&root).expect("should create a valid playlist");
 
         assert_eq!(playlist[0].title, "test_audio_wav");
     }
@@ -696,7 +601,7 @@ mod tests {
     #[test]
     fn test_playlist_ogg_success() {
         let root = find_assets_dir().join("test_ogg_audio.ogg");
-        let (playlist, _) = playlist(&root, false).expect("should create a valid playlist");
+        let (playlist, _) = playlist(&root).expect("should create a valid playlist");
 
         assert_eq!(playlist[0].title, "test_audio_ogg");
     }
@@ -704,7 +609,7 @@ mod tests {
     #[test]
     fn test_playlist_assets_length() {
         let root = find_assets_dir();
-        let (playlist, _) = playlist(&root, false).expect("should create a valid playlist");
+        let (playlist, _) = playlist(&root).expect("should create a valid playlist");
 
         assert_eq!(
             playlist.len(),
@@ -719,7 +624,7 @@ mod tests {
     #[test]
     fn test_playlist_assets_size() {
         let root = find_assets_dir();
-        let (_, size) = playlist(&root, false).expect("should create a valid playlist");
+        let (_, size) = playlist(&root).expect("should create a valid playlist");
 
         assert_eq!((size.x, size.y), (53, 8));
     }
@@ -730,7 +635,7 @@ mod tests {
             .expect("create temp dir")
             .into_path();
 
-        let res = playlist(&root, false);
+        let res = playlist(&root);
         assert!(
             res.is_err(),
             "Providing the path to an empty directory should yield an error"
