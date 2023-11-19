@@ -30,8 +30,9 @@ Option                  | Description
 `-d` `--default`        | Run from the default directory, if set.
 `-p` `--print`          | Print the path of the default directory, if set.
 `-s` `--set-default`    | Set `path` as the default directory. This can significantly reduce the time it takes to load this directory. See [Notes](#notes).
-`b` `--term-bg`         | Use the terminal background color.
-`c` `--term-color`      | Use the terminal background and foreground colors only.
+`-e` `--exclude`        | Exclude all directories that don't contain audio files. 
+`-b` `--term-bg`        | Use the terminal background color.
+`-c` `--term-color`     | Use the terminal background and foreground colors only.
 `--color <COLOR>`       | Set colors using \<NAME>=\<HEX>. See [Notes](#notes) for available names.
 
 
@@ -59,6 +60,10 @@ play or pause       | `h` or <kbd>&larr;</kbd> or `Space`
 next                | `j` or <kbd>&darr;</kbd>
 previous            | `k` or <kbd>&uarr;</kbd>
 stop                | `l` or <kbd>&rarr;</kbd> or `Enter`
+step forward        | `}`
+step backward       | `{`
+seek to sec         | `0...9` + `"`
+seek to min         | `0...9` + `'`
 random              | `r`
 volume up           | `]`
 volume down         | `[`
@@ -88,12 +93,14 @@ Global              | Keybinding
 ---                 |---
 fuzzy search        | `Middle Button`
 
-Player              | Keybinding
----                 |---
-play or pause       | `Left Button`
-next / previous     | `Scroll`
-stop                | `Right Button`
-select              | `Left Button`
+Player              | Keybinding             | Where
+---                 |---                     |---
+play or pause       | `Left Button`          | <i>Outside playlist</i>
+select track        | `Left Button`          | <i>Inside playlist</i>
+seek                | `Left Button Hold`     | <i>Inside progress bar<i>
+volume              | `Scroll`               | <i>Outside playlist</i>
+next / previous     | `Scroll`               | <i>Inside playlist</i>
+stop                | `Right Button`         | <i>Anywhere</i>
 
 Fuzzy               | Keybinding
 ---                 |---
@@ -113,7 +120,7 @@ You can install with <a href="https://brew.sh/">Homebrew</a>:
 ```bash
 > brew install timdubbins/tap/tap
 > tap --version
-0.4.8
+0.4.9
 ```
 
 </details>
@@ -129,7 +136,7 @@ such as <a href="https://github.com/Jguer/yay">yay</a>:
 ```bash
 > yay -S tap
 > tap --version
-0.4.8
+0.4.9
 ```
 The AUR package is available <a href="https://aur.archlinux.org/packages/tap">here</a>.
 <br>
@@ -140,13 +147,13 @@ The AUR package is available <a href="https://aur.archlinux.org/packages/tap">he
 <summary><b>Debian</b> (or a Debian derivative, such as <b>Ubuntu</b>)</summary>
 <br>
 
-You can install with a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.4.8">tap release</a>:
+You can install with a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.4.9">tap release</a>:
 
 ```bash
-> curl -LO https://github.com/timdubbins/tap/releases/download/v0.4.8/tap_0.4.8_amd64.deb
-> sudo dpkg -i tap_0.4.8_amd64.deb
+> curl -LO https://github.com/timdubbins/tap/releases/download/v0.4.9/tap_0.4.9_amd64.deb
+> sudo dpkg -i tap_0.4.9_amd64.deb
 > tap --version
-0.4.8
+0.4.9
 ```
 
 </details>
@@ -162,12 +169,12 @@ To compile from source, first you need a <a href="https://www.rust-lang.org/lear
 > cd tap
 > cargo install --path .
 > tap --version
-0.4.8
+0.4.9
 ```
 
 </details>
 
-The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.4.8).
+The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.4.9).
 
 ## Notes
 

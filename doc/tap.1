@@ -1,42 +1,56 @@
-.SH "NAME"
+.TH TAP 1
+.SH NAME
 tap \- TUI audio player
-.SH "SYNOPSIS"
+.SH SYNOPSIS
 .B tap
-.RB [ \-asdphV ] [PATH]
-.br
-.SH "DESCRIPTION"
+.RB [ \-abcdpshV ]
+.RB [ \-\-color=COLOR ]
+.RB [ PATH ]
+.SH DESCRIPTION
 .B tap
 is a lightweight audio player for the terminal with fuzzy-finder.
-.br
-.SH "OPTIONS"
-.sp
-\-a, \-\-automate
-.RS 4
+.SH OPTIONS
+.TP
+.B \-a, \-\-automate
 Run an automated player without the TUI.
-.RE
-.sp
-\-s, \-\-set-default
-.RS 4
-Set a default directory using the provided path.
-.RE
-.sp
-\-d, \-\-default
-.RS 4
+.TP
+.B \-s, \-\-set-default
+Set 
+.B PATH 
+as the default directory.
+.TP
+.B \-d, \-\-default
 Run tap with the default directory, if set.
-.RE
-.sp
-\-p, \-\-print
-.RS 4
-default  Prints the default directory, if set.
-.RE
-.sp
-\-h, \-\-help
-.RS 4
+.TP
+.B \-p, \-\-print\-default  
+Print the default directory, if set.
+.TP
+.B \-e, \-\-exclude
+Exclude all directories that don't contain audio files. 
+.TP
+.B \-h, \-\-help
 Print help.
-.RE
-.sp
-\-V, \-\-version
-.RS 4
+.TP
+.B \-V, \-\-version
 Print version.
-.SH "BUGS"
+.SH DISPLAY
+.TP
+.B \-b, \-\-term\-bg
+Use the terminal background color.
+.TP
+.B \-c, \-\-term\-color
+Use the terminal background and foreground colors only.
+.TP
+.B \-\-color=COLOR
+Set colors using <COLOR_NAME>=<COLOR_HEX>.
+.RS
+
+Available names:
+  fg, bg, hl, prompt, header, header+, progress, info, err. 
+
+Example:
+  --color fg=268bd2,bg=002b36,hl=fdf6e3
+.RE
+.SH BUGS
 Bugs can be reported on Github: https://github.com/timdubbins/tap/issues
+ 
