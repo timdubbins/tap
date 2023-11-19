@@ -6,6 +6,7 @@ use std::time::Duration;
 
 use anyhow::bail;
 use cursive::event::{Event, EventResult, EventTrigger, Key, MouseButton, MouseEvent};
+use cursive::CursiveRunnable;
 
 use crate::args::{self, Opts};
 use crate::data::UserData;
@@ -36,66 +37,40 @@ pub fn run() -> Result<(), anyhow::Error> {
     siv.set_fps(15);
 
     if items.len() < 2 {
-        let player = PlayerBuilder::new(path)?;
-        PlayerView::load(player, &mut siv);
-
-        return handle_runner(siv);
+        return run_standalone(items, path, siv);
     }
 
     // Load the initial fuzzy search.
-    FuzzyView::load(items.to_owned(), &mut siv);
+    FuzzyView::load(items.to_owned(), None, &mut siv);
 
     // Set the initial user data.
     let user_data = UserData::new(&path, &items)?;
     siv.set_user_data(user_data.into_inner());
 
-    // Set the callback for the previous selection.
-    siv.set_on_pre_event_inner('-', |_| {
-        Some(EventResult::with_cb(|siv| {
-            if let Ok(player) = PlayerBuilder::PreviousAlbum.from(None, siv) {
-                PlayerView::load(player, siv);
-            }
-        }))
-    });
-
-    // Set callback for a random selection.
-    siv.set_on_pre_event_inner('=', |_| {
-        Some(EventResult::with_cb(|siv| {
-            if let Ok(player) = PlayerBuilder::RandomAlbum.from(None, siv) {
-                PlayerView::load(player, siv);
-            }
-        }))
-    });
+    siv.set_on_pre_event_inner('-', previous_album);
+    siv.set_on_pre_event_inner('=', random_album);
 
     // Set the callbacks for the fuzzy-finder.
     siv.set_on_pre_event_inner(trigger(), move |event: &Event| {
-        let c = event.char().unwrap_or('0');
-
-        if matches!(c, 'A'..='Z') {
-            let items = fuzzy::key_items(c, &items);
-            return Some(EventResult::with_cb(move |siv| {
-                FuzzyView::with(items.to_owned(), c, siv)
-            }));
-        }
-
-        let items = match c {
-            'a' => fuzzy::non_leaf_items(&items),
-            's' => fuzzy::audio_items(&items),
+        let key = event.char();
+        let (items, key) = match key {
+            Some('A'..='Z') => (fuzzy::key_items(key, &items), key),
+            Some('a') => (fuzzy::non_leaf_items(&items), None),
+            Some('s') => (fuzzy::audio_items(&items), None),
             _ => match event.f_num() {
-                Some(depth) => fuzzy::depth_items(depth, &items),
-                None => items.to_owned(),
+                Some(depth) => (fuzzy::depth_items(depth, &items), None),
+                None => (items.to_owned(), None),
             },
         };
-
         Some(EventResult::with_cb(move |siv| {
-            FuzzyView::load(items.to_owned(), siv)
+            FuzzyView::load(items.to_owned(), key, siv)
         }))
     });
 
     handle_runner(siv)
 }
 
-fn handle_runner(mut siv: cursive::CursiveRunnable) -> Result<(), anyhow::Error> {
+fn handle_runner(mut siv: CursiveRunnable) -> Result<(), anyhow::Error> {
     // Exit the process in test builds.
     #[cfg(feature = "run_tests")]
     {
@@ -106,12 +81,28 @@ fn handle_runner(mut siv: cursive::CursiveRunnable) -> Result<(), anyhow::Error>
         }
     }
 
-    // Run the Cursive event loop in production builds.
+    // Run the Cursive event loop in non-test builds.
     #[cfg(not(feature = "run_tests"))]
     {
         siv.run();
         Ok(())
     }
+}
+
+// Runs a standalone player without the fuzzy finder.
+fn run_standalone(
+    items: Vec<FuzzyItem>,
+    path: PathBuf,
+    mut siv: CursiveRunnable,
+) -> Result<(), anyhow::Error> {
+    let path = match items.first() {
+        Some(item) => item.path.to_owned(),
+        None => path,
+    };
+    let player = PlayerBuilder::new(path)?;
+    PlayerView::load(player, &mut siv);
+
+    handle_runner(siv)
 }
 
 // Run an automated player in the command line without the TUI.
@@ -156,7 +147,7 @@ fn print_cached_path() -> Result<(), anyhow::Error> {
 }
 
 fn get_items(path: &PathBuf, opts: Opts) -> Result<Vec<FuzzyItem>, anyhow::Error> {
-    match opts == Opts::Default || serde::uses_default(path) {
+    let items = match opts == Opts::Default || serde::uses_default(path) {
         true => match serde::needs_update(path)? {
             true => process(serde::update_cache, path, "updating"),
             false => match serde::cached_items() {
@@ -166,13 +157,19 @@ fn get_items(path: &PathBuf, opts: Opts) -> Result<Vec<FuzzyItem>, anyhow::Error
             },
         },
         false => process(fuzzy::create_items, path, "loading"),
+    }?;
+
+    if args::audio_only() {
+        Ok(fuzzy::audio_items(&items))
+    } else {
+        Ok(items)
     }
 }
 
 fn process(
-    items: fn(&PathBuf) -> Result<Vec<FuzzyItem>, anyhow::Error>,
+    action: fn(&PathBuf) -> Result<Vec<FuzzyItem>, anyhow::Error>,
     path: &PathBuf,
-    action: &'static str,
+    msg: &'static str,
 ) -> Result<Vec<FuzzyItem>, anyhow::Error> {
     let (tx, rx) = mpsc::channel();
 
@@ -190,7 +187,7 @@ fn process(
                     }
                 }
                 Err(_) => {
-                    print!("\r[tap]: {}{} ", action, spinner.next().unwrap());
+                    print!("\r[tap]: {}{} ", msg, spinner.next().unwrap());
                     stdout().flush().unwrap();
                     sleep(Duration::from_millis(300));
                 }
@@ -198,12 +195,30 @@ fn process(
         }
     });
 
-    let items = items(path);
+    let items = action(path);
 
     tx.send(true)?;
     stdout_handle.join().unwrap();
 
     items
+}
+
+// Callback to select the previous album.
+fn previous_album(_: &Event) -> Option<EventResult> {
+    Some(EventResult::with_cb(|siv| {
+        if let Ok(player) = PlayerBuilder::PreviousAlbum.from(None, siv) {
+            PlayerView::load(player, siv);
+        }
+    }))
+}
+
+// Callback to select a random album.
+fn random_album(_: &Event) -> Option<EventResult> {
+    Some(EventResult::with_cb(|siv| {
+        if let Ok(player) = PlayerBuilder::RandomAlbum.from(None, siv) {
+            PlayerView::load(player, siv);
+        }
+    }))
 }
 
 // Trigger for the fuzzy-finder callbacks.

@@ -25,7 +25,7 @@ pub enum Opts {
 #[command(
     author = "Tim Dubbins",
     about = "An audio player for the terminal with fuzzy-finder",
-    version = "0.4.8"
+    version = "0.4.9"
 )]
 pub struct Args {
     /// The path to play or search on. Defaults to the current working directory
@@ -49,6 +49,10 @@ pub struct Args {
     #[arg(short, long, default_value_t = false)]
     print_default: bool,
 
+    /// Exclude directories without audio.
+    #[arg(short, long, default_value_t = false)]
+    exclude: bool,
+
     /// Use the terminal background color
     #[arg(short = 'b', long, default_value_t = false)]
     term_bg: bool,
@@ -71,6 +75,10 @@ pub struct Args {
 
 pub fn parse() -> Result<(PathBuf, Opts), anyhow::Error> {
     Ok((parse_path()?, parse_opts()?))
+}
+
+pub fn audio_only() -> bool {
+    ARGS.exclude
 }
 
 pub fn user_colors() -> (Vec<(String, Color)>, bool) {
