@@ -130,7 +130,7 @@ impl Player {
 
     // Decodes and appends `file` to the sink, starts playback and records start time.
     pub fn play(&mut self) {
-        if let Ok(source) = get_source(&self.file.path) {
+        if let Ok(source) = decode(&self.file.path) {
             self.sink.append(source);
             self.sink.play();
             self.status = PlayerStatus::Playing;
@@ -428,7 +428,7 @@ impl Player {
             } else if self.index < self.playlist.len() - 1 {
                 let file = self.playlist[self.index + 1].clone();
                 let path = &file.path;
-                if let Ok(source) = get_source(path) {
+                if let Ok(source) = decode(path) {
                     self.sink.append(source);
                     self.next_track_queued = true;
                 } else {
@@ -486,7 +486,7 @@ impl Player {
         self.last_elapsed = Duration::ZERO;
 
         if self.status != PlayerStatus::Stopped {
-            if let Ok(source) = get_source(&self.file.path) {
+            if let Ok(source) = decode(&self.file.path) {
                 self.sink.append(source);
                 self.last_started = Instant::now();
             }
@@ -512,19 +512,24 @@ pub fn playlist(
     recurse: bool,
 ) -> Result<(Vec<AudioFile>, XY<usize>), anyhow::Error> {
     // The list of files to use in the player.
-    let mut list = vec![];
+    let mut list: Vec<AudioFile> = vec![];
     // A value used to set an appropriate width for the player view.
     let mut width = 0;
     // The error we get if we can't create an audio file.
     let mut error: Option<anyhow::Error> = None;
+    // The first child directory to recurse into.
+    let mut next_path: Option<PathBuf> = None;
 
     // Build the playlist.
     if let Ok(iter) = path.read_dir() {
-        for path in iter.filter_map(|e| e.ok()).map(|e| e.path()) {
-            if recurse && path.is_dir() {
-                return playlist(&path, recurse);
-            } else {
-                update_playlist(&mut list, &mut width, &mut error, path)
+        for entry in iter {
+            if let Ok(entry) = entry {
+                let path = entry.path();
+                if recurse && path.is_dir() && next_path.is_none() {
+                    next_path = Some(path);
+                } else {
+                    update_playlist(&mut list, &mut width, &mut error, path)
+                }
             }
         }
     } else {
@@ -532,9 +537,28 @@ pub fn playlist(
         update_playlist(&mut list, &mut width, &mut error, path.clone())
     }
 
+    //     for path in iter.filter_map(|e| e.ok()).map(|e| e.path()) {
+
+    //         if recurse && path.is_dir() {
+    //             return playlist(&path, recurse);
+    //         } else {
+    //             update_playlist(&mut list, &mut width, &mut error, path)
+    //         }
+    //     }
+    // } else {
+    //     // If `path` is a file, create a playlist containing it.
+    //     update_playlist(&mut list, &mut width, &mut error, path.clone())
+    // }
+
+    if let Some(next_path) = next_path {
+        if list.is_empty() {
+            return playlist(&next_path, recurse);
+        }
+    }
+
     if let Some(first) = list.first() {
         width = max(width, first.album.len() + first.artist.len() + 1);
-        can_decode(first)?;
+        _ = decode(&first.path)?;
     } else {
         // Use the correct path in error messages.
         let path = match recurse {
@@ -587,13 +611,7 @@ fn update_playlist(
     }
 }
 
-// Returns `Ok` if the file can be decoded.
-fn can_decode(audio_file: &AudioFile) -> Result<(), anyhow::Error> {
-    let _ = get_source(&audio_file.path)?;
-    Ok(())
-}
-
-fn get_source(path: &PathBuf) -> Result<Decoder<BufReader<File>>, anyhow::Error> {
+pub fn decode(path: &PathBuf) -> Result<Decoder<BufReader<File>>, anyhow::Error> {
     let source = match File::open(path.as_path()) {
         Ok(inner) => match Decoder::new(BufReader::new(inner)) {
             Ok(s) => s,
