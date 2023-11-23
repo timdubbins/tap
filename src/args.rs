@@ -25,7 +25,7 @@ pub enum Opts {
 #[command(
     author = "Tim Dubbins",
     about = "An audio player for the terminal with fuzzy-finder",
-    version = "0.4.9"
+    version = "0.4.10"
 )]
 pub struct Args {
     /// The path to play or search on. Defaults to the current working directory

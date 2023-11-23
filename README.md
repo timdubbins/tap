@@ -26,7 +26,7 @@ To open a player without the fuzzy-finder provide a `path` to an audio file or a
 
 Option                  | Description
 ---                     |---
-`-a` `--automate`       | Run an automated player without the TUI. Quit with `Ctrl` + `c`.
+`-a` `--automate`       | Run an automated player without the TUI. Quit with `Enter`.
 `-d` `--default`        | Run from the default directory, if set.
 `-p` `--print`          | Print the path of the default directory, if set.
 `-s` `--set-default`    | Set `path` as the default directory. This can significantly reduce the time it takes to load this directory. See [Notes](#notes).
@@ -120,7 +120,7 @@ You can install with <a href="https://brew.sh/">Homebrew</a>:
 ```bash
 > brew install timdubbins/tap/tap
 > tap --version
-0.4.9
+0.4.10
 ```
 
 </details>
@@ -136,7 +136,7 @@ such as <a href="https://github.com/Jguer/yay">yay</a>:
 ```bash
 > yay -S tap
 > tap --version
-0.4.9
+0.4.10
 ```
 The AUR package is available <a href="https://aur.archlinux.org/packages/tap">here</a>.
 <br>
@@ -147,13 +147,13 @@ The AUR package is available <a href="https://aur.archlinux.org/packages/tap">he
 <summary><b>Debian</b> (or a Debian derivative, such as <b>Ubuntu</b>)</summary>
 <br>
 
-You can install with a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.4.9">tap release</a>:
+You can install with a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.4.10">tap release</a>:
 
 ```bash
-> curl -LO https://github.com/timdubbins/tap/releases/download/v0.4.9/tap_0.4.9_amd64.deb
-> sudo dpkg -i tap_0.4.9_amd64.deb
+> curl -LO https://github.com/timdubbins/tap/releases/download/v0.4.10/tap_0.4.10.deb
+> sudo dpkg -i tap_0.4.10.deb
 > tap --version
-0.4.9
+0.4.10
 ```
 
 </details>
@@ -169,12 +169,12 @@ To compile from source, first you need a <a href="https://www.rust-lang.org/lear
 > cd tap
 > cargo install --path .
 > tap --version
-0.4.9
+0.4.10
 ```
 
 </details>
 
-The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.4.9).
+The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.4.10).
 
 ## Notes
 
