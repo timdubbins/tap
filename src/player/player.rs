@@ -226,7 +226,7 @@ impl Player {
     pub fn toggle_randomization(&mut self) -> bool {
         self.next_track_queued = false;
         self.is_randomized ^= true;
-        if self.is_randomized {
+        if self.is_randomized && self.sink.len() > 1 {
             self.sink.pop();
         }
         self.is_randomized
