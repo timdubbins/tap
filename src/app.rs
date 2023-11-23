@@ -36,7 +36,8 @@ pub fn run() -> Result<(), anyhow::Error> {
     siv.set_theme(theme::custom());
     siv.set_fps(15);
 
-    if items.len() < 2 {
+    // Load the player if there is only one item that contains audio.
+    if let Some(path) = fuzzy::only_audio_path(&path, &items) {
         return run_standalone(path, siv);
     }
 
@@ -107,8 +108,17 @@ fn run_automated(path: PathBuf) -> Result<(), anyhow::Error> {
     stdout().flush()?;
 
     loop {
+        // Exit on `enter` key press.
+        let mut input = String::new();
+        if let Ok(_) = stdin().read_line(&mut input) {
+            return Ok(());
+        }
+
         match player.poll() {
-            0 => return Ok(()),
+            0 => {
+                println!();
+                return Ok(());
+            }
             1 => {
                 // Print the number of spaces required to clear the previous line.
                 print!("\r{: <1$}", "", length);
