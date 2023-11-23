@@ -49,7 +49,7 @@ pub struct Args {
     #[arg(short, long, default_value_t = false)]
     print_default: bool,
 
-    /// Exclude directories without audio.
+    /// Exclude directories without audio
     #[arg(short, long, default_value_t = false)]
     exclude: bool,
 
