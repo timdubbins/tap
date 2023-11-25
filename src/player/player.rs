@@ -20,7 +20,7 @@ const SEEK_TIME: Duration = Duration::from_secs(10);
 pub struct Player {
     // The list of audio files for the player.
     pub playlist: Vec<AudioFile>,
-    // // The index of the current audio file.
+    // The index of the current audio file.
     pub index: usize,
     // The index of the previous audio file, used with standalone player.
     pub previous: usize,
@@ -407,8 +407,8 @@ impl Player {
                 self.index += 1;
                 self.next_track_queued = false;
                 return 1;
-            } else if self.index < self.playlist.len() - 1 {
-                if let Ok(source) = decode(self.path()) {
+            } else if let Some(next) = self.playlist.get(self.index + 1) {
+                if let Ok(source) = decode(&next.path) {
                     self.sink.append(source);
                     self.next_track_queued = true;
                 } else {
