@@ -1,4 +1,4 @@
-output: target/release/tap
+output: target/release/tap target/release/man
 
 .PHONY: install clean man
 
@@ -18,12 +18,10 @@ target/release/man: doc/tap.1
 	@echo '.TH "TAP" "1" "2023" "$(VERSION)" "User Commands"' > target/release/man
 	@cat doc/tap.1 >> target/release/man
 
-man: /usr/local/share/man/man1
-$(MAN_DIR)/man1: target/release/man
+man: $(MAN_DIR)/man1
+$(MAN_DIR)/man1/tap.1: target/release/man
 	@mkdir -p $(MAN_DIR)/man1
 	@install -pm644 target/release/man $(MAN_DIR)/man1/tap.1
-	@$(shell command -v mandb >/dev/null && mandb )
-	@$(shell command -v makewhatis >/dev/null && makewhatis )
 
 clean:
 	@cargo clean
