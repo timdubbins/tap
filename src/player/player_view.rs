@@ -217,10 +217,13 @@ impl PlayerView {
 
         if parent != root {
             parent.pop();
-            return EventResult::with_cb(move |siv| {
-                let items = fuzzy::create_items(&parent).expect("should always exist");
-                FuzzyView::load(items, None, siv)
-            });
+            if parent != root {
+                parent.pop();
+                return EventResult::with_cb(move |siv| {
+                    let items = fuzzy::create_items(&parent).expect("should always exist");
+                    FuzzyView::load(items, None, siv)
+                });
+            }
         }
         EventResult::Consumed(None)
     }

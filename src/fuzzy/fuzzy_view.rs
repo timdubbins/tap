@@ -298,10 +298,12 @@ impl FuzzyView {
             None => return EventResult::Ignored,
         };
 
-        parent.pop();
         let root = args::search_root();
         if parent != root {
             parent.pop();
+            if parent != root {
+                parent.pop();
+            }
         }
 
         return EventResult::with_cb(move |siv| {
