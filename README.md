@@ -60,8 +60,8 @@ play or pause       | `h` or <kbd>&larr;</kbd> or `Space`
 next                | `j` or <kbd>&darr;</kbd>
 previous            | `k` or <kbd>&uarr;</kbd>
 stop                | `l` or <kbd>&rarr;</kbd> or `Enter`
-step forward        | `}`
-step backward       | `{`
+step forward        | `.`
+step backward       | `,`
 seek to sec         | `0...9` + `"`
 seek to min         | `0...9` + `'`
 random              | `r`

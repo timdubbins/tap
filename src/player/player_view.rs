@@ -524,8 +524,8 @@ impl View for PlayerView {
 
             Event::Char('\'') => self.player.seek_to_min(),
             Event::Char('"') => self.player.seek_to_sec(),
-            Event::Char('}') => self.player.step_forward(),
-            Event::Char('{') => self.player.step_backward(),
+            Event::Char('.') => self.player.step_forward(),
+            Event::Char(',') => self.player.step_backward(),
 
             Event::Char('*' | 'r') => return self.toggle_randomization(),
             Event::Char('g') => self.player.play_key_selection(),
