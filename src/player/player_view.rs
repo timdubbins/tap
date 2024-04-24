@@ -1,17 +1,19 @@
 use std::time::Duration;
 
-use cursive::event::{Event, EventResult, Key, MouseButton, MouseEvent};
-use cursive::reexports::crossbeam_channel::Sender;
-use cursive::theme::{ColorStyle, Effect};
-use cursive::traits::View;
-use cursive::view::Resizable;
-use cursive::{Cursive, Printer, XY};
+use cursive::{
+    event::{Event, EventResult, Key, MouseButton, MouseEvent},
+    reexports::crossbeam_channel::Sender,
+    theme::{ColorStyle, Effect},
+    traits::View,
+    view::Resizable,
+    Cursive, Printer, XY,
+};
 use expiring_bool::ExpiringBool;
 
+use crate::config::{args, theme};
 use crate::fuzzy::{self, FuzzyView};
-use crate::theme;
-use crate::utils::UserData;
-use crate::{args, utils};
+use crate::session_data::SessionData;
+use crate::utils::{self, InnerType};
 
 use super::{AudioFile, KeysView, Player, PlayerBuilder, PlayerStatus};
 
@@ -47,7 +49,7 @@ impl PlayerView {
     }
 
     pub fn load((player, showing_volume, size): (Player, bool, XY<usize>), siv: &mut Cursive) {
-        let cb = match siv.user_data::<UserData>() {
+        let cb = match siv.user_data::<InnerType<SessionData>>() {
             Some(_) => Some(siv.cb_sink().clone()),
             None => None,
         };
@@ -169,7 +171,7 @@ impl PlayerView {
 
         if self.cb.is_some() {
             EventResult::with_cb(move |siv| {
-                siv.with_user_data(|(opts, _, _): &mut UserData| {
+                siv.with_user_data(|(opts, _, _): &mut InnerType<SessionData>| {
                     opts.1 = volume;
                 });
             })
@@ -182,7 +184,7 @@ impl PlayerView {
     fn set_status(&mut self, status: u8) -> EventResult {
         if self.cb.is_some() {
             EventResult::with_cb(move |siv| {
-                siv.with_user_data(|(opts, _, _): &mut UserData| {
+                siv.with_user_data(|(opts, _, _): &mut InnerType<SessionData>| {
                     opts.0 = status;
                 });
             })
@@ -197,7 +199,7 @@ impl PlayerView {
             let curr_index = self.player.index;
             if self.cb.is_some() {
                 return EventResult::with_cb(move |siv| {
-                    siv.with_user_data(|(_, _, queue): &mut UserData| {
+                    siv.with_user_data(|(_, _, queue): &mut InnerType<SessionData>| {
                         if let Some((_, index)) = queue.get_mut(1) {
                             *index = curr_index;
                         }
@@ -233,7 +235,7 @@ impl PlayerView {
         let is_muted = self.player.toggle_mute();
         if self.cb.is_some() {
             EventResult::with_cb(move |siv| {
-                siv.with_user_data(|(opts, _, _): &mut UserData| {
+                siv.with_user_data(|(opts, _, _): &mut InnerType<SessionData>| {
                     opts.2 = is_muted;
                 });
             })
@@ -247,7 +249,7 @@ impl PlayerView {
         let showing_volume = self.showing_volume.toggle();
         if self.cb.is_some() {
             EventResult::with_cb(move |siv| {
-                siv.with_user_data(|(opts, _, _): &mut UserData| {
+                siv.with_user_data(|(opts, _, _): &mut InnerType<SessionData>| {
                     opts.3 = showing_volume;
                 });
             })
@@ -547,6 +549,9 @@ impl View for PlayerView {
             Event::Char('?') => return load_keys_view(),
             Event::Char('q') => return quit(),
 
+            // TODO: scroll to adjust vertical offset, not select track.
+            // FIXME: mouse stop, mouse play, mouse select -> playback is
+            // stopped but should be playing.
             Event::Mouse {
                 event,
                 offset,
@@ -569,6 +574,24 @@ impl View for PlayerView {
         }
         EventResult::Consumed(None)
     }
+}
+
+// Callback to select the previous album.
+pub fn previous_album(_: &Event) -> Option<EventResult> {
+    Some(EventResult::with_cb(|siv| {
+        if let Ok(player) = PlayerBuilder::PreviousAlbum.from(None, siv) {
+            PlayerView::load(player, siv);
+        }
+    }))
+}
+
+// Callback to select a random album.
+pub fn random_album(_: &Event) -> Option<EventResult> {
+    Some(EventResult::with_cb(|siv| {
+        if let Ok(player) = PlayerBuilder::RandomAlbum.from(None, siv) {
+            PlayerView::load(player, siv);
+        }
+    }))
 }
 
 // Quit the app.

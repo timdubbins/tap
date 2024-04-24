@@ -11,7 +11,7 @@ pub use self::{
     builder::PlayerBuilder,
     keys_view::KeysView,
     opts::PlayerOpts,
-    player::Player,
-    player_view::PlayerView,
+    player::{run_automated, Player},
+    player_view::{previous_album, random_album, PlayerView},
     status::{BytesToStatus, PlayerStatus, StatusToBytes},
 };

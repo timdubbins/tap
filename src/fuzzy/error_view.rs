@@ -1,12 +1,12 @@
-use cursive::event::{Event, EventTrigger, MouseEvent};
-use cursive::utils::markup::StyledString;
-use cursive::view::Resizable;
-use cursive::views::{
-    FixedLayout, Layer, LinearLayout, OnEventView, OnLayoutView, ResizedView, TextView,
+use cursive::{
+    event::{Event, EventTrigger, MouseEvent},
+    utils::markup::StyledString,
+    view::Resizable,
+    views::{FixedLayout, Layer, LinearLayout, OnEventView, OnLayoutView, ResizedView, TextView},
+    {Cursive, Rect, Vec2, View},
 };
-use cursive::{Cursive, Rect, Vec2, View};
 
-use crate::theme;
+use crate::config::theme;
 
 pub struct ErrorView {}
 

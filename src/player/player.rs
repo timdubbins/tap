@@ -1,8 +1,10 @@
-use std::cmp::{max, min};
-use std::fs::File;
-use std::io::BufReader;
-use std::path::PathBuf;
-use std::time::{Duration, Instant};
+use std::{
+    cmp::{max, min},
+    fs::File,
+    io::BufReader,
+    path::PathBuf,
+    time::{Duration, Instant},
+};
 
 use anyhow::bail;
 use cursive::XY;
@@ -482,6 +484,41 @@ impl Player {
             self.sink.set_volume(0.0)
         } else {
             self.sink.set_volume(self.volume as f32 / 100.0);
+        }
+    }
+}
+
+// Run an automated player in the command line without the TUI.
+pub fn run_automated(path: PathBuf) -> Result<(), anyhow::Error> {
+    use std::io::{stdin, stdout, Write};
+    use std::thread::sleep;
+
+    let (mut player, _, _) = super::PlayerBuilder::new(path)?;
+    let (mut line, mut length) = player.stdout();
+
+    print!("{}", line);
+    stdout().flush()?;
+
+    loop {
+        // Exit on `enter` key press.
+        let mut input = String::new();
+        if let Ok(_) = stdin().read_line(&mut input) {
+            return Ok(());
+        }
+
+        match player.poll() {
+            0 => {
+                println!();
+                return Ok(());
+            }
+            1 => {
+                // Print the number of spaces required to clear the previous line.
+                print!("\r{: <1$}", "", length);
+                (line, length) = player.stdout();
+                print!("\r{}", line);
+                stdout().flush()?;
+            }
+            _ => sleep(Duration::from_millis(60)),
         }
     }
 }

@@ -1,5 +1,4 @@
-use std::collections::VecDeque;
-use std::path::PathBuf;
+use std::{collections::VecDeque, path::PathBuf};
 
 use anyhow::bail;
 
@@ -11,7 +10,7 @@ use crate::utils::IntoInner;
 type Track = (PathBuf, usize);
 
 #[derive(Debug)]
-pub struct UserData {
+pub struct SessionData {
     opts: PlayerOpts,
     // The list of paths from Vec<FuzzyItem>.
     paths: Vec<PathBuf>,
@@ -20,7 +19,7 @@ pub struct UserData {
     queue: VecDeque<Track>,
 }
 
-impl UserData {
+impl SessionData {
     pub fn new(path: &PathBuf, items: &Vec<FuzzyItem>) -> Result<Self, anyhow::Error> {
         let paths = fuzzy::leaf_paths(&items);
         let queue: VecDeque<Track> = match Player::randomized(&paths) {
@@ -38,7 +37,7 @@ impl UserData {
     }
 }
 
-impl IntoInner for UserData {
+impl IntoInner for SessionData {
     type T = (
         (u8, u8, bool, bool),
         Vec<PathBuf>,
@@ -50,15 +49,15 @@ impl IntoInner for UserData {
     }
 }
 
-impl Into<UserData>
+impl Into<SessionData>
     for (
         (u8, u8, bool, bool),
         Vec<PathBuf>,
         VecDeque<(PathBuf, usize)>,
     )
 {
-    fn into(self) -> UserData {
-        UserData {
+    fn into(self) -> SessionData {
+        SessionData {
             opts: self.0.into(),
             paths: self.1,
             queue: self.2,

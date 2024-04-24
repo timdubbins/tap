@@ -1,7 +1,11 @@
-use std::collections::VecDeque;
-use std::ops::Range;
-use std::path::PathBuf;
-use std::time::SystemTime;
+use std::{
+    io::{stdout, Write},
+    ops::Range,
+    path::PathBuf,
+    sync::mpsc,
+    thread,
+    time::{Duration, Instant, SystemTime},
+};
 
 use anyhow::bail;
 use rand::{thread_rng, Rng};
@@ -11,11 +15,7 @@ pub trait IntoInner {
     fn into_inner(self) -> Self::T;
 }
 
-pub type UserData = (
-    (u8, u8, bool, bool),
-    Vec<PathBuf>,
-    VecDeque<(PathBuf, usize)>,
-);
+pub type InnerType<U> = <U as IntoInner>::T;
 
 // Maps the array to a single value, i.e. `[0, 1, 2]` -> `12`.
 pub fn concatenate(arr: &Vec<usize>) -> usize {
@@ -86,6 +86,51 @@ pub fn open_file_manager(path: PathBuf) -> Result<(), anyhow::Error> {
             Err(err) => bail!(err),
         }
     }
+}
+
+pub fn display_with_spinner<F, T>(
+    action: F,
+    path: &PathBuf,
+    msg: &'static str,
+) -> Result<T, anyhow::Error>
+where
+    F: FnOnce(&PathBuf) -> Result<T, anyhow::Error> + Send + 'static,
+    T: Send + 'static,
+{
+    let (tx, rx) = mpsc::channel();
+
+    let stdout_handle = thread::spawn(move || {
+        let ellipses = vec!["   ", ".  ", ".. ", "..."];
+        let mut spinner = ellipses.iter().cycle();
+
+        loop {
+            match rx.try_recv() {
+                Ok(should_exit) => {
+                    if should_exit {
+                        print!("\r{: <1$}\r", "", 20);
+                        stdout().flush().unwrap_or_default();
+                        break;
+                    }
+                }
+                Err(_) => {
+                    print!("\r[tap]: {}{} ", msg, spinner.next().unwrap());
+                    stdout().flush().unwrap();
+                    thread::sleep(Duration::from_millis(300));
+                }
+            }
+        }
+    });
+
+    let start_time = Instant::now();
+    let result = action(path);
+    let elapsed = start_time.elapsed().as_millis();
+
+    tx.send(true)?;
+    stdout_handle.join().unwrap();
+
+    println!("\nElapsed time: {} ms", elapsed);
+
+    result
 }
 
 #[cfg(test)]

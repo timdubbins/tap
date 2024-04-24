@@ -11,7 +11,7 @@ use cursive::{
     With,
 };
 
-use crate::args;
+use super::args;
 
 lazy_static::lazy_static! {
     pub static ref COLOR_MAP: HashMap<String, Color> = default_palette();

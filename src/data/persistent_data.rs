@@ -1,7 +1,9 @@
-use std::fs::{self, File};
-use std::io::{Read, Write};
-use std::path::PathBuf;
-use std::time::SystemTime;
+use std::{
+    fs::{self, File},
+    io::{Read, Write},
+    path::PathBuf,
+    time::SystemTime,
+};
 
 use anyhow::bail;
 use bincode::{config, Decode};
@@ -86,5 +88,32 @@ pub fn update_cache(path: &PathBuf) -> Result<Vec<FuzzyItem>, anyhow::Error> {
     Ok(items)
 }
 
-#[cfg(test)]
-mod tests {}
+pub fn get_cached_items(path: &PathBuf) -> Result<Vec<FuzzyItem>, anyhow::Error> {
+    Ok(match needs_update(path)? {
+        true => utils::display_with_spinner(update_cache, path, "updating")?,
+        false => match cached_items() {
+            Ok(items) => items,
+            // Try an update before bailing.
+            Err(_) => utils::display_with_spinner(update_cache, path, "updating")?,
+        },
+    })
+}
+
+pub fn set_default_path(path: PathBuf) -> Result<(), anyhow::Error> {
+    let msg = "setting default";
+    match utils::display_with_spinner(update_cache, &path, msg) {
+        Ok(_) => {
+            println!("\r[tap]: {}...", msg);
+            println!("[tap]: done!");
+            return Ok(());
+        }
+        Err(e) => bail!(e),
+    }
+}
+
+pub fn print_default_path() -> Result<(), anyhow::Error> {
+    let cached_path = cached_path()?;
+    println!("[tap]: default set to '{}'", cached_path.display());
+
+    Ok(())
+}

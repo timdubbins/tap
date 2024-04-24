@@ -1,19 +1,20 @@
 use std::path::PathBuf;
 
-use cursive::event::{Event, EventResult, Key, MouseButton, MouseEvent};
-use cursive::theme::Effect;
-use cursive::view::{Resizable, View};
-use cursive::views::LayerPosition;
-use cursive::{Cursive, Printer, XY};
-
+use cursive::{
+    event::{Event, EventResult, EventTrigger, Key, MouseButton, MouseEvent},
+    theme::Effect,
+    view::Resizable,
+    views::LayerPosition,
+    Cursive, Printer, View, XY,
+};
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
+use crate::config::{args, theme};
+use crate::data::session_data::SessionData;
 use crate::player::{PlayerBuilder, PlayerView};
-use crate::theme;
-use crate::utils::UserData;
-use crate::{args, utils};
+use crate::utils::{self, InnerType};
 
 use super::{create_items, ErrorView, FuzzyItem};
 
@@ -457,6 +458,43 @@ impl View for FuzzyView {
     }
 }
 
+pub fn fuzzy_finder(event: &Event, items: &Vec<FuzzyItem>) -> Option<EventResult> {
+    let key = event.char();
+    let (items, key) = match key {
+        Some('A'..='Z') => (super::key_items(key, &items), key),
+        Some('a') => (super::non_leaf_items(&items), None),
+        Some('s') => (super::audio_items(&items), None),
+        _ => match event.f_num() {
+            Some(depth) => (super::depth_items(depth, &items), None),
+            None => (items.to_owned(), None),
+        },
+    };
+    Some(EventResult::with_cb(move |siv| {
+        FuzzyView::load(items.to_owned(), key, siv)
+    }))
+}
+
+// Trigger for the fuzzy-finder callbacks.
+pub fn trigger() -> EventTrigger {
+    EventTrigger::from_fn(|event| {
+        matches!(
+            event,
+            Event::Key(Key::Tab)
+                | Event::Char('A'..='Z')
+                | Event::CtrlChar('a')
+                | Event::CtrlChar('s')
+                | Event::Key(Key::F1)
+                | Event::Key(Key::F2)
+                | Event::Key(Key::F3)
+                | Event::Key(Key::F4)
+                | Event::Mouse {
+                    event: MouseEvent::Press(MouseButton::Middle),
+                    ..
+                }
+        )
+    })
+}
+
 fn select_player(item: FuzzyItem, siv: &mut Cursive) {
     let selected = Some(item.path);
     let current = current_path(siv);
@@ -487,7 +525,8 @@ fn on_cancel() -> EventResult {
 
 // The path of the current player, if any.
 pub fn current_path(siv: &mut Cursive) -> Option<PathBuf> {
-    match siv.user_data::<UserData>() {
+    match siv.user_data::<InnerType<SessionData>>() {
+        // match siv.user_data::<InnerType<UserData>>() {
         Some((_, _, queue)) => match queue.get(1) {
             Some((p, _)) => Some(p.to_owned()),
             None => None,

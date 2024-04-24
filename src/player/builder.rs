@@ -3,7 +3,8 @@ use std::path::PathBuf;
 use anyhow::bail;
 use cursive::Cursive;
 
-use crate::utils::{self, UserData};
+use crate::session_data::SessionData;
+use crate::utils::{self, InnerType};
 
 use super::{
     player::{playlist, PlayerResult},
@@ -35,7 +36,7 @@ impl PlayerBuilder {
 
     fn previous(&self, siv: &mut Cursive) -> PlayerResult {
         let ((path, mut index), opts) = siv
-            .with_user_data(|(opts, _, queue): &mut UserData| {
+            .with_user_data(|(opts, _, queue): &mut InnerType<SessionData>| {
                 let (path, index) = queue.front().expect("should always exist").to_owned();
                 let opts: PlayerOpts = (*opts).into();
 
@@ -62,7 +63,7 @@ impl PlayerBuilder {
 
     fn random(&self, siv: &mut Cursive) -> PlayerResult {
         let ((path, mut index), opts) = siv
-            .with_user_data(|(opts, paths, queue): &mut UserData| {
+            .with_user_data(|(opts, paths, queue): &mut InnerType<SessionData>| {
                 let opts: PlayerOpts = (*opts).into();
                 let (path, index) = queue.back().expect("should always exist").to_owned();
 
@@ -100,7 +101,7 @@ impl PlayerBuilder {
         let path = path.expect("path should be provided by fuzzy-finder");
 
         let opts = siv
-            .with_user_data(|(opts, _, queue): &mut UserData| {
+            .with_user_data(|(opts, _, queue): &mut InnerType<SessionData>| {
                 let opts: PlayerOpts = (*opts).into();
 
                 if queue.len() == 1 {
