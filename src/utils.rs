@@ -98,10 +98,12 @@ where
     T: Send + 'static,
 {
     let (tx, rx) = mpsc::channel();
+    let start_time = Instant::now();
 
     let stdout_handle = thread::spawn(move || {
         let ellipses = vec!["   ", ".  ", ".. ", "..."];
         let mut spinner = ellipses.iter().cycle();
+        let mut is_showing = false;
 
         loop {
             match rx.try_recv() {
@@ -113,22 +115,23 @@ where
                     }
                 }
                 Err(_) => {
-                    print!("\r[tap]: {}{} ", msg, spinner.next().unwrap());
-                    stdout().flush().unwrap();
+                    if is_showing {
+                        print!("\r[tap]: {}{} ", msg, spinner.next().unwrap());
+                        stdout().flush().unwrap();
+                    }
                     thread::sleep(Duration::from_millis(300));
                 }
+            }
+
+            if !is_showing && start_time.elapsed() > Duration::from_millis(300) {
+                is_showing = true;
             }
         }
     });
 
-    let start_time = Instant::now();
     let result = action(path);
-    let elapsed = start_time.elapsed().as_millis();
-
     tx.send(true)?;
     stdout_handle.join().unwrap();
-
-    println!("\nElapsed time: {} ms", elapsed);
 
     result
 }
