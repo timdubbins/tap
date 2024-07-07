@@ -15,7 +15,10 @@ use crate::fuzzy::{self, FuzzyView};
 use crate::session_data::SessionData;
 use crate::utils::{self, InnerType};
 
-use super::{AudioFile, KeysView, Player, PlayerBuilder, PlayerStatus};
+use super::{load_keys_view, AudioFile, Player, PlayerBuilder, PlayerStatus};
+
+type CursiveCallback = Box<dyn FnOnce(&mut Cursive) + Send>;
+type CursiveCallbackSender = Sender<CursiveCallback>;
 
 pub struct PlayerView {
     // The currently loaded player.
@@ -27,17 +30,13 @@ pub struct PlayerView {
     // Whether or not the current volume is displayed.
     showing_volume: ExpiringBool,
     // Callback to access the cursive root. `None` if standalone player.
-    cb: Option<Sender<Box<dyn FnOnce(&mut Cursive) + Send>>>,
+    cb: Option<CursiveCallbackSender>,
     // The size of the view.
     size: XY<usize>,
 }
 
 impl PlayerView {
-    pub fn new(
-        player: Player,
-        showing_volume: bool,
-        cb: Option<Sender<Box<dyn FnOnce(&mut Cursive) + Send>>>,
-    ) -> Self {
+    pub fn new(player: Player, showing_volume: bool, cb: Option<CursiveCallbackSender>) -> Self {
         Self {
             player,
             cb,
@@ -70,7 +69,7 @@ impl PlayerView {
     fn player_status(&self) -> (&'static str, ColorStyle, Effect) {
         match self.player.status {
             PlayerStatus::Paused => ("|", theme::hl(), Effect::Simple),
-            PlayerStatus::Playing => (">", theme::header2(), Effect::Simple),
+            PlayerStatus::Playing => (">", theme::header_2(), Effect::Simple),
             PlayerStatus::Stopped => (".", theme::err(), Effect::Simple),
         }
     }
@@ -88,9 +87,9 @@ impl PlayerView {
     // Formats the player header.
     fn album_and_year(&self, f: &AudioFile) -> String {
         if let Some(year) = f.year {
-            return format!("{} ({})", f.album, year);
+            format!("{} ({})", f.album, year)
         } else {
-            return format!("{}", f.album);
+            f.album.to_string()
         }
     }
 
@@ -286,25 +285,25 @@ impl PlayerView {
     // Increments the volume and updates user data.
     fn increase_volume(&mut self) -> EventResult {
         let volume = self.player.increase_volume();
-        return self.set_volume(volume);
+        self.set_volume(volume)
     }
 
     // Decrements the volume and updates user data.
     fn decrease_volume(&mut self) -> EventResult {
         let volume = self.player.decrease_volume();
-        return self.set_volume(volume);
+        self.set_volume(volume)
     }
 
     // Stops the player and updates user data.
     fn stop(&mut self) -> EventResult {
         let status = self.player.stop();
-        return self.set_status(status);
+        self.set_status(status)
     }
 
     // Plays or pauses the player and updates user data.
     fn play_or_pause(&mut self) -> EventResult {
         let status = self.player.play_or_pause();
-        return self.set_status(status);
+        self.set_status(status)
     }
 
     // Handles the mouse left button press actions.
@@ -383,10 +382,8 @@ impl PlayerView {
         } else if event == MouseEvent::WheelDown {
             if outside_playlist {
                 self.decrease_volume();
-            } else {
-                if self.player.index != self.player.playlist.len() - 1 {
-                    self.next();
-                }
+            } else if self.player.index != self.player.playlist.len() - 1 {
+                self.next();
             }
         }
     }
@@ -463,10 +460,10 @@ impl View for PlayerView {
         if h > 1 {
             // Draw the header: 'Artist, Album, Year'.
             p.with_effect(Effect::Bold, |p| {
-                p.with_color(theme::header1(), |p| p.print((2, 0), &f.artist.as_str()));
+                p.with_color(theme::header_1(), |p| p.print((2, 0), f.artist.as_str()));
                 p.with_effect(Effect::Italic, |p| {
-                    p.with_color(theme::header2(), |p| {
-                        p.print((f.artist.len() + 4, 0), &self.album_and_year(f).as_str())
+                    p.with_color(theme::header_2(), |p| {
+                        p.print((f.artist.len() + 4, 0), self.album_and_year(f).as_str())
                     })
                 })
             });
@@ -474,7 +471,7 @@ impl View for PlayerView {
             if self.showing_volume.is_true() {
                 let column = if w > 14 { column - 5 } else { column };
                 p.with_color(theme::prompt(), |p| {
-                    p.print((column, 0), &self.volume(w).as_str())
+                    p.print((column, 0), self.volume(w).as_str())
                 });
             };
         }
@@ -546,7 +543,7 @@ impl View for PlayerView {
 
             Event::CtrlChar('p') => return self.parent(),
             Event::CtrlChar('o') => self.open_file_manager(),
-            Event::Char('?') => return load_keys_view(),
+            Event::Char('?') => return keys_view(),
             Event::Char('q') => return quit(),
 
             // TODO: scroll to adjust vertical offset, not select track.
@@ -596,16 +593,16 @@ pub fn random_album(_: &Event) -> Option<EventResult> {
 
 // Quit the app.
 fn quit() -> EventResult {
-    return EventResult::with_cb(|siv| {
+    EventResult::with_cb(|siv| {
         siv.quit();
-    });
+    })
 }
 
 // Shows the keys_view popup.
-fn load_keys_view() -> EventResult {
-    return EventResult::with_cb(|siv| {
-        KeysView::load(siv);
-    });
+fn keys_view() -> EventResult {
+    EventResult::with_cb(|siv| {
+        load_keys_view(siv);
+    })
 }
 
 // Computes the values required to draw the progress bar.

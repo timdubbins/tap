@@ -30,6 +30,8 @@ lazy_static = "1.4.0"
 lofty = "0.14.0"
 rand = "0.8.5"
 rodio = { git = "https://github.com/timdubbins/rodio", branch = "seek", features = ["symphonia-aac", "symphonia-flac", "symphonia-mp3", "symphonia-isomp4", "symphonia-wav", "vorbis"], default-features = false }
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.8"
 unicode-segmentation = "1.10.1"
 unicode-width = "0.1.5"
 walkdir = "2.0"

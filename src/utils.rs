@@ -18,7 +18,7 @@ pub trait IntoInner {
 pub type InnerType<U> = <U as IntoInner>::T;
 
 // Maps the array to a single value, i.e. `[0, 1, 2]` -> `12`.
-pub fn concatenate(arr: &Vec<usize>) -> usize {
+pub fn concatenate(arr: &[usize]) -> usize {
     arr.iter().fold(0, |acc, x| acc * 10 + x)
 }
 
@@ -40,7 +40,7 @@ pub fn clamp<T: PartialOrd>(input: T, min: T, max: T) -> T {
 
 // Gets the last modification time listed in the metadata for the path.
 pub fn last_modified(path: &PathBuf) -> Result<SystemTime, anyhow::Error> {
-    match std::fs::metadata(&path) {
+    match std::fs::metadata(path) {
         Ok(data) => match data.modified() {
             Ok(time) => Ok(time),
             Err(e) => bail!(e),
@@ -101,7 +101,7 @@ where
     let start_time = Instant::now();
 
     let stdout_handle = thread::spawn(move || {
-        let ellipses = vec!["   ", ".  ", ".. ", "..."];
+        let ellipses = ["   ", ".  ", ".. ", "..."];
         let mut spinner = ellipses.iter().cycle();
         let mut is_showing = false;
 

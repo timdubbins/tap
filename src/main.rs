@@ -9,7 +9,8 @@ use std::path::PathBuf;
 use cursive::{event::Event, CursiveRunnable};
 
 use config::{
-    args::{self, Opts},
+    args::{Args, Command},
+    config::Config,
     theme,
 };
 use data::{persistent_data, session_data, SessionData};
@@ -28,45 +29,48 @@ fn main() {
 
 // Run the app.
 fn setup_and_run() -> Result<(), anyhow::Error> {
-    let (path, opts) = args::parse()?;
+    let args = Args::parse_args()?;
+    let config = Config::parse_config(args);
 
-    match opts {
-        Opts::Automate => {
-            let path = fuzzy::first_audio_path(&path)?;
+    match config.command {
+        Command::AutomatePlayer => {
+            let path = fuzzy::first_audio_path(&config.path)?;
             return player::run_automated(path);
         }
-        Opts::Set => return persistent_data::set_default_path(path),
-        Opts::Print => return persistent_data::print_default_path(),
+        Command::SetDefault => return persistent_data::set_default_path(config.path),
+        Command::PrintDefault => return persistent_data::print_default_path(),
         _ => (),
     }
 
     // The items to fuzzy search on.
-    let items = get_items(&path, opts)?;
+    let items = get_items(&config)?;
 
     // The cursive root.
     let mut siv = cursive::ncurses();
-
-    siv.set_theme(theme::custom());
+    siv.set_theme(theme::custom(&config.colors));
     siv.set_fps(15);
 
     // Don't load the fuzzy-finder if there is only one audio item.
-    if let Some(path) = fuzzy::only_audio_path(&path, &items) {
+    if let Some(path) = fuzzy::only_audio_path(&config.path, &items) {
         load_standalone_player(path, &mut siv)?;
     } else {
-        load_fuzzy_finder(items, &mut siv, path)?;
+        load_fuzzy_finder(items, &mut siv, &config.path)?;
     }
+
+    drop(config);
 
     run_or_test(siv)
 }
 
-fn get_items(path: &PathBuf, opts: Opts) -> Result<Vec<FuzzyItem>, anyhow::Error> {
-    let items = if opts == Opts::Default || persistent_data::uses_default(path) {
-        persistent_data::get_cached_items(path)?
-    } else {
-        utils::display_with_spinner(fuzzy::create_items, path, "loading")?
-    };
+fn get_items(config: &Config) -> Result<Vec<FuzzyItem>, anyhow::Error> {
+    let items =
+        if config.command == Command::UseDefault || persistent_data::uses_default(&config.path) {
+            persistent_data::get_cached_items(&config.path)?
+        } else {
+            utils::display_with_spinner(fuzzy::create_items, &config.path, "loading")?
+        };
 
-    if args::audio_only() {
+    if config.exclude_non_audio {
         Ok(fuzzy::audio_items(&items))
     } else {
         Ok(items)
@@ -77,7 +81,7 @@ fn load_standalone_player(
     path: std::path::PathBuf,
     siv: &mut CursiveRunnable,
 ) -> Result<(), anyhow::Error> {
-    let player = PlayerBuilder::new(path)?;
+    let player = PlayerBuilder::create(path)?;
     PlayerView::load(player, siv);
     Ok(())
 }
@@ -85,11 +89,11 @@ fn load_standalone_player(
 fn load_fuzzy_finder(
     items: Vec<FuzzyItem>,
     siv: &mut CursiveRunnable,
-    path: PathBuf,
+    path: &PathBuf,
 ) -> Result<(), anyhow::Error> {
     FuzzyView::load(items.to_owned(), None, siv);
 
-    let session_data = SessionData::new(&path, &items)?;
+    let session_data = SessionData::new(path, &items)?;
     siv.set_user_data(session_data.into_inner());
 
     siv.set_on_pre_event_inner('-', player::previous_album);

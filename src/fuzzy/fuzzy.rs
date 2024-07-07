@@ -38,7 +38,7 @@ impl FuzzyItem {
         // Add the search root as a FuzzyItem iff it contains audio files.
         let (has_audio, sub_dirs) = match depth {
             0 => (has_audio(&path)?, 0),
-            _ => validate(&path)?,
+            _ => FuzzyItem::validate(&path)?,
         };
 
         let display = dent
@@ -70,6 +70,33 @@ impl FuzzyItem {
 
         Ok(fuzzy_item)
     }
+
+    // Whether or not a directory is a valid FuzzyItem; that is, does
+    // the directory contain at least one audio file or child directory.
+    fn validate(path: &PathBuf) -> Result<(bool, usize), anyhow::Error> {
+        let mut has_audio = false;
+        let mut dir_count: usize = 0;
+
+        for entry in path.read_dir()? {
+            if let Ok(entry) = entry {
+                if entry.path().is_dir() {
+                    dir_count += 1;
+                } else if !has_audio {
+                    has_audio = valid_audio_ext(&entry.path());
+                }
+            }
+
+            if has_audio && dir_count > 1 {
+                break;
+            }
+        }
+
+        if !has_audio && dir_count == 0 {
+            bail!("invalid")
+        }
+
+        Ok((has_audio, dir_count))
+    }
 }
 
 impl<'a> FromIterator<&'a FuzzyItem> for Vec<FuzzyItem> {
@@ -99,7 +126,7 @@ pub fn create_items(path: &PathBuf) -> Result<Vec<FuzzyItem>, anyhow::Error> {
 pub fn key_items(key: Option<char>, items: &Vec<FuzzyItem>) -> Vec<FuzzyItem> {
     if let Some(key) = key {
         items
-            .into_iter()
+            .iter()
             .filter(|e| e.child_count > 0 && e.key == key)
             .collect()
     } else {
@@ -110,7 +137,7 @@ pub fn key_items(key: Option<char>, items: &Vec<FuzzyItem>) -> Vec<FuzzyItem> {
 // Gets all the items that are `depth` level directories, sorted alphabetically.
 pub fn depth_items(depth: usize, items: &Vec<FuzzyItem>) -> Vec<FuzzyItem> {
     let mut items = items
-        .into_iter()
+        .iter()
         .filter(|e| e.depth == depth)
         .collect::<Vec<FuzzyItem>>();
     items.sort();
@@ -120,7 +147,7 @@ pub fn depth_items(depth: usize, items: &Vec<FuzzyItem>) -> Vec<FuzzyItem> {
 // Gets all the non-leaf items, sorted alphabetically.
 pub fn non_leaf_items(items: &Vec<FuzzyItem>) -> Vec<FuzzyItem> {
     let mut items = items
-        .into_iter()
+        .iter()
         .filter(|e| e.child_count > 0)
         .collect::<Vec<FuzzyItem>>();
     items.sort();
@@ -129,7 +156,7 @@ pub fn non_leaf_items(items: &Vec<FuzzyItem>) -> Vec<FuzzyItem> {
 
 // Returns the path to the directory or file that either contains or is an an audio file,
 // if there is only one such directory or file.
-pub fn only_audio_path(path: &PathBuf, items: &Vec<FuzzyItem>) -> Option<PathBuf> {
+pub fn only_audio_path(path: &PathBuf, items: &[FuzzyItem]) -> Option<PathBuf> {
     if items.is_empty() {
         Some(path.to_owned())
     } else {
@@ -155,7 +182,7 @@ pub fn first_audio_path(path: &PathBuf) -> Result<PathBuf, anyhow::Error> {
         .filter_map(|entry| entry.ok());
 
     for entry in entries {
-        if let Ok(_) = has_audio(entry.path()) {
+        if has_audio(entry.path()).is_ok() {
             return Ok(path.to_owned());
         }
     }
@@ -163,9 +190,9 @@ pub fn first_audio_path(path: &PathBuf) -> Result<PathBuf, anyhow::Error> {
 }
 
 // Gets all the leaf items, sorted alphabetically.
-pub fn audio_items(items: &Vec<FuzzyItem>) -> Vec<FuzzyItem> {
+pub fn audio_items(items: &[FuzzyItem]) -> Vec<FuzzyItem> {
     let mut items = items
-        .into_iter()
+        .iter()
         .filter(|e| e.has_audio)
         .collect::<Vec<FuzzyItem>>();
     items.sort();
@@ -173,9 +200,9 @@ pub fn audio_items(items: &Vec<FuzzyItem>) -> Vec<FuzzyItem> {
 }
 
 // Gets all the leaf paths.
-pub fn leaf_paths(items: &Vec<FuzzyItem>) -> Vec<PathBuf> {
+pub fn leaf_paths(items: &[FuzzyItem]) -> Vec<PathBuf> {
     items
-        .into_iter()
+        .iter()
         .filter(|e| e.has_audio)
         .map(|e| e.path.to_owned())
         .collect::<Vec<PathBuf>>()
@@ -187,45 +214,16 @@ fn is_non_hidden_dir(entry: &walkdir::DirEntry) -> bool {
         && !entry
             .file_name()
             .to_str()
-            .map(|s| s.starts_with("."))
+            .map(|s| s.starts_with('.'))
             .unwrap_or(false)
 }
 
 // Whether or not the path is a directory that contains audio.
 fn has_audio<P: AsRef<Path>>(path: P) -> Result<bool, anyhow::Error> {
-    for entry in path.as_ref().read_dir()? {
-        if let Ok(entry) = entry {
-            if valid_audio_ext(&entry.path()) {
-                return Ok(true);
-            }
+    for entry in (path.as_ref().read_dir()?).flatten() {
+        if valid_audio_ext(&entry.path()) {
+            return Ok(true);
         }
     }
     bail!("invalid")
-}
-
-// Whether or not a directory is a valid FuzzyItem; that is, does
-// the directory contain at least one audio file or child directory.
-fn validate(path: &PathBuf) -> Result<(bool, usize), anyhow::Error> {
-    let mut has_audio = false;
-    let mut dir_count: usize = 0;
-
-    for entry in path.read_dir()? {
-        if let Ok(entry) = entry {
-            if entry.path().is_dir() {
-                dir_count += 1;
-            } else if !has_audio {
-                has_audio = valid_audio_ext(&entry.path());
-            }
-        }
-
-        if has_audio && dir_count > 1 {
-            break;
-        }
-    }
-
-    if !has_audio && dir_count == 0 {
-        bail!("invalid")
-    }
-
-    Ok((has_audio, dir_count))
 }
