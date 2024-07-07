@@ -79,21 +79,23 @@ pub fn inverted() -> ColorStyle {
 pub fn parse_colors(args_colors: Vec<(String, Color)>, mut config: Config) -> Config {
     let mut palette = default_palette();
 
-    if config.use_term_default && args_colors.is_empty() {
-        // Use terminal colors for foreground and background.
-        for (_, value) in palette.iter_mut() {
-            *value = Color::TerminalDefault;
-        }
-    } else {
-        // Update any user-defined colors from config file.
-        palette.extend(config.colors);
+    if !config.use_default_palette {
+        if config.use_term_default && args_colors.is_empty() {
+            // Use terminal colors for foreground and background.
+            for (_, value) in palette.iter_mut() {
+                *value = Color::TerminalDefault;
+            }
+        } else {
+            // Update any user-defined colors from config file.
+            palette.extend(config.colors);
 
-        // Update any user-defined colors from command args.
-        palette.extend(args_colors);
+            // Update any user-defined colors from command args.
+            palette.extend(args_colors);
 
-        // Update background color with terminal color, if using.
-        if config.use_term_bg {
-            palette.insert("bg".to_string(), Color::TerminalDefault);
+            // Update background color with terminal color, if using.
+            if config.use_term_bg {
+                palette.insert("bg".to_string(), Color::TerminalDefault);
+            }
         }
     }
 
