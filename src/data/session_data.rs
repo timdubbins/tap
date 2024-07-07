@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::{collections::VecDeque, path::PathBuf};
 
 use anyhow::bail;
@@ -20,8 +21,8 @@ pub struct SessionData {
 }
 
 impl SessionData {
-    pub fn new(path: &PathBuf, items: &Vec<FuzzyItem>) -> Result<Self, anyhow::Error> {
-        let paths = fuzzy::leaf_paths(&items);
+    pub fn new(path: &Path, items: &Vec<FuzzyItem>) -> Result<Self, anyhow::Error> {
+        let paths = fuzzy::leaf_paths(items);
         let queue: VecDeque<Track> = match Player::randomized(&paths) {
             Some(first) => VecDeque::from([first]),
             None => bail!("no audio files detected in '{}'", path.display()),

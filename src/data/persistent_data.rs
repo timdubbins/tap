@@ -105,7 +105,7 @@ pub fn set_default_path(path: PathBuf) -> Result<(), anyhow::Error> {
         Ok(_) => {
             println!("\r[tap]: {}...", msg);
             println!("[tap]: done!");
-            return Ok(());
+            Ok(())
         }
         Err(e) => bail!(e),
     }

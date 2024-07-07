@@ -2,7 +2,7 @@ use std::{
     cmp::{max, min},
     fs::File,
     io::BufReader,
-    path::PathBuf,
+    path::{Path, PathBuf},
     time::{Duration, Instant},
 };
 
@@ -13,7 +13,7 @@ use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
 use crate::utils;
 
-use super::{valid_audio_ext, AudioFile, PlayerOpts, PlayerStatus, StatusToBytes};
+use super::{valid_audio_ext, AudioFile, PlayerOpts, PlayerStatus};
 
 pub type PlayerResult = Result<(Player, bool, XY<usize>), anyhow::Error>;
 
@@ -152,7 +152,7 @@ impl Player {
         } else {
             let track_number = utils::concatenate(&self.num_keys) as u32;
             if let Some(index) = self.playlist.iter().position(|f| f.track == track_number) {
-                self.play_index(index.clone());
+                self.play_index(index);
             } else {
                 self.clear();
             }
@@ -175,8 +175,6 @@ impl Player {
         if self.index < self.last_index() {
             self.index += 1;
             self.set_playback();
-        } else {
-            self.stop();
         }
     }
 
@@ -235,8 +233,8 @@ impl Player {
     }
 
     // Tries to get the path of a random player and a random index for that player.
-    pub fn randomized(paths: &Vec<PathBuf>) -> Option<(PathBuf, usize)> {
-        if paths.len() == 0 {
+    pub fn randomized(paths: &[PathBuf]) -> Option<(PathBuf, usize)> {
+        if paths.is_empty() {
             return None;
         }
         let mut count = 0;
@@ -257,9 +255,7 @@ impl Player {
     // Sets the track to the previous, randomly selected, track.
     pub fn previous_random(&mut self) {
         if self.playlist.len() > 1 {
-            let current = self.index;
-            self.index = self.previous;
-            self.previous = current;
+            std::mem::swap(&mut self.index, &mut self.previous);
             self.next_track_queued = false;
             self.set_playback();
         }
@@ -335,7 +331,7 @@ impl Player {
             self.next()
         } else {
             let future = elapsed + time;
-            if let Ok(_) = self.sink.try_seek(future) {
+            if self.sink.try_seek(future).is_ok() {
                 self.last_started -= time;
             }
         }
@@ -352,7 +348,7 @@ impl Player {
             self.play();
         } else {
             let past = elapsed - time;
-            if let Ok(_) = self.sink.try_seek(past) {
+            if self.sink.try_seek(past).is_ok() {
                 if self.last_elapsed == Duration::ZERO {
                     self.last_started += time;
                 } else if self.last_elapsed >= time {
@@ -493,7 +489,7 @@ pub fn run_automated(path: PathBuf) -> Result<(), anyhow::Error> {
     use std::io::{stdin, stdout, Write};
     use std::thread::sleep;
 
-    let (mut player, _, _) = super::PlayerBuilder::new(path)?;
+    let (mut player, _, _) = super::PlayerBuilder::create(path)?;
     let (mut line, mut length) = player.stdout();
 
     print!("{}", line);
@@ -502,7 +498,7 @@ pub fn run_automated(path: PathBuf) -> Result<(), anyhow::Error> {
     loop {
         // Exit on `enter` key press.
         let mut input = String::new();
-        if let Ok(_) = stdin().read_line(&mut input) {
+        if stdin().read_line(&mut input).is_ok() {
             return Ok(());
         }
 
@@ -550,7 +546,7 @@ pub fn playlist(path: &PathBuf) -> Result<(Vec<AudioFile>, XY<usize>), anyhow::E
     let mut list = {
         paths
             .into_iter()
-            .filter(|path| valid_audio_ext(path))
+            .filter(valid_audio_ext)
             .filter_map(|path| match AudioFile::new(path) {
                 Ok(file) => {
                     width = max(width, file.title.len());
@@ -587,8 +583,8 @@ pub fn playlist(path: &PathBuf) -> Result<(Vec<AudioFile>, XY<usize>), anyhow::E
     Ok((list, size))
 }
 
-pub fn decode(path: &PathBuf) -> Result<Decoder<BufReader<File>>, anyhow::Error> {
-    let source = match File::open(path.as_path()) {
+pub fn decode(path: &Path) -> Result<Decoder<BufReader<File>>, anyhow::Error> {
+    let source = match File::open(path) {
         Ok(inner) => match Decoder::new(BufReader::new(inner)) {
             Ok(s) => s,
             Err(_) => bail!("could not decode '{}'", path.display()),

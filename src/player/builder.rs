@@ -24,12 +24,12 @@ impl PlayerBuilder {
     pub fn from(&self, path: Option<PathBuf>, siv: &mut Cursive) -> PlayerResult {
         match self {
             Self::FuzzyFinder => Self::fuzzy(path, siv),
-            Self::PreviousAlbum | Self::PreviousTrack => Self::previous(&self, siv),
-            Self::RandomAlbum | Self::RandomTrack => Self::random(&self, siv),
+            Self::PreviousAlbum | Self::PreviousTrack => Self::previous(self, siv),
+            Self::RandomAlbum | Self::RandomTrack => Self::random(self, siv),
         }
     }
 
-    pub fn new(path: PathBuf) -> PlayerResult {
+    pub fn create(path: PathBuf) -> PlayerResult {
         let opts = PlayerOpts::default();
         Player::new(path, 0, opts, false)
     }
@@ -74,7 +74,7 @@ impl PlayerBuilder {
                     queue.pop_front();
                 }
 
-                let next_random = match Player::randomized(&paths) {
+                let next_random = match Player::randomized(paths) {
                     Some(track) => track,
                     None => {
                         let path = path.to_owned();

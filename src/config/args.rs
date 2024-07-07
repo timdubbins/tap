@@ -1,25 +1,12 @@
 use std::path::PathBuf;
 
-use anyhow::bail;
+use anyhow::{anyhow, bail};
 use clap::Parser;
 
-use super::theme;
+use super::{config::Config, theme};
 use crate::data::persistent_data;
 
 type Color = cursive::theme::Color;
-
-lazy_static::lazy_static! {
-    static ref ARGS: Args = Args::parse();
-}
-
-#[derive(PartialEq)]
-pub enum Opts {
-    Automate,
-    Print,
-    Set,
-    Default,
-    None,
-}
 
 #[derive(Parser)]
 #[command(
@@ -29,7 +16,8 @@ pub enum Opts {
 )]
 pub struct Args {
     /// The path to play or search on. Defaults to the current working directory
-    path: Option<PathBuf>,
+    #[arg(default_value = "")]
+    pub path: PathBuf,
 
     /// Run an automated player without the TUI
     #[arg(short, long, default_value_t = false)]
@@ -41,7 +29,7 @@ pub struct Args {
 
     /// Run tap with the default directory, if set
     #[clap(short, long, default_value_t = 0, action = clap::ArgAction::Count)]
-    // We use `u8` instead of `bool` so that this flag can be passed multiple 
+    // We use `u8` instead of `bool` so that this flag can be passed multiple
     // times. Defined as `false` if 0, `true` otherwise.
     default: u8,
 
@@ -58,138 +46,145 @@ pub struct Args {
     term_bg: bool,
 
     /// Use the terminal foreground and background colors only
-    #[arg(short='c', long, default_value_t = false)]
+    #[arg(short = 'c', long, default_value_t = false)]
     term_color: bool,
 
-    /// Set the color scheme with <NAME>=<HEX>
-    /// For example: 
+    /// Set the color scheme with <NAME>=<COLOR>
+    /// For example:
     ///'--color fg=268bd2,bg=002b36,hl=fdf6e3,prompt=586e75,header=859900,header+=cb4b16,progress=6c71c4,info=2aa198,err=dc322f'
     #[arg(
-        long, 
-        value_parser = parse_color, 
+        long,
+        value_parser = Args::parse_color,
         value_delimiter = ',',
         verbatim_doc_comment,
     )]
     color: Vec<(String, Color)>,
 }
 
-pub fn parse() -> Result<(PathBuf, Opts), anyhow::Error> {
-    Ok((parse_path()?, parse_opts()?))
+impl Args {
+    pub fn parse_args() -> Result<Args, anyhow::Error> {
+        let mut args = Args::parse();
+        args.validate()?;
+        args.path = args.parse_path()?;
+        Ok(args)
+    }
+
+    fn parse_path(&self) -> Result<PathBuf, anyhow::Error> {
+        let path = if self.path.as_os_str().is_empty() {
+            if self.automate {
+                bail!("'--automate' requires a 'path' argument")
+            } else if self.set_default {
+                bail!("'--set-default' requires a 'path' argument")
+            } else if self.default > 0 {
+                persistent_data::cached_path()?
+            } else {
+                std::env::current_dir()?
+            }
+        } else if self.print_default {
+            bail!("'--print-default' cannot be used with a 'path' argument")
+        } else {
+            self.path.clone()
+        };
+
+        if !path.exists() {
+            bail!("'{}' doesn't exist", path.display())
+        }
+
+        Ok(path.canonicalize()?)
+    }
+
+    pub fn update_config_flags(&self, mut config: Config) -> Config {
+        if self.term_bg {
+            config.use_term_bg = true
+        }
+        if self.term_color {
+            config.use_term_default = true
+        }
+        if self.exclude {
+            config.exclude_non_audio = true
+        }
+
+        config
+    }
+
+    pub fn colors(&self) -> Vec<(String, Color)> {
+        self.color.to_owned()
+    }
+
+    fn validate(&self) -> Result<(), anyhow::Error> {
+        if self.automate && self.print_default {
+            bail!("'--automate' cannot be used with '--print-default'")
+        } else if self.automate && self.set_default {
+            bail!("'--automate' cannot be used with '--set-default'")
+        } else if self.print_default && self.set_default {
+            bail!("'--print-default' cannot be used with '--set-default'")
+        }
+        Ok(())
+    }
+
+    fn parse_color(s: &str) -> Result<(String, Color), anyhow::Error> {
+        let delimiter_pos = s.find('=').ok_or_else(|| {
+            anyhow!(
+                "{}invalid color argument: no '=' found in '{s}' for '--color <COLOR>'\n\n\
+                for example, to set the foreground and background colors use:\n\n\
+                '--color fg=<HEX>,bg=<HEX>'",
+                format_stderr(s)
+            )
+        })?;
+
+        let (name, value) = s.split_at(delimiter_pos);
+        let (name, value) = (name.to_string(), value[1..].to_string());
+
+        let color = Color::parse(&value).ok_or_else(|| {
+            anyhow!(
+                "{}Invalid color value '{}' for '--color <COLOR>'. 
+                Example values: 'red', 'light green', '#123456'",
+                format_stderr(s),
+                value
+            )
+        })?;
+
+        if !theme::validate_color(&name) {
+            bail!(
+                "{}Invalid color name '{}' for '--color <COLOR>'. 
+                Available names are: 'fg', 'bg', 'hl', 'prompt', 'header_1', 'header_2 'progress', 'info', 'err'", 
+                format_stderr(s),
+                name);
+        }
+
+        Ok((name, color))
+    }
 }
 
-pub fn audio_only() -> bool {
-    ARGS.exclude
+#[derive(Debug, PartialEq)]
+pub enum Command {
+    AutomatePlayer,
+    PrintDefault,
+    SetDefault,
+    UseDefault,
+    None,
 }
 
-pub fn user_colors() -> (Vec<(String, Color)>, bool) {
-    (ARGS.color.to_owned(), ARGS.term_bg)
-}
-
-pub fn term_color() -> bool {
-    ARGS.term_color
+impl Command {
+    pub fn parse_command(args: &Args) -> Self {
+        if args.automate {
+            Self::AutomatePlayer
+        } else if args.set_default {
+            Self::SetDefault
+        } else if args.print_default {
+            Self::PrintDefault
+        } else if args.default > 0 && args.path.as_os_str().is_empty() {
+            Self::UseDefault
+        } else {
+            Self::None
+        }
+    }
 }
 
 pub fn search_root() -> PathBuf {
-    parse_path().expect("should be verified on startup")
-}
-
-fn parse_path() -> Result<PathBuf, anyhow::Error> {
-    let path = match &ARGS.path {
-        Some(p) => p.to_owned(),
-        None => match ARGS.default > 0 {
-            true => persistent_data::cached_path()?,
-            false => std::env::current_dir()?,
-        }
-    };
-
-    if !path.exists() {
-        bail!("'{}' doesn't exist", path.display())
-    }
-
-    Ok(path.canonicalize()?)
-}
-
-fn parse_color(s: &str) -> Result<(String, Color), anyhow::Error> {
-    let pos = match s.find('=') {
-        Some(pos) => pos,
-        None => bail!(
-            "{}invalid color argument: no '=' found in '{s}' for '--color <COLOR>'\n\n\
-            for example, to set the foreground and background colors use:\n\n\
-            '--color fg=<HEX>,bg=<HEX>'", 
-            format_stderr(s)
-        ),
-    };
-
-    let (name, color): (String, String) = (s[..pos].parse()?, (s[pos + 1..]).parse()?);
-
-    let hex: Color = match is_valid_hex_string(&color) && color.len() == 6 {
-        true => color.parse()?,
-        false => bail!(
-            "{}invalid hex value '{color}' for '--color <COLOR>'\n\n\
-            valid values are in range '000000' -> 'ffffff'",
-            format_stderr(s),
-        ),
-    };
-
-    match theme::COLOR_MAP.contains_key(&name) {
-        true => Ok((name, hex)),
-        false => bail!(
-            "{}invalid color name '{name}' for '--color <COLOR>'\n\n\
-            available names:\n\
-            'fg', 'bg', 'hl', 'prompt', 'header', 'header+', 'progress', 'info', 'err'",
-            format_stderr(s),
-        ),
-    }
-}
-
-fn parse_opts() -> Result<Opts, anyhow::Error> {
-    exclude_multiple()?;
-    conflicts_path()?;
-    
-    if ARGS.automate {
-        Ok(Opts::Automate)
-    } else if ARGS.set_default {
-        Ok(Opts::Set)
-    } else if ARGS.print_default {
-        Ok(Opts::Print)
-    } else if ARGS.default > 0 && ARGS.path.is_none() {
-        Ok(Opts::Default)
-    } else {
-        Ok(Opts::None)
-    }
-}
-
-fn exclude_multiple() -> Result<(), anyhow::Error> {
-    if ARGS.automate && ARGS.print_default {
-        bail!("'--automate' cannot be used with '--print-default'")
-    } else if ARGS.automate && ARGS.set_default {
-        bail!("'--automate' cannot be used with '--set-default'")
-    } else if ARGS.print_default && ARGS.set_default {
-        bail!("'--print-default' cannot be used with '--set-default'")
-    }
-
-    Ok(())
-}
-
-fn conflicts_path() -> Result<(), anyhow::Error> {
-    if ARGS.automate && ARGS.path.is_none() {
-            bail!("'--automate' requires a 'path' argument")
-    } else if ARGS.set_default && ARGS.path.is_none() {
-            bail!("'--set-default' requires a 'path' argument")
-    } else if ARGS.print_default && ARGS.path.is_some() {
-            bail!("'--print-default' cannot be used with a 'path' argument")
-    }
-
-    Ok(())
-}
-
-fn is_valid_hex_string(s: &str) -> bool {
-    for c in s.chars() {
-        if !c.is_digit(16)  {
-            return false;
-        }
-    }
-    true
+    // FIXME -- this is replaced by path prop of Config
+    // parse_path().expect("should be verified on startup")
+    PathBuf::new()
 }
 
 // Hack used to format error messages by overwriting clap stderr
