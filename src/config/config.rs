@@ -20,6 +20,7 @@ pub struct Config {
     pub command: Command,
     pub use_term_bg: bool,
     pub use_term_default: bool,
+    pub use_default_palette: bool,
     pub exclude_non_audio: bool,
 }
 
@@ -53,6 +54,7 @@ impl Default for Config {
             command: Command::None,
             use_term_bg: false,
             use_term_default: false,
+            use_default_palette: false,
             exclude_non_audio: false,
         }
     }
@@ -93,6 +95,7 @@ impl<'de> Deserialize<'de> for Config {
             command: Command::None,
             use_term_bg: helper.use_term_bg.unwrap_or(false),
             use_term_default: helper.use_term_default.unwrap_or(false),
+            use_default_palette: false,
             exclude_non_audio: helper.exclude_non_audio.unwrap_or(false),
         })
     }

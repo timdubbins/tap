@@ -49,6 +49,10 @@ pub struct Args {
     #[arg(short = 'c', long, default_value_t = false)]
     term_color: bool,
 
+    /// Use the default color scheme
+    #[arg(long, default_value_t = false)]
+    default_palette: bool,
+
     /// Set the color scheme with <NAME>=<COLOR>
     /// For example:
     ///'--color fg=268bd2,bg=002b36,hl=fdf6e3,prompt=586e75,header=859900,header+=cb4b16,progress=6c71c4,info=2aa198,err=dc322f'
@@ -102,6 +106,9 @@ impl Args {
         }
         if self.exclude {
             config.exclude_non_audio = true
+        }
+        if self.default_palette {
+            config.use_default_palette = true
         }
 
         config
