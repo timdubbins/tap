@@ -150,8 +150,8 @@ The AUR package is available <a href="https://aur.archlinux.org/packages/tap">he
 You can install with a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.4.11">tap release</a>:
 
 ```bash
-> curl -LO https://github.com/timdubbins/tap/releases/download/v0.4.11/tap_0.4.11.deb
-> sudo dpkg -i tap_0.4.11.deb
+> curl -LO https://github.com/timdubbins/tap/releases/download/v0.4.11/tap_0.4.11_amd64.deb
+> sudo dpkg -i tap_0.4.11_amd64.deb
 > tap --version
 0.4.11
 ```
