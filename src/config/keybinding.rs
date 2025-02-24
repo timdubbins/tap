@@ -124,24 +124,12 @@ pub static PLAYER_EVENT_TO_ACTION: Lazy<HashMap<Event, Action>> = Lazy::new(|| {
                 for key in keys {
                     if let Some(event) = Keybinding::parse(key) {
                         events.push(event);
-                    } else {
-                        eprintln!(
-                            "[tap]: Config Warning: Invalid keybinding `{}` for action `{}`",
-                            key, action_str
-                        );
                     }
                 }
 
                 merged.insert(action, events);
-            } else {
-                eprintln!(
-                    "[tap]: Config Warning: Invalid `keybinding` action `{}`",
-                    action_str
-                );
             }
         }
-    } else {
-        eprintln!("[tap]: Config Warning: Invalid `keybinding` format (if set)");
     }
 
     // Reverse mapping: Event → Action, for O(1) lookups.
