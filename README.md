@@ -1,6 +1,6 @@
 # tap
 
-tap is an audio player for the terminal. Jump to any album in your library with fuzzy-finder shortcuts!
+tap is a lightweight TUI audio player with a built-in fuzzy finder. Jump to any album in your library with fuzzy-finder shortcuts!
 
 **Quick links:** [Options](#options), [Controls](#controls), [Configuration](#configuration), [Installation](#installation).
 
@@ -58,13 +58,13 @@ Global              | Binding
 previous album      | `-`
 random album        | `=`
 fuzzy search        | `Tab`
-artist search       | `Ctrl` + `a`
+artist search       | `Ctrl + a`
 artist search (a-z) | `A-Z`
-album search        | `Ctrl` + `d`
+album search        | `Ctrl + d`
 depth search (1-4)  | `F1-F4`
 parent search       | `` ` ``
-open file manager   | `Ctrl` + `o`
-quit                | `Ctrl` + `q`
+open file manager   | `Ctrl + o`
+quit                | `Ctrl + q`
 
 **Note:** Search results are shuffled by default. Sort with `Ctrl` + `s`.
 
@@ -75,7 +75,7 @@ Player                  | Binding
 play or pause           | `h` or <kbd>&larr;</kbd> or `Space`
 next                    | `j` or `n` or <kbd>&darr;</kbd>
 previous                | `k` or `p` or <kbd>&uarr;</kbd>
-stop                    | `l` or <kbd>&rarr;</kbd> or `Enter`
+stop                    | `l` or <kbd>&rarr;</kbd> or `Ctrl + j` or `Enter`
 randomize               | `*` or `r` (next track is random from library)
 shuffle                 | `~` or `s` (current playlist order is shuffled)
 seek << / >>            | `,` / `.`
@@ -85,22 +85,22 @@ volume down / up        | `[` / `]`
 toggle volume display   | `v`
 toggle mute             | `m`
 go to first track       | `gg`
-go to last track        | `Ctrl` + `g`
+go to last track        | `Ctrl + g`
 go to track number      | `0-9`, `g`
 show keybindings        | `?`
 quit                    | `q`
 
 Finder              | Binding
 ---                 |---
-select              | `Ctrl` + `j` or `Enter`
-next                | `Ctrl` + `n` or <kbd>&darr;</kbd>
-previous            | `Ctrl` + `p` or <kbd>&uarr;</kbd>
-sort results        | `Ctrl` + `s`
-cursor right        | `Ctrl` + `f` or <kbd>&rarr;</kbd>
-cursor left         | `Ctrl` + `b` or <kbd>&larr;</kbd>
+select              | `Ctrl + j` or `Enter`
+next                | `Ctrl + n` or <kbd>&darr;</kbd>
+previous            | `Ctrl + p` or <kbd>&uarr;</kbd>
+sort results        | `Ctrl + s`
+cursor right        | `Ctrl + f` or <kbd>&rarr;</kbd>
+cursor left         | `Ctrl + b` or <kbd>&larr;</kbd>
 cursor home         | `Home`
 cursor end          | `End`
-clear query         | `Ctrl` + `u`
+clear query         | `Ctrl + u`
 cancel search       | `Esc`
 page up             | `PageUp`
 page down           | `PageDown`

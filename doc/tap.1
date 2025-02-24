@@ -1,6 +1,6 @@
 .TH TAP 1 "February 2025" "tap 1.0" "User Commands"
 .SH NAME
-tap - An audio player for the terminal with fuzzy-finder
+tap - TUI audio player
 .SH SYNOPSIS
 .B tap
 [OPTIONS] [PATH]
@@ -27,13 +27,18 @@ Use the terminal background color.
 .B -t, --term_color
 Use the terminal foreground and background colors only.
 .TP
-.B -c, --default_color
-Use the default color scheme.
-.TP
-.B --color <NAME>=<COLOR>
-Set the color scheme using key-value pairs. Example:
+.B \-\-color <COLOR>
+Set the color scheme using key-value pairs.
 .RS
-.B --color fg=268bd2,bg=002b36,hl=fdf6e3,prompt=586e75,header_1=859900,header_2=cb4b16,progress=6c71c4,info=2aa198,err=dc322f
+Available keys:
+.IR fg ", " bg ", " hl ", " prompt ", " header_1 ", " header_2 ", " progress ", " info ", " err .
+.br
+Accepted values: hexadecimal (e.g., "#586e75", "859900") or color names (e.g., "red").
+.br
+Example:
+.EX
+\-\-color fg=red,bg=002b36
+.EE
 .RE
 .TP
 .B --cli
@@ -45,7 +50,7 @@ Print the current version.
 Tim Dubbins
 .SH VERSION
 .B tap
-version <super::VERSION>
+version 0.5.0
 .SH SEE ALSO
 .B man(1), sox(1)
 .SH BUGS
