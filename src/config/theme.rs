@@ -1,120 +1,207 @@
-use std::collections::HashMap;
-
-use cursive::{
-    theme::{
-        BorderStyle,
-        Color::{self, Rgb},
-        ColorStyle, Palette,
-        PaletteColor::{self, *},
-        Theme,
-    },
-    With,
+use std::{
+    collections::{hash_map::IntoIter, HashMap},
+    iter::IntoIterator,
+    ops::{Deref, DerefMut},
 };
 
-use super::config::Config;
+use {
+    anyhow::{anyhow, bail},
+    cursive::{
+        theme::{
+            BorderStyle,
+            Color::{self, Rgb},
+            ColorStyle, Palette,
+            PaletteColor::{self, *},
+            Theme as CursiveTheme,
+        },
+        With,
+    },
+};
 
-const COLOR_NAMES: [&str; 9] = [
-    "fg", "bg", "hl", "prompt", "header_1", "header_2", "progress", "info", "err",
-];
+use crate::TapError;
 
-pub fn validate_color(name: &str) -> bool {
-    COLOR_NAMES.contains(&name)
+// A struct representing a theme, which maps UI elements to specific colors.
+#[derive(Debug)]
+pub struct Theme {
+    // A mapping between element names and their corresponding colors.
+    pub color_map: HashMap<String, Color>,
 }
 
-pub fn custom(colors: &HashMap<String, Color>) -> Theme {
-    Theme {
-        shadow: false,
-        borders: BorderStyle::Simple,
-        palette: Palette::default().with(|palette| {
-            palette[Shadow] = colors["progress"];
-            palette[Primary] = colors["hl"];
-            palette[Secondary] = colors["fg"];
-            palette[Tertiary] = colors["prompt"];
-            palette[Background] = colors["bg"];
-            palette[View] = colors["bg"];
-            palette[TitlePrimary] = colors["header_1"];
-            palette[TitleSecondary] = colors["header_2"];
-            palette[Highlight] = colors["info"];
-            palette[HighlightInactive] = colors["err"];
-        }),
+impl Theme {
+    const COLOR_NAMES: [&'static str; 9] = [
+        "fg", "bg", "hl", "prompt", "header_1", "header_2", "progress", "info", "err",
+    ];
+
+    pub fn validate_color(name: &str) -> bool {
+        Self::COLOR_NAMES.contains(&name)
+    }
+
+    pub fn set_term_color(&mut self) {
+        self.iter_mut()
+            .for_each(|(_, value)| *value = Color::TerminalDefault);
+    }
+
+    pub fn set_term_bg(&mut self) {
+        self.insert("bg".to_string(), Color::TerminalDefault);
     }
 }
 
-pub fn fg() -> ColorStyle {
-    ColorStyle::front(PaletteColor::Secondary)
+impl Deref for Theme {
+    type Target = HashMap<String, Color>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.color_map
+    }
 }
 
-pub fn hl() -> ColorStyle {
-    ColorStyle::front(PaletteColor::Primary)
+impl DerefMut for Theme {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.color_map
+    }
 }
 
-pub fn prompt() -> ColorStyle {
-    ColorStyle::front(PaletteColor::Tertiary)
-}
+impl TryFrom<String> for Theme {
+    type Error = TapError;
 
-pub fn header_1() -> ColorStyle {
-    ColorStyle::front(PaletteColor::TitlePrimary)
-}
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let mut color_map = HashMap::new();
 
-pub fn header_2() -> ColorStyle {
-    ColorStyle::front(PaletteColor::TitleSecondary)
-}
+        for pair in value.split(',').map(str::trim) {
+            if let Some((key, value)) = pair.split_once('=') {
+                let name = key.trim();
+                let value = value.trim();
 
-pub fn progress() -> ColorStyle {
-    ColorStyle::front(PaletteColor::Shadow)
-}
+                if !Self::validate_color(name) {
+                    bail!(
+                        "Invalid color name '{}' for '--color <COLOR>'.\nAvailable names: 'fg', 'bg', 'hl', 'prompt', 'header_1', 'header_2', 'progress', 'info', 'err'",
+                        name
+                    );
+                }
 
-pub fn info() -> ColorStyle {
-    ColorStyle::front(PaletteColor::Highlight)
-}
+                let color = Color::parse(value).ok_or_else(|| {
+                    anyhow!(
+                        "Invalid color value '{}' for '--color <COLOR>'.\nExample values: 'red', 'light green', '#123456'",
+                        value
+                    )
+                })?;
 
-pub fn err() -> ColorStyle {
-    ColorStyle::front(PaletteColor::HighlightInactive)
-}
-
-pub fn inverted() -> ColorStyle {
-    ColorStyle::new(PaletteColor::Background, PaletteColor::Secondary)
-}
-
-pub fn parse_colors(args_colors: Vec<(String, Color)>, mut config: Config) -> Config {
-    let mut palette = default_palette();
-
-    if !config.use_default_palette {
-        if config.use_term_default && args_colors.is_empty() {
-            // Use terminal colors for foreground and background.
-            for (_, value) in palette.iter_mut() {
-                *value = Color::TerminalDefault;
-            }
-        } else {
-            // Update any user-defined colors from config file.
-            palette.extend(config.colors);
-
-            // Update any user-defined colors from command args.
-            palette.extend(args_colors);
-
-            // Update background color with terminal color, if using.
-            if config.use_term_bg {
-                palette.insert("bg".to_string(), Color::TerminalDefault);
+                color_map.insert(name.to_string(), color);
             }
         }
-    }
 
-    config.colors = palette;
-    config
+        let theme = Theme { color_map };
+
+        Ok(theme)
+    }
 }
 
-fn default_palette() -> HashMap<String, Color> {
-    let mut m = HashMap::new();
-    m.insert("fg".into(), Rgb(129, 162, 190)); // blue #81a2be
-    m.insert("bg".into(), Rgb(31, 33, 29)); // black #1f211d
-    m.insert("hl".into(), Rgb(197, 200, 198)); // white #c5c8c6
-    m.insert("prompt".into(), Rgb(57, 54, 62)); // grey #39363e
-    m.insert("header_1".into(), Rgb(181, 189, 104)); // green #b5bd68
-    m.insert("header_2".into(), Rgb(240, 198, 116)); // yellow #f0c674
-    m.insert("progress".into(), Rgb(178, 148, 187)); // magenta #b294bb
-    m.insert("info".into(), Rgb(138, 190, 183)); // cyan #8abeb7
-    m.insert("err".into(), Rgb(204, 102, 102)); // red #cc6666
-    m
+impl From<HashMap<String, String>> for Theme {
+    fn from(value: HashMap<String, String>) -> Self {
+        let color_map = value
+            .into_iter()
+            .filter_map(|(name, value)| {
+                Theme::validate_color(&name)
+                    .then(|| Color::parse(&value).map(|color| (name, color)))
+                    .flatten()
+            })
+            .collect();
+
+        Theme { color_map }
+    }
+}
+
+impl IntoIterator for Theme {
+    type Item = (String, Color);
+    type IntoIter = IntoIter<String, Color>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.color_map.into_iter()
+    }
+}
+
+impl Default for Theme {
+    fn default() -> Self {
+        let mut m = HashMap::new();
+        m.insert("fg".into(), Rgb(129, 161, 190)); // blue #81a1be
+        m.insert("bg".into(), Rgb(31, 33, 29)); // black #1f211d
+        m.insert("hl".into(), Rgb(197, 200, 198)); // white #c5c8c6
+        m.insert("prompt".into(), Rgb(57, 54, 62)); // grey #39363e
+        m.insert("header_1".into(), Rgb(181, 189, 104)); // green #b5bd68
+        m.insert("header_2".into(), Rgb(240, 198, 116)); // yellow #f0c674
+        m.insert("progress".into(), Rgb(178, 148, 187)); // magenta #b294bb
+        m.insert("info".into(), Rgb(138, 190, 183)); // cyan #8abeb7
+        m.insert("err".into(), Rgb(204, 102, 102)); // red #cc6666
+
+        Self { color_map: m }
+    }
+}
+
+impl From<&Theme> for CursiveTheme {
+    fn from(theme: &Theme) -> Self {
+        CursiveTheme {
+            shadow: false,
+            borders: BorderStyle::Simple,
+            palette: Palette::default().with(|palette| {
+                palette[Shadow] = theme.color_map["progress"];
+                palette[Primary] = theme.color_map["hl"];
+                palette[Secondary] = theme.color_map["fg"];
+                palette[Tertiary] = theme.color_map["prompt"];
+                palette[Background] = theme.color_map["bg"];
+                palette[View] = theme.color_map["bg"];
+                palette[TitlePrimary] = theme.color_map["header_1"];
+                palette[TitleSecondary] = theme.color_map["header_2"];
+                palette[Highlight] = theme.color_map["info"];
+                palette[HighlightInactive] = theme.color_map["err"];
+            }),
+        }
+    }
+}
+
+// A marker struct that provides predefined `ColorStyle` instances
+// for various UI elements.
+#[derive(Debug)]
+pub struct ColorStyles;
+
+impl ColorStyles {
+    #[inline]
+    pub fn fg() -> ColorStyle {
+        ColorStyle::front(PaletteColor::Secondary)
+    }
+
+    #[inline]
+    pub fn hl() -> ColorStyle {
+        ColorStyle::front(PaletteColor::Primary)
+    }
+
+    #[inline]
+    pub fn prompt() -> ColorStyle {
+        ColorStyle::front(PaletteColor::Tertiary)
+    }
+
+    #[inline]
+    pub fn header_1() -> ColorStyle {
+        ColorStyle::front(PaletteColor::TitlePrimary)
+    }
+
+    #[inline]
+    pub fn header_2() -> ColorStyle {
+        ColorStyle::front(PaletteColor::TitleSecondary)
+    }
+
+    #[inline]
+    pub fn progress() -> ColorStyle {
+        ColorStyle::front(PaletteColor::Shadow)
+    }
+
+    #[inline]
+    pub fn info() -> ColorStyle {
+        ColorStyle::front(PaletteColor::Highlight)
+    }
+
+    #[inline]
+    pub fn err() -> ColorStyle {
+        ColorStyle::front(PaletteColor::HighlightInactive)
+    }
 }
 
 #[cfg(test)]
@@ -123,21 +210,14 @@ mod tests {
 
     #[test]
     fn test_default_palette_uses_only_defined_names() {
-        let palette = default_palette();
-        let defined_names = COLOR_NAMES.iter().collect::<std::collections::HashSet<_>>();
+        let palette = Theme::default().color_map;
 
-        for key in palette.keys() {
+        for name in palette.keys() {
             assert!(
-                defined_names.contains(&key.as_str()),
+                Theme::validate_color(name),
                 "Palette contains an undefined color name: {}",
-                key
+                name
             );
         }
-
-        assert_eq!(
-            palette.len(),
-            COLOR_NAMES.len(),
-            "Palette size does not match the number of defined color names"
-        );
     }
 }

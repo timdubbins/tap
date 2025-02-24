@@ -1,65 +1,93 @@
-use core::cmp::Ordering;
-use std::{collections::HashSet, path::PathBuf};
+use std::{cmp::Ordering, collections::HashSet, fs::File, io::BufReader, path::PathBuf};
 
-use anyhow::bail;
-use lofty::{Accessor, AudioFile as LoftyAudioFile, Probe, TaggedFileExt};
+use {
+    anyhow::{anyhow, bail},
+    lofty::{
+        prelude::{Accessor, AudioFile as LoftyAudioFile, TaggedFileExt},
+        probe::Probe,
+    },
+    once_cell::sync::Lazy,
+    rodio::Decoder,
+};
 
-// The set of valid audio file extensions.
-lazy_static::lazy_static! {
-    pub static ref AUDIO_FORMATS: HashSet<&'static str> = create_set();
-}
+use crate::TapError;
 
+pub static AUDIO_FORMATS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
+    let mut m = HashSet::new();
+    m.insert("aac");
+    m.insert("flac");
+    m.insert("mp3");
+    m.insert("m4a");
+    m.insert("ogg");
+    m.insert("wav");
+    m.insert("wma");
+    m
+});
+
+// A struct representing metadata for an audio file.
 #[derive(Clone, Debug, Eq, PartialEq, Ord)]
 pub struct AudioFile {
+    // The file path to the audio file.
     pub path: PathBuf,
+    // The title of the audio track.
     pub title: String,
+    // The artist that performed the track.
     pub artist: String,
+    // The album the track belongs to.
     pub album: String,
+    // The release year of the track, if available.
     pub year: Option<u32>,
+    // The track number on the album.
     pub track: u32,
+    // The duration of the track in seconds.
     pub duration: usize,
 }
 
 impl AudioFile {
-    pub fn new(path: PathBuf) -> Result<Self, anyhow::Error> {
-        let file = match Probe::open(&path) {
-            Ok(f) => f,
-            Err(e) => bail!("could not probe '{}'\n-`{}`", path.display(), e),
-        };
+    pub fn new(path: PathBuf) -> Result<Self, TapError> {
+        let tagged_file = Probe::open(&path)
+            .map_err(|e| anyhow!("faied to probe {:?}: {}", path, e))?
+            .read()
+            .map_err(|e| anyhow!("failed to read {:?}: {}", path, e))?;
 
-        let tagged_file = match file.read() {
-            Ok(f) => f,
-            Err(e) => bail!("failed to read '{}'\n- `{}`", path.display(), e),
-        };
-
-        let tag = match tagged_file.primary_tag() {
-            Some(primary_tag) => primary_tag,
-            None => match tagged_file.first_tag().ok_or(()) {
-                Ok(t) => t,
-                Err(_) => bail!("no tags found for '{}'", path.display()),
-            },
-        };
-
-        let properties = tagged_file.properties();
-        let artist = tag.artist().as_deref().unwrap_or("None").trim().to_string();
-        let duration = properties.duration().as_secs() as usize;
+        let tag = tagged_file
+            .primary_tag()
+            .or_else(|| tagged_file.first_tag())
+            .ok_or_else(|| anyhow!("no tags found for {:?}", path))?;
 
         let audio_file = Self {
+            artist: tag.artist().as_deref().unwrap_or("None").trim().to_string(),
             album: tag.album().as_deref().unwrap_or("None").trim().to_string(),
             title: tag.title().as_deref().unwrap_or("None").trim().to_string(),
             year: tag.year(),
             track: tag.track().unwrap_or(0),
-            artist,
+            duration: tagged_file.properties().duration().as_secs() as usize,
             path,
-            duration,
         };
 
         Ok(audio_file)
     }
+
+    pub fn decode(&self) -> Result<Decoder<BufReader<File>>, TapError> {
+        let source = match File::open(self.path.clone()) {
+            Ok(inner) => match Decoder::new(BufReader::new(inner)) {
+                Ok(s) => s,
+                Err(_) => bail!("could not decode {:?}", self.path),
+            },
+            Err(_) => bail!("could not open {:?}", self.path),
+        };
+        Ok(source)
+    }
+
+    // Checks if the given file path has a valid audio file extension.
+    pub fn validate_format(p: &PathBuf) -> bool {
+        let ext = p.extension().unwrap_or_default().to_str().unwrap();
+        AUDIO_FORMATS.contains(&ext)
+    }
 }
 
-// Order by Album -> Track / Title
 impl PartialOrd for AudioFile {
+    // Sorts `AudioFile` instances by album, track number, and finally by title if needed.
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(
             self.album
@@ -70,22 +98,4 @@ impl PartialOrd for AudioFile {
                 }),
         )
     }
-}
-
-// Returns true if the file extension is a valid format.
-pub fn valid_audio_ext(p: &PathBuf) -> bool {
-    let ext = p.extension().unwrap_or_default().to_str().unwrap();
-    AUDIO_FORMATS.contains(&ext)
-}
-
-fn create_set() -> HashSet<&'static str> {
-    let mut m = HashSet::new();
-    m.insert("aac");
-    m.insert("flac");
-    m.insert("mp3");
-    m.insert("m4a");
-    m.insert("ogg");
-    m.insert("wav");
-    m.insert("wma");
-    m
 }

@@ -1,7 +1,4 @@
 mod testenv;
-#[path = "../src/utils.rs"]
-#[allow(dead_code)]
-mod utils;
 
 use crate::testenv::TestEnv;
 

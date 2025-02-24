@@ -1,0 +1,65 @@
+# This is an example config file for "tap".
+#
+# "tap" does not create a config file automatically, but it looks for one in
+# the following locations:
+#
+# 1. $XDG_CONFIG_HOME/tap/tap.yml
+# 2. $XDG_CONFIG_HOME/tap.yml
+# 3. $HOME/.config/tap/tap.yml
+# 4. $HOME/.tap.yml
+
+# Set a default path. For use with [-d, --default] flag.
+# path: "~/path/to/my_music"
+
+# Set the colors.
+#
+# Values can be hexadecimal ("#81a1be", "1f211d") or named ("red", "light green", etc).
+#
+# color:
+#   fg: "#81a1be"
+#   bg: "#1f211d"
+#   hl: "#c5c8c6"
+#   prompt: "#39363e"
+#   header_1: "#b5bd68"
+#   header_2: "#f0c674"
+#   progress: "#b294bb"
+#   info: "#8abeb7"
+#   err: "#cc6666"
+
+# Use the terminal background color.
+# term_bg: false
+
+# Use both the terminal background and foreground colors.
+# term_color: false
+
+# Use the default "tap" colors.
+# default_color: false
+
+# Set keybindings for the player.
+#
+# Multiple keys can be assigned per action.
+# Format: `action: ["key1", "key2", "key3"]`.
+#
+# Available Keys: "a"..="z", symbols, "Ctrl+[char]",
+# "Up", "Down", "Left", "Right", "Enter", "Esc", "Backspace", "Delete",
+# "Insert", "Home", "End", "PageUp", "PageDown", "Tab", "Space".
+#
+# keybindings:
+#   play_or_pause: ["h", "Space", "Left"]
+#   stop: ["l", "Enter", "Right"]
+#   next: ["j", "n", "Down"]
+#   previous: ["k", "p", "Up"]
+#   increase_volume: ["]"]
+#   decrease_volume: ["["]
+#   toggle_mute: ["m"]
+#   toggle_volume_display: ["v"]
+#   seek_to_min: ["'"]
+#   seek_to_sec: ["""]
+#   seek_forward: ["."]
+#   seek_backward: [","]
+#   toggle_randomize: ["*", "r"]
+#   toggle_shuffle: ["~", "s"]
+#   play_track_number: ["g"]
+#   play_last_track: ["Ctrl+g"]
+#   show_help: ["?"]
+#   quit: ["q"]
