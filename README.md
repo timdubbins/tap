@@ -2,86 +2,108 @@
 
 tap is an audio player for the terminal. Jump to any album in your library with fuzzy-finder shortcuts!
 
-**Quick links:** [Bindings](#bindings), [Installation](#installation).
+**Quick links:** [Options](#options), [Controls](#controls), [Configuration](#configuration), [Installation](#installation).
 
 <img src="https://github.com/timdubbins/tap/blob/master/doc/tap_screenshot.png" width="650"/>
 
-## How to use
+
+## Usage
+
 ```bash
 > tap [options] [path]
 ```
-Run `tap` in a directory that contains music folders to open a `fuzzy-finder`, allowing you to select an album to play. Playback starts on selection and you can return to the fuzzy-finder by pressing `Tab`:
+
+- Run `tap` in a directory containing music folders to launch the fuzzy-finder. Simply select an album to begin playback.
+- Press `Tab` at any time to return to the fuzzy-finder.
+
+**Example:**
+
 ```bash
 > cd ~/path/to/my_music
 > tap
-``` 
+```
 
+If no `path` is specified, `tap` defaults to the current working directory.
 
-To open a player without the fuzzy-finder provide a `path` to an audio file or album:
+### Direct Playback
+
+To skip the fuzzy-finder and directly open an audio file or album:
+
 ```bash
 > tap ~/path/to/my_album
 ```
 
-`path` can be a file or directory. If it is omitted the current directory is used.
 
+## Options
 Option                  | Description
 ---                     |---
-`-a` `--automate`       | Run an automated player without the TUI. Quit with `Enter`.
 `-d` `--default`        | Run from the default directory, if set.
 `-p` `--print`          | Print the path of the default directory, if set.
-`-s` `--set-default`    | Set `path` as the default directory. This can significantly reduce the time it takes to load this directory. See [Notes](#notes).
-`-e` `--exclude`        | Exclude all directories that don't contain audio files. 
+`-s` `--set`            | Set a default directory. Requires a `tap.yml` config file.
 `-b` `--term-bg`        | Use the terminal background color.
-`-c` `--term-color`     | Use the terminal background and foreground colors only.
-`--color <COLOR>`       | Set colors using \<NAME>=\<HEX>. See [Notes](#notes) for available names.
+`-t` `--term-color`     | Use the terminal background and foreground colors only.
+`-c` `--default-color`  | Ignore any user-defined colors.
+`--color <COLOR>`       | Set your own color scheme. See [Notes](#notes) for available names.
+`--cli`                 | Play audio in CLI-mode (without the TUI).
 
 
-## Bindings
+## Controls
 
 <details open>
 <summary><b>Keyboard</b></summary>
 <br>
 
-Global              | Keybinding    | Includes
----                 |---            |---
-fuzzy search        | `Tab`         | <i>all folders</i>
-depth search        | `F1...F4`     | <i>folders at depth 1...4</i>
-filtered search     | `A...Z`       | <i>artists beginning with A...Z</i>
-artist search       | `Ctrl` + `a`  | <i>all artists, sorted alphabetically</i>
-album search        | `Ctrl` + `s`  | <i>all albums, sorted alphabetically</i>
-parent search       | `Ctrl` + `p`  | <i>folders up one level</i>
-previous album      | `-`           |
-random album        | `=`           |
-open file manager   | `Ctrl` + `o`  | See [Notes](#notes).
-
-Player              | Keybinding
+Global              | Binding
 ---                 |---
-play or pause       | `h` or <kbd>&larr;</kbd> or `Space`
-next                | `j` or <kbd>&darr;</kbd>
-previous            | `k` or <kbd>&uarr;</kbd>
-stop                | `l` or <kbd>&rarr;</kbd> or `Enter`
-step forward        | `.`
-step backward       | `,`
-seek to sec         | `0...9` + `"`
-seek to min         | `0...9` + `'`
-random              | `r`
-volume up           | `]`
-volume down         | `[`
-show volume         | `v`
-mute                | `m`
-go to first track   | `gg`
-go to last track    | `Ctrl` + `g`
-go to track number  | `0...9` + `g`
-help                | `?`
-quit                | `q`
+previous album      | `-`
+random album        | `=`
+fuzzy search        | `Tab`
+artist search       | `Ctrl` + `a`
+artist search (a-z) | `A-Z`
+album search        | `Ctrl` + `d`
+depth search (1-4)  | `F1-F4`
+parent search       | `` ` ``
+open file manager   | `Ctrl` + `o`
+quit                | `Ctrl` + `q`
 
-Fuzzy               | Keybinding
+**Note:** Search results are shuffled by default. Sort with `Ctrl` + `s`.
+
+
+
+Player                  | Binding
+---                     |---
+play or pause           | `h` or <kbd>&larr;</kbd> or `Space`
+next                    | `j` or `n` or <kbd>&darr;</kbd>
+previous                | `k` or `p` or <kbd>&uarr;</kbd>
+stop                    | `l` or <kbd>&rarr;</kbd> or `Enter`
+randomize               | `*` or `r` (next track is random from library)
+shuffle                 | `~` or `s` (current playlist order is shuffled)
+seek << / >>            | `,` / `.`
+seek to second          | `0-9`, `"`
+seek to minute          | `0-9`, `'`
+volume down / up        | `[` / `]`
+toggle volume display   | `v`
+toggle mute             | `m`
+go to first track       | `gg`
+go to last track        | `Ctrl` + `g`
+go to track number      | `0-9`, `g`
+show keybindings        | `?`
+quit                    | `q`
+
+Finder              | Binding
 ---                 |---
-clear search        | `Ctrl` + `u`
+select              | `Ctrl` + `j` or `Enter`
+next                | `Ctrl` + `n` or <kbd>&darr;</kbd>
+previous            | `Ctrl` + `p` or <kbd>&uarr;</kbd>
+sort results        | `Ctrl` + `s`
+cursor right        | `Ctrl` + `f` or <kbd>&rarr;</kbd>
+cursor left         | `Ctrl` + `b` or <kbd>&larr;</kbd>
+cursor home         | `Home`
+cursor end          | `End`
+clear query         | `Ctrl` + `u`
 cancel search       | `Esc`
-page up             | `Ctrl` + `h` or `PgUp`
-page down           | `Ctrl` + `l` or `PgDn`
-random page         | `Ctrl` + `z`
+page up             | `PageUp`
+page down           | `PageDown`
 
 </details>
 
@@ -89,28 +111,63 @@ random page         | `Ctrl` + `z`
 <summary><b>Mouse</b></summary>
 <br>
 
-Global              | Keybinding
+Global              | Binding
 ---                 |---
 fuzzy search        | `Middle Button`
 
-Player              | Keybinding             | Where
----                 |---                     |---
-play or pause       | `Left Button`          | <i>Outside playlist</i>
-select track        | `Left Button`          | <i>Inside playlist</i>
-seek                | `Left Button Hold`     | <i>Inside progress bar<i>
-volume              | `Scroll`               | <i>Outside playlist</i>
-next / previous     | `Scroll`               | <i>Inside playlist</i>
-stop                | `Right Button`         | <i>Anywhere</i>
-
-Fuzzy               | Keybinding
+Player              | Binding
 ---                 |---
-cancel search       | `Right Button`
+play or pause       | `Left Click` (in window)
+select track        | `Left Click` (on track)
+seek                | `Left Hold` (on slider)
+volume              | `Scroll` (in window)
+next / previous     | `Scroll` (over tracks)
+stop                | `Right Click` (anywhere)
+
+Finder              | Binding
+---                 |---
+cancel search       | `Right Click`
 scroll              | `Scroll`
-select              | `Left Button`
+select              | `Left Click`
 
 </details>
 
+
+## Configuration
+
+
+tap doesn't create the config file for you, but it looks for one in the following locations:
+
+- $XDG_CONFIG_HOME/tap/tap.yml
+- $XDG_CONFIG_HOME/tap.yml
+- $HOME/.config/tap/tap.yml
+- $HOME/.tap.yml
+
+A example config file can be found [here]("https://github.com/timdubbins/tap/blob/master/doc/tap.yml).
+
+**Colors:**
+
+Colors can be set in the [config](#configuration) file or using the ```--color``` command.
+
+The following example will set a [Solarized](https://ethanschoonover.com/solarized/) theme:
+```
+--color fg=268bd2,bg=002b36,hl=fdf6e3,prompt=586e75,header_1=859900,header_2=cb4b16,progress=6c71c4,info=2aa198,err=dc322f
+```
+
+
+
+**Default Path:**
+
+The default path can be set in the tap.yml [config](#configuration) file. This allows you to load the default directory with the `-d --default` command and also provides faster load times by caching.
+
+When setting a default path tap will write a small amount of encoded data to `~/.cache/tap`. This is guaranteed to be at least as small as the in-memory data and will be updated everytime the default path is accessed. Using the `-s --set` command will update the `path` field in the `tap.yml` config file.
+
+Without setting a default path tap is `read-only`.
+
+
 ## Installation
+You will need an `ncurses` distribution (with development headers) to compile tap. Installation instructions for each supported platform are below:
+
 
 <details>
 <summary><b>macOS</b></summary>
@@ -120,8 +177,14 @@ You can install with <a href="https://brew.sh/">Homebrew</a>:
 ```bash
 > brew install timdubbins/tap/tap
 > tap --version
-0.4.11
+0.5.0
 ```
+
+`ncurses` can be installed with:
+```bash
+> brew install ncurses
+```
+
 
 </details>
 
@@ -130,15 +193,23 @@ You can install with <a href="https://brew.sh/">Homebrew</a>:
 <summary><b>Arch Linux</b></summary>
 <br>
 
-You can install with an <a href="https://wiki.archlinux.org/title/AUR_helpers">AUR helper</a>,
-such as <a href="https://github.com/Jguer/yay">yay</a>:
+~~You can install with an <a href="https://wiki.archlinux.org/title/AUR_helpers">AUR helper</a>,
+such as <a href="https://github.com/Jguer/yay">yay</a>:~~
+
+**The Arch package is not currently maintained. Please install with Rust.**
 
 ```bash
 > yay -S tap
 > tap --version
-0.4.11
+0.5.0
 ```
-The AUR package is available <a href="https://aur.archlinux.org/packages/tap">here</a>.
+
+`ncurses` can be installed with:
+```bash
+> yay -S ncurses
+```
+
+The AUR package is available <a href="https://aur.archlinux.org/packages/tap">here</a>.~~
 <br>
 </details>
 
@@ -147,13 +218,18 @@ The AUR package is available <a href="https://aur.archlinux.org/packages/tap">he
 <summary><b>Debian</b> (or a Debian derivative, such as <b>Ubuntu</b>)</summary>
 <br>
 
-You can install with a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.4.11">tap release</a>:
+You can install with a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.5.0">tap release</a>:
 
 ```bash
-> curl -LO https://github.com/timdubbins/tap/releases/download/v0.4.11/tap_0.4.11_amd64.deb
-> sudo dpkg -i tap_0.4.11_amd64.deb
+> curl -LO https://github.com/timdubbins/tap/releases/download/v0.5.0/tap_0.5.0.deb
+> sudo dpkg -i tap_0.5.0.deb
 > tap --version
-0.4.11
+0.5.0
+```
+
+`ncurses` can be installed with:
+```bash
+> sudo apt install libncurses5-dev libncursesw5-dev
 ```
 
 </details>
@@ -169,46 +245,19 @@ To compile from source, first you need a <a href="https://www.rust-lang.org/lear
 > cd tap
 > cargo install --path .
 > tap --version
-0.4.11
+0.5.0
 ```
 
 </details>
 
-The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.4.11).
+The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.5.0).
+
 
 ## Notes
 
 **Supports:**
 - Gapless playback.
 - `aac`, `flac`, `mp3`, `m4a`, `ogg` and `wav`.
-
-
-**Setting colors:**
-
-The following `--color` example will set a [Solarized](https://ethanschoonover.com/solarized/) theme:
-```
---color fg=268bd2,bg=002b36,hl=fdf6e3,prompt=586e75,header=859900,header+=cb4b16,progress=6c71c4,info=2aa198,err=dc322f 
-```
-
-**Setting an alias:**
-
-It can be useful to create an `alias` if you set a default directory or want to persist your color scheme. Put something like the following in your shell config (for `zsh` users this would be your `.zshrc`):
-
-```bash
-alias tap="tap -db --color fg=268bd2,bg=002b36,hl=fdf6e3,prompt=586e75,header=859900,header+=cb4b16,progress=6c71c4,info=2aa198,err=dc322f"
-```
-
-Running `tap` from any directory will now load the cached default path and set the colors to those defined in the alias (as well as setting the background color to use the terminal background). We can still use commands like `tap .` and `tap <PATH> --color fg=ff9999` with this alias. 
-
-**Setting the default directory:**
-
-This will write a small amount of encoded data to `~/.cache/tap`. This is the only place that `tap` will write to and the data is guaranteed to be at least as small as the in-memory data. Changes in the default directory will be updated in ~/.cache/tap the next time it is accessed by tap.
-
-As a benchmark, setting a directory that is 200GB as the default produces a ~/.cache/tap  that has size 350KB (equivalent to an mp3 that is 2 seconds long) and decreases the load time by ~6x.
-
-**Opening your file manager:**
-
-You can open your preferred file manager from within tap with `Ctrl` + `o` Requires `xdg-open` on linux. From the fuzzy-finder this opens the currently selected directory. From the player it opens the parent of the loaded audio file. 
 
 ## Contributing
 

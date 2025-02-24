@@ -1,56 +1,52 @@
-.TH TAP 1
+.TH TAP 1 "February 2025" "tap 1.0" "User Commands"
 .SH NAME
-tap \- TUI audio player
+tap - An audio player for the terminal with fuzzy-finder
 .SH SYNOPSIS
 .B tap
-.RB [ \-abcdpshV ]
-.RB [ \-\-color=COLOR ]
-.RB [ PATH ]
+[OPTIONS] [PATH]
 .SH DESCRIPTION
 .B tap
-is a lightweight audio player for the terminal with fuzzy-finder.
+is a terminal-based audio player with a fuzzy-finder. It allows playing audio files from a specified path and provides options to configure color schemes and set default directories.
 .SH OPTIONS
 .TP
-.B \-a, \-\-automate
-Run an automated player without the TUI.
+.I path
+The path to play or search on.
 .TP
-.B \-s, \-\-set-default
-Set 
-.B PATH 
-as the default directory.
+.B -s, --set
+Set a default directory using the provided path.
 .TP
-.B \-d, \-\-default
+.B -d, --default
 Run tap with the default directory, if set.
 .TP
-.B \-p, \-\-print\-default  
+.B -p, --print
 Print the default directory, if set.
 .TP
-.B \-e, \-\-exclude
-Exclude all directories that don't contain audio files. 
-.TP
-.B \-h, \-\-help
-Print help.
-.TP
-.B \-V, \-\-version
-Print version.
-.SH DISPLAY
-.TP
-.B \-b, \-\-term\-bg
+.B -b, --term_bg
 Use the terminal background color.
 .TP
-.B \-c, \-\-term\-color
-Use the terminal background and foreground colors only.
+.B -t, --term_color
+Use the terminal foreground and background colors only.
 .TP
-.B \-\-color=COLOR
-Set colors using <COLOR_NAME>=<COLOR_HEX>.
+.B -c, --default_color
+Use the default color scheme.
+.TP
+.B --color <NAME>=<COLOR>
+Set the color scheme using key-value pairs. Example:
 .RS
-
-Available names:
-  fg, bg, hl, prompt, header, header+, progress, info, err. 
-
-Example:
-  --color fg=268bd2,bg=002b36,hl=fdf6e3
+.B --color fg=268bd2,bg=002b36,hl=fdf6e3,prompt=586e75,header_1=859900,header_2=cb4b16,progress=6c71c4,info=2aa198,err=dc322f
 .RE
+.TP
+.B --cli
+Run an audio player in the terminal without the TUI.
+.TP
+.B -v, --version
+Print the current version.
+.SH AUTHOR
+Tim Dubbins
+.SH VERSION
+.B tap
+version <super::VERSION>
+.SH SEE ALSO
+.B man(1), sox(1)
 .SH BUGS
 Bugs can be reported on Github: https://github.com/timdubbins/tap/issues
- 

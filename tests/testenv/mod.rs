@@ -1,14 +1,8 @@
-#[path = "../../src/utils.rs"]
-#[allow(dead_code)]
-mod utils;
-
 use std::path::{Path, PathBuf};
 use std::process::Output;
 use std::{env, process};
 
 use tempfile::TempDir;
-
-use utils::create_working_dir;
 
 // Environment for the integration tests.
 pub struct TestEnv {
@@ -74,6 +68,56 @@ impl TestEnv {
 
         cmd.output().expect("tap output")
     }
+}
+
+pub fn create_working_dir(
+    dirs: &[&'static str],
+    audio_data: &[(&'static str, &'static str)],
+    dummy_data: &[&'static str],
+) -> Result<tempfile::TempDir, std::io::Error> {
+    let temp_dir = tempfile::Builder::new()
+        .prefix("tap-tests")
+        .tempdir()
+        .expect("failed to create temporary directory");
+
+    let assets_dir = find_assets_dir();
+
+    for path in dirs {
+        let path = temp_dir.path().join(path);
+        std::fs::create_dir_all(path).expect("failed to create subdirectories")
+    }
+
+    for (temp_path, asset_path) in audio_data {
+        let src = assets_dir.join(asset_path);
+        let dest = temp_dir.path().join(temp_path);
+        std::fs::copy(src, dest).expect("failed to copy audio data");
+    }
+
+    for path in dummy_data {
+        let path = temp_dir.path().join(path);
+        std::fs::File::create(path).expect("failed to create dummy data");
+    }
+
+    Ok(temp_dir)
+}
+
+// Find the test assets.
+pub fn find_assets_dir() -> std::path::PathBuf {
+    // Tests exe is in target/debug/deps, test assets are in tests/assets
+
+    let root = std::env::current_exe()
+        .expect("tests executable")
+        .parent()
+        .expect("tests executable directory")
+        .parent()
+        .expect("tap executable directory")
+        .parent()
+        .expect("target directory")
+        .parent()
+        .expect("project root")
+        .to_path_buf();
+
+    root.join("tests").join("assets")
 }
 
 fn normalize(output: Output) -> Vec<String> {

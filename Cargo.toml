@@ -1,12 +1,22 @@
 [package]
 name = "tap"
-version = "0.4.12"
+version = "0.5.0"
 authors = ["Tim Dubbins <timdubbins@gmail.com>"]
 description = "An audio player for the terminal with fuzzy-finder"
 documentation = "https://github.com/timdubbins/tap"
 homepage = "https://github.com/timdubbins/tap"
 repository = "https://github.com/timdubbins/tap"
-keywords = ["audio", "player", "fuzzy", "finder", "rust", "cli", "tui", "music", "terminal"]
+keywords = [
+    "audio",
+    "player",
+    "fuzzy",
+    "finder",
+    "rust",
+    "cli",
+    "tui",
+    "music",
+    "terminal",
+]
 categories = ["command-line-utilities"]
 license = "Unlicense OR MIT"
 edition = "2021"
@@ -20,18 +30,32 @@ name = "tap"
 tempfile = "3.6"
 
 [dependencies]
-anyhow = "1.0"
+anyhow = "1.0.95"
 bincode = "2.0.0-rc.3"
 clap = { version = "4.1.8", features = ["derive"] }
-cursive = { git = "https://github.com/timdubbins/cursive", branch = "tap", features = ["ncurses-backend", "toml"] }
+colored = "2"
+cursive = { git = "https://github.com/timdubbins/cursive", branch = "tap", features = [
+    "ncurses-backend",
+    "toml",
+] }
 expiring_bool = { git = "https://github.com/timdubbins/expiring_bool" }
 fuzzy-matcher = "0.3.7"
-lazy_static = "1.4.0"
-lofty = "0.14.0"
-rand = "0.8.5"
-rodio = { git = "https://github.com/timdubbins/rodio", branch = "seek", features = ["symphonia-aac", "symphonia-flac", "symphonia-mp3", "symphonia-isomp4", "symphonia-wav", "vorbis"], default-features = false }
-serde = { version = "1.0", features = ["derive"] }
-serde_yaml = "0.8"
+lofty = "0.22.2"
+once_cell = "1.20.3"
+rand = { version = "0.8.5", features = ["small_rng"] }
+rayon = "1.6"
+regex = "1.11.1"
+reqwest = { version = "0.11", features = ["blocking", "json"] }
+rodio = { git = "https://github.com/timdubbins/rodio", branch = "seek", features = [
+    "symphonia-aac",
+    "symphonia-flac",
+    "symphonia-mp3",
+    "symphonia-isomp4",
+    "symphonia-wav",
+    "vorbis",
+], default-features = false }
+serde = { version = "1.0.217", features = ["derive"] }
+serde_yaml = "0.9.34"
 unicode-segmentation = "1.10.1"
 unicode-width = "0.1.5"
 walkdir = "2.0"

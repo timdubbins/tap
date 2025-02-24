@@ -1,357 +1,254 @@
 use std::time::Duration;
 
-use cursive::{
-    event::{Event, EventResult, Key, MouseButton, MouseEvent},
-    reexports::crossbeam_channel::Sender,
-    theme::{ColorStyle, Effect},
-    traits::View,
-    view::Resizable,
-    Cursive, Printer, XY,
+use {
+    cursive::{
+        event::{Event, EventResult, MouseButton, MouseEvent},
+        theme::{ColorStyle, Effect},
+        traits::View,
+        view::Nameable,
+        CbSink, Cursive, Printer, XY,
+    },
+    expiring_bool::ExpiringBool,
 };
-use expiring_bool::ExpiringBool;
 
-use crate::config::{args, theme};
-use crate::fuzzy::{self, FuzzyView};
-use crate::session_data::SessionData;
-use crate::utils::{self, InnerType};
+use crate::{
+    config::{
+        keybinding::{Action, PLAYER_EVENT_TO_ACTION},
+        ColorStyles,
+    },
+    finder::{FuzzyDir, Library},
+    player::{AudioFile, HelpView, PlaybackStatus, Player, Playlist},
+};
 
-use super::{load_keys_view, AudioFile, Player, PlayerBuilder, PlayerStatus};
+const SEEK_TIME: Duration = Duration::from_secs(10);
 
-type CursiveCallback = Box<dyn FnOnce(&mut Cursive) + Send>;
-type CursiveCallbackSender = Sender<CursiveCallback>;
-
+// A struct representing the view and state of the audio player.
 pub struct PlayerView {
-    // The currently loaded player.
+    // The `AudioPlayer` instance responsible for handling audio playback.
     player: Player,
-    // The time to seek to, in seconds. `Some` when seeking has been initiated.
+    // The time to seek to, in seconds. Set to `Some` when a seek operation has been initiated.
     mouse_seek_time: Option<usize>,
-    // The vertical offset required to show relevant playlist rows.
-    offset: usize,
-    // Whether or not the current volume is displayed.
+    // Whether the current volume level is displayed in the UI, managed with an `ExpiringBool`.
     showing_volume: ExpiringBool,
-    // Callback to access the cursive root. `None` if standalone player.
-    cb: Option<CursiveCallbackSender>,
-    // The size of the view.
+    // The list of numbers from last keyboard input.
+    number_input: Vec<usize>,
+    // Whether or not a double-tap event was registered.
+    timed_bool: ExpiringBool,
+    // The vertical offset required to ensure the current track is visible in the playlist.
+    offset_y: usize,
+    // The dimensions of the view, in cells.
     size: XY<usize>,
+    // A sender for scheduling callbacks to be executed by the Cursive root.
+    cb_sink: CbSink,
 }
 
 impl PlayerView {
-    pub fn new(player: Player, showing_volume: bool, cb: Option<CursiveCallbackSender>) -> Self {
+    pub fn new(player: Player, cb_sink: CbSink) -> Self {
         Self {
             player,
-            cb,
+            cb_sink,
             mouse_seek_time: None,
-            offset: 0,
-            showing_volume: ExpiringBool::new(showing_volume, Duration::from_millis(1500)),
-            size: XY { x: 0, y: 0 },
+            offset_y: 0,
+            showing_volume: ExpiringBool::new(false, Duration::from_millis(1500)),
+            number_input: vec![],
+            timed_bool: ExpiringBool::new(false, Duration::from_millis(500)),
+            size: XY::default(),
         }
     }
 
-    pub fn load((player, showing_volume, size): (Player, bool, XY<usize>), siv: &mut Cursive) {
-        let cb = match siv.user_data::<InnerType<SessionData>>() {
-            Some(_) => Some(siv.cb_sink().clone()),
-            None => None,
-        };
+    pub fn load(siv: &mut Cursive, player: Player) {
+        let cb_sink = siv.cb_sink().clone();
+        let player_view = PlayerView::new(player, cb_sink).with_name(super::ID);
 
-        siv.add_layer(
-            PlayerView::new(player, showing_volume, cb)
-                .full_width()
-                .max_width(size.x)
-                .fixed_height(size.y),
-        );
-
-        remove_layers_to_top(siv);
+        siv.pop_layer();
+        siv.add_layer(player_view);
     }
 
-    // Draw methods
+    pub fn update_playlist(&mut self, next: Playlist, set_playing: bool) {
+        let is_stopped = self.player.is_stopped();
+        self.player.stop();
+        self.player.previous = Some(self.player.current.clone());
+        self.player.current = next;
+        self.player.play();
 
-    // Formats the display for the current playback status.
-    fn player_status(&self) -> (&'static str, ColorStyle, Effect) {
-        match self.player.status {
-            PlayerStatus::Paused => ("|", theme::hl(), Effect::Simple),
-            PlayerStatus::Playing => (">", theme::header_2(), Effect::Simple),
-            PlayerStatus::Stopped => (".", theme::err(), Effect::Simple),
+        if !set_playing && is_stopped {
+            self.player.stop();
         }
     }
 
-    // Formats the display showing whether the player is muted or randomized.
-    fn player_info(&self) -> &'static str {
-        match (self.player.is_randomized, self.player.is_muted) {
-            (true, true) => " *m",
-            (true, false) => "  *",
-            (false, true) => "  m",
-            (false, false) => unreachable!(),
-        }
-    }
-
-    // Formats the player header.
-    fn album_and_year(&self, f: &AudioFile) -> String {
-        if let Some(year) = f.year {
-            format!("{} ({})", f.album, year)
-        } else {
-            f.album.to_string()
-        }
-    }
-
-    // Formats the volume display.
-    fn volume(&self, w: usize) -> String {
-        match w > 14 {
-            true => format!("  vol: {:>3} %  ", self.player.volume),
-            false => format!("  {:>3} %  ", self.player.volume),
-        }
-    }
-
-    // The elapsed playback time to display. When seeking with the mouse we use the
-    // elapsed time had the seeking process completed.
-    fn elapsed(&self) -> usize {
-        if self.mouse_seek_time.is_some() && self.player.status == PlayerStatus::Paused {
-            self.mouse_seek_time.unwrap()
-        } else {
-            self.player.elapsed().as_secs() as usize
-        }
-    }
-
-    // Computes the y offset needed to show the results of the fuzzy match.
-    #[inline]
-    fn update_offset(&self) -> usize {
-        let index = self.player.index;
-        let length = self.player.playlist.len();
-        let available_y = self.size.y;
-        let required_y = length + 2;
-
-        if index == 0 || available_y >= required_y {
-            return 0;
-        }
-
-        let offset = required_y - available_y;
-        if index <= offset {
-            index
-        } else {
-            offset
-        }
-    }
-
-    // Event methods
-
-    // Loads the next random track.
-    fn random_track(&mut self) {
-        match &self.cb {
-            Some(cb) => {
-                cb.send(Box::new(move |siv| {
-                    if let Ok(player) = PlayerBuilder::RandomTrack.from(None, siv) {
-                        PlayerView::load(player, siv);
-                    }
-                }))
-                .unwrap_or_default();
-            }
-            None => self.player.next_random(),
-        }
-    }
-
-    // Loads the previous random track.
-    fn previous_random(&mut self) {
-        match &self.cb {
-            Some(cb) => {
-                cb.send(Box::new(move |siv| {
-                    if let Ok(player) = PlayerBuilder::PreviousTrack.from(None, siv) {
-                        PlayerView::load(player, siv);
-                    }
-                }))
-                .unwrap_or_default();
-            }
-            None => self.player.previous_random(),
-        }
-    }
-
-    // Sets the current volume. If the volume is not being shown
-    // it will be displayed temporarily by setting `showing_volume` true.
-    fn set_volume(&mut self, volume: u8) -> EventResult {
+    fn increase_volume(&mut self) {
+        self.player.increment_volume();
         self.showing_volume.set();
-
-        if self.cb.is_some() {
-            EventResult::with_cb(move |siv| {
-                siv.with_user_data(|(opts, _, _): &mut InnerType<SessionData>| {
-                    opts.1 = volume;
-                });
-            })
-        } else {
-            EventResult::Consumed(None)
-        }
     }
 
-    // Updates user data with the current status.
-    fn set_status(&mut self, status: u8) -> EventResult {
-        if self.cb.is_some() {
-            EventResult::with_cb(move |siv| {
-                siv.with_user_data(|(opts, _, _): &mut InnerType<SessionData>| {
-                    opts.0 = status;
-                });
-            })
-        } else {
-            EventResult::Consumed(None)
-        }
+    fn decrease_volume(&mut self) {
+        self.player.decrement_volume();
+        self.showing_volume.set();
     }
 
-    // Toggles the track order between in-order and random.
-    fn toggle_randomization(&mut self) -> EventResult {
-        if self.player.toggle_randomization() {
-            let curr_index = self.player.index;
-            if self.cb.is_some() {
-                return EventResult::with_cb(move |siv| {
-                    siv.with_user_data(|(_, _, queue): &mut InnerType<SessionData>| {
-                        if let Some((_, index)) = queue.get_mut(1) {
-                            *index = curr_index;
-                        }
-                    });
-                });
-            } else if self.player.playlist.len() > 1 {
-                return EventResult::with_cb(move |siv| siv.set_user_data(curr_index));
-            }
-        }
-        EventResult::Consumed(None)
-    }
-
-    // Loads a fuzzy view for the parent of the current audio file.
-    fn parent(&self) -> EventResult {
-        let mut parent = self.player.path().to_owned();
-        let root = args::search_root();
-
-        if parent != root {
-            parent.pop();
-            if parent != root {
-                parent.pop();
-                return EventResult::with_cb(move |siv| {
-                    let items = fuzzy::create_items(&parent).expect("should always exist");
-                    FuzzyView::load(items, None, siv)
-                });
-            }
-        }
-        EventResult::Consumed(None)
-    }
-
-    // Toggles whether the player is muted and updates user data.
-    fn toggle_mute(&mut self) -> EventResult {
-        let is_muted = self.player.toggle_mute();
-        if self.cb.is_some() {
-            EventResult::with_cb(move |siv| {
-                siv.with_user_data(|(opts, _, _): &mut InnerType<SessionData>| {
-                    opts.2 = is_muted;
-                });
-            })
-        } else {
-            EventResult::Consumed(None)
-        }
-    }
-
-    // Toggles whether or not the volume is displayed and updates user data.
-    fn toggle_volume_display(&mut self) -> EventResult {
-        let showing_volume = self.showing_volume.toggle();
-        if self.cb.is_some() {
-            EventResult::with_cb(move |siv| {
-                siv.with_user_data(|(opts, _, _): &mut InnerType<SessionData>| {
-                    opts.3 = showing_volume;
-                });
-            })
-        } else {
-            EventResult::Consumed(None)
-        }
-    }
-
-    // Loads the next track in the queue.
     fn next(&mut self) {
         if self.player.is_randomized {
-            self.random_track();
+            self.random_track_and_album();
+        } else if self.player.is_shuffled {
+            self.shuffled_track();
         } else {
-            self.player.next();
+            self.player.increment_track();
         }
     }
 
-    // Loads the previous track in the queue.
     fn previous(&mut self) {
-        if self.player.is_randomized {
-            self.previous_random();
+        if self.player.is_randomized || self.player.is_shuffled {
+            self.player
+                .previous
+                .clone()
+                .map(|next| self.update_playlist(next, false));
         } else {
-            self.player.previous()
+            self.player.decrement_track();
         }
     }
 
-    // Opens the parent of the current audio file in the
-    // preferred file manager.
-    fn open_file_manager(&self) {
-        let path = self.player.path().to_owned();
-        _ = utils::open_file_manager(path);
+    // Selects a random track from a random album.
+    fn random_track_and_album(&self) {
+        let mut current = self.player.current.clone();
+
+        _ = self.cb_sink.send(Box::new(|siv| {
+            let next = match siv.user_data::<Library>() {
+                Some(library) => {
+                    let dirs = library.audio_dirs();
+                    Playlist::randomized_track(current, &dirs)
+                }
+                None => {
+                    current.set_random_index();
+                    current
+                }
+            };
+
+            siv.call_on_name(super::ID, |player_view: &mut PlayerView| {
+                player_view.update_playlist(next, false);
+            });
+        }));
     }
 
-    // Increments the volume and updates user data.
-    fn increase_volume(&mut self) -> EventResult {
-        let volume = self.player.increase_volume();
-        self.set_volume(volume)
+    // Selects a random track from the current playlist.
+    fn shuffled_track(&mut self) {
+        let mut current = self.player.current.clone();
+        current.set_random_index();
+        self.update_playlist(current, false);
     }
 
-    // Decrements the volume and updates user data.
-    fn decrease_volume(&mut self) -> EventResult {
-        let volume = self.player.decrease_volume();
-        self.set_volume(volume)
+    // Callback to select the previous album.
+    pub fn previous_album(siv: &mut Cursive) {
+        siv.call_on_name(super::ID, |player_view: &mut PlayerView| {
+            player_view.player.previous.clone().map(|mut previous| {
+                previous.index = 0;
+                player_view.update_playlist(previous, false)
+            });
+        });
+
+        crate::finder::FinderView::remove(siv);
     }
 
-    // Stops the player and updates user data.
-    fn stop(&mut self) -> EventResult {
-        let status = self.player.stop();
-        self.set_status(status)
+    // Callback to select a random album.
+    pub fn random_album(siv: &mut Cursive) {
+        let dirs = match siv.user_data::<Library>() {
+            Some(library) => library.audio_dirs(),
+            None => return,
+        };
+
+        siv.call_on_name(super::ID, |player_view: &mut PlayerView| {
+            let current = player_view.player.current.clone();
+            let next = Playlist::randomized(current, &dirs);
+            player_view.update_playlist(next, false);
+        })
+        .unwrap_or_else(|| {
+            Playlist::some_randomized(&dirs)
+                .and_then(|next| Player::try_new(next).ok())
+                .map(|player| PlayerView::load(siv, player));
+        });
+
+        crate::finder::FinderView::remove(siv);
     }
 
-    // Plays or pauses the player and updates user data.
-    fn play_or_pause(&mut self) -> EventResult {
-        let status = self.player.play_or_pause();
-        self.set_status(status)
+    // Play the track selected from keyboard input.
+    fn play_track_number(&mut self) {
+        if let Some(index) = self.map_input_to_index() {
+            self.player.play_index(index);
+        } else {
+            if self.timed_bool.is_true() {
+                self.player.play_index(0);
+            } else {
+                self.timed_bool.set();
+            }
+        }
+    }
+
+    fn map_input_to_index(&mut self) -> Option<usize> {
+        let track = concatenate_digits(&self.number_input) as u32;
+
+        let index = self
+            .player
+            .current
+            .audio_files
+            .iter()
+            .position(|f| f.track == track);
+
+        self.number_input.clear();
+
+        index
+    }
+
+    fn parse_seek_input(&mut self) -> Option<Duration> {
+        if self.number_input.is_empty() {
+            return None;
+        } else {
+            let time = concatenate_digits(&self.number_input) as u64;
+            self.number_input.clear();
+
+            Some(Duration::new(time, 0))
+        }
+    }
+
+    // Seeks the playback to the input time in seconds.
+    fn seek_to_sec(&mut self) {
+        self.parse_seek_input().map(|secs| {
+            self.player.seek_to_time(secs);
+        });
+    }
+
+    // Seeks the playback to the input time in minutes.
+    fn seek_to_min(&mut self) {
+        self.parse_seek_input().map(|secs| {
+            self.player.seek_to_time(secs * 60);
+        });
     }
 
     // Handles the mouse left button press actions.
     fn mouse_button_left(&mut self, offset: XY<usize>, position: XY<usize>) {
-        // Whether or not the mouse cursor is outside the area containing
-        // the playlist and the progress bar.
-        let outside_area = position.y <= offset.y
-            || position.y - offset.y > self.size.y
-            || position.x <= offset.x + 1
-            || position.x + 2 - offset.x >= self.size.x;
+        match Area::from(position, offset, self.size) {
+            Area::ProgressBar => self.mouse_hold_seek(offset, position),
 
-        if outside_area {
-            self.play_or_pause();
-            return;
-        }
+            Area::Playlist => {
+                let index = position.y - offset.y + self.offset_y - 1;
 
-        // The y position of the mouse cursor relative to the view.
-        let translation_y = position.y - offset.y;
-
-        // Initiate seeking if the mouse cursor is over progress bar or line below.
-        if translation_y == self.size.y || translation_y + 1 == self.size.y {
-            if self.size.x > 16 {
-                self.mouse_hold_seek(offset, position);
-            } else {
-                self.player.play_or_pause();
+                if index == self.player.current.index {
+                    self.player.play_or_pause();
+                } else {
+                    self.player.play_index(index);
+                }
             }
-            return;
-        }
-
-        // Select the track under the mouse cursor.
-        let index = translation_y + self.offset - 1;
-        if index == self.player.index {
-            self.player.play_or_pause();
-        } else if index < self.player.playlist.len() {
-            self.player.play_mouse_selected(index);
+            Area::Background => _ = self.player.play_or_pause(),
         }
     }
 
     // Updates the seek position from mouse input.
     fn mouse_hold_seek(&mut self, offset: XY<usize>, position: XY<usize>) {
         if self.size.x > 16 && position.x > offset.x {
-            if self.player.status == PlayerStatus::Stopped {
+            if self.player.is_stopped() {
                 self.player.play();
             }
             self.player.pause();
-            let duration = self.player.file().duration;
-            let mouse_seek_pos = utils::clamp(position.x - offset.x, 8, self.size.x - 8) - 8;
-            self.mouse_seek_time = Some(mouse_seek_pos * duration / (self.size.x - 16));
+            let position = (position.x - offset.x).clamp(8, self.size.x - 8) - 8;
+            self.mouse_seek_time = Some(position * self.duration() / (self.size.x - 16));
         }
     }
 
@@ -366,242 +263,297 @@ impl PlayerView {
 
     // Handles the mouse wheel (scrolling) actions.
     fn mouse_wheel(&mut self, event: MouseEvent, offset: XY<usize>, position: XY<usize>) {
-        // Whether or not the mouse cursor is outside the area containing
-        // the playlist.
-        let outside_playlist = position.y <= offset.y
-            || position.y + 1 - offset.y >= self.size.y
-            || position.x <= offset.x + 1
-            || position.x + 2 - offset.x >= self.size.x;
-
-        if event == MouseEvent::WheelUp {
-            if outside_playlist {
-                self.increase_volume();
-            } else {
-                self.previous();
-            }
-        } else if event == MouseEvent::WheelDown {
-            if outside_playlist {
-                self.decrease_volume();
-            } else if self.player.index != self.player.playlist.len() - 1 {
-                self.next();
-            }
+        match Area::from(position, offset, self.size) {
+            Area::Playlist => match event {
+                MouseEvent::WheelUp => self.player.decrement_track(),
+                MouseEvent::WheelDown => self.player.increment_track(),
+                _ => (),
+            },
+            _ => match event {
+                MouseEvent::WheelUp => self.increase_volume(),
+                MouseEvent::WheelDown => self.decrease_volume(),
+                _ => (),
+            },
         }
+    }
+
+    #[inline]
+    pub fn current_dir(&self) -> &FuzzyDir {
+        &self.player.current.fdir
+    }
+
+    #[inline]
+    pub fn duration(&self) -> usize {
+        self.player.current_file().duration
+    }
+
+    // Formats the display for the current playback status.
+    #[inline]
+    fn playback_status(&self) -> (&'static str, ColorStyle, Effect) {
+        match self.player.status {
+            PlaybackStatus::Paused => ("|", ColorStyles::hl(), Effect::Simple),
+            PlaybackStatus::Playing => (">", ColorStyles::header_2(), Effect::Simple),
+            PlaybackStatus::Stopped => (".", ColorStyles::err(), Effect::Simple),
+        }
+    }
+
+    // Formats the display showing whether the player is muted or randomized.
+    #[inline]
+    fn playback_opts(&self) -> &'static str {
+        match (
+            self.player.is_randomized,
+            self.player.is_shuffled,
+            self.player.is_muted,
+        ) {
+            (true, false, true) => " *m",
+            (false, true, true) => " ~m",
+            (true, false, false) => "  *", // is_randomized
+            (false, true, false) => "  ~", // is_shuffled
+            (false, false, true) => "  m", //is_muted
+            _ => unreachable!(),
+        }
+    }
+
+    // Formats the player header.
+    #[inline]
+    fn album_and_year(&self, f: &AudioFile) -> String {
+        if let Some(year) = f.year {
+            format!("{} ({})", f.album, year)
+        } else {
+            f.album.to_string()
+        }
+    }
+
+    // Formats the volume display.
+    #[inline]
+    fn volume(&self) -> String {
+        format!("  vol: {:>3} %", self.player.volume)
+    }
+
+    // The elapsed playback time to display. When seeking with the mouse we use the
+    // elapsed time had the seeking process completed.
+    #[inline]
+    fn elapsed(&self) -> usize {
+        match self.mouse_seek_time {
+            Some(t) if self.player.is_paused() => t,
+            _ => self.player.elapsed().as_secs() as usize,
+        }
+    }
+
+    // Computes the y offset needed to show the results of the fuzzy match.
+    #[inline]
+    fn update_offset(&self) -> usize {
+        let index = self.player.current.index;
+        let available_y = self.size.y;
+        let required_y = self.player.current.audio_files.len() + 2;
+        let offset = required_y.saturating_sub(available_y);
+
+        std::cmp::min(index, offset)
     }
 }
 
 impl View for PlayerView {
-    fn layout(&mut self, size: cursive::Vec2) {
-        self.player.poll();
-        if self.player.is_randomized && self.player.next_track_queued {
-            self.random_track();
-        }
-        self.size = size;
-        self.offset = self.update_offset();
-    }
-
-    fn draw(&self, p: &Printer) {
-        // The size of the screen we can draw on.
-        let (w, h) = (p.size.x, p.size.y);
-        // The file currently loaded in the player.
-        let f = self.player.file();
-        // The start of the duration column.
-        let column = if w > 9 { w - 9 } else { 0 };
-        // The length of the progress bar.
-        let length = if w > 16 { w - 16 } else { 0 };
-        // The time elapsed since playback started.
-        let elapsed = self.elapsed();
-        // The values needed to draw the progress bar.
-        let (length, extra) = ratio(elapsed, f.duration, length);
-
-        // Draw the playlist, with rows: 'Track, Title, Duration'.
-        if h > 2 {
-            for (i, f) in self.player.playlist.iter().enumerate() {
-                // Skip rows that are not visible.
-                if i < self.offset {
-                    continue;
+    fn layout(&mut self, size: XY<usize>) {
+        if self.player.is_playing() {
+            if self.player.is_randomized {
+                if self.player.is_empty() {
+                    self.random_track_and_album()
                 }
-
-                let row = i + 1 - self.offset;
-
-                if i == self.player.index {
-                    // Draw the player status.
-                    let (symbol, color, effect) = self.player_status();
-                    p.with_color(color, |p| {
-                        p.with_effect(effect, |p| p.print((3, row), symbol))
-                    });
-                    // Draw the active row.
-                    p.with_color(theme::hl(), |p| {
-                        p.print((6, row), format!("{:02}  {}", f.track, f.title).as_str());
-                        if column > 11 && (self.player.is_randomized || self.player.is_muted) {
-                            // Draw the player options.
-                            p.with_color(theme::info(), |p| {
-                                p.with_effect(Effect::Italic, |p| {
-                                    p.print((column - 3, row), self.player_info())
-                                })
-                            })
-                        }
-                        p.print((column, row), mins_and_secs(f.duration).as_str());
-                    })
-                } else if i + 2 - self.offset < h {
-                    // Draw the inactive rows.
-                    p.with_color(theme::fg(), |p| {
-                        p.print((6, row), format!("{:02}  {}", f.track, f.title).as_str());
-                        p.print((column, row), mins_and_secs(f.duration).as_str());
-                    })
+            } else if self.player.is_shuffled {
+                if self.player.is_empty() {
+                    self.shuffled_track()
                 }
-
-                // The active row has been drawn so we can exit early.
-                if h == 3 {
-                    break;
-                }
+            } else {
+                self.player.update_on_poll();
             }
         }
 
+        self.size = self.required_size(size);
+        self.offset_y = self.update_offset();
+    }
+
+    fn required_size(&mut self, constraint: cursive::Vec2) -> cursive::Vec2 {
+        let player_size = self.player.current.xy_size;
+
+        let size = XY {
+            x: std::cmp::min(player_size.x, constraint.x),
+            y: std::cmp::min(player_size.y, constraint.y),
+        };
+
+        size
+    }
+
+    fn draw(&self, p: &Printer) {
+        let (w, h) = (self.size.x, self.size.y);
+        let f = self.player.current_file();
+        let duration_column = w.saturating_sub(9);
+        let elapsed = self.elapsed();
+        let (length, extra) = ratio(elapsed, f.duration, w.saturating_sub(16));
+
+        let p = p.cropped((w.saturating_sub(2), h));
+
+        // Draw the header: 'Artist, Album, Year'.
         if h > 1 {
-            // Draw the header: 'Artist, Album, Year'.
             p.with_effect(Effect::Bold, |p| {
-                p.with_color(theme::header_1(), |p| p.print((2, 0), f.artist.as_str()));
+                p.with_color(ColorStyles::header_1(), |p| p.print((2, 0), &f.artist));
                 p.with_effect(Effect::Italic, |p| {
-                    p.with_color(theme::header_2(), |p| {
-                        p.print((f.artist.len() + 4, 0), self.album_and_year(f).as_str())
+                    p.with_color(ColorStyles::header_2(), |p| {
+                        p.print((f.artist.len() + 4, 0), &self.album_and_year(f))
                     })
                 })
             });
 
+            // Draw the current volume.
             if self.showing_volume.is_true() {
-                let column = if w > 14 { column - 5 } else { column };
-                p.with_color(theme::prompt(), |p| {
-                    p.print((column, 0), self.volume(w).as_str())
+                p.with_color(ColorStyles::prompt(), |p| {
+                    p.print((duration_column.saturating_sub(5), 0), &self.volume())
                 });
             };
         }
 
-        if h > 0 {
-            // The last row we can draw on.
-            let last_row = h - 1;
+        // Draw the playlist, with rows: 'Track, Title, Duration'.
+        if h > 2 {
+            for (i, f) in self
+                .player
+                .current
+                .audio_files
+                .iter()
+                .enumerate()
+                .skip(self.offset_y)
+                .take(h - 2)
+            {
+                let current_row = i + 1 - self.offset_y;
 
-            // Draw the elapsed and remaining playback times.
-            p.with_color(theme::hl(), |p| {
-                let remaining = if elapsed > f.duration {
-                    0
+                if i == self.player.current.index {
+                    // Draw the playback status.
+                    let (symbol, color, effect) = self.playback_status();
+                    p.with_color(color, |p| {
+                        p.with_effect(effect, |p| p.print((3, current_row), symbol))
+                    });
+                    // Draw the active row.
+                    p.with_color(ColorStyles::hl(), |p| {
+                        p.print((6, current_row), &format!("{:02}  {}", f.track, f.title));
+                        if duration_column > 11
+                            && (self.player.is_randomized
+                                || self.player.is_shuffled
+                                || self.player.is_muted)
+                        {
+                            // Draw the playback options.
+                            p.with_color(ColorStyles::info(), |p| {
+                                p.with_effect(Effect::Italic, |p| {
+                                    p.print(
+                                        (duration_column - 3, current_row),
+                                        self.playback_opts(),
+                                    )
+                                })
+                            })
+                        }
+                        p.print((duration_column, current_row), &mins_and_secs(f.duration));
+                    })
                 } else {
-                    f.duration - elapsed
-                };
-                p.print((0, last_row), &mins_and_secs(elapsed));
-                p.print((column, last_row), mins_and_secs(remaining).as_str())
+                    // Draw the inactive rows.
+                    p.with_color(ColorStyles::fg(), |p| {
+                        p.print((6, current_row), &format!("{:02}  {}", f.track, f.title));
+                        p.print((duration_column, current_row), &mins_and_secs(f.duration));
+                    })
+                }
+            }
+        }
+
+        // Draw the footer: elapsed time, progress bar, remaining time
+        if h > 0 {
+            let bottom_row = h - 1;
+            let remaining = f.duration.saturating_sub(elapsed);
+
+            // Draw the elapsed time.
+            p.with_color(ColorStyles::hl(), |p| {
+                p.print((0, bottom_row), &mins_and_secs(elapsed));
             });
 
-            // Draw the fractional part of the progress bar.
-            p.with_color(theme::progress(), |p| {
-                p.print((length + 8, last_row), sub_block(extra));
-            });
-
-            // Draw the solid part of the progress bar (preceding the fractional part).
-            p.cropped((length + 8, h))
-                .with_color(theme::progress(), |p| {
-                    p.print_hline((8, last_row), length, "█");
+            // Draw the progress bar.
+            {
+                // Draw the fractional component.
+                p.with_color(ColorStyles::progress(), |p| {
+                    p.print((length + 8, bottom_row), sub_block(extra));
                 });
 
-            // Draw spaces to maintain consistent padding when resizing.
-            p.print((w - 2, 0), "  ");
-            p.print((w - 2, last_row), "  ");
+                // Draw the block component.
+                p.cropped((length + 8, h))
+                    .with_color(ColorStyles::progress(), |p| {
+                        p.print_hline((8, bottom_row), length, "█");
+                    });
+            }
+
+            // Draw the remaining time.
+            p.with_color(ColorStyles::hl(), |p| {
+                p.print((duration_column, bottom_row), &mins_and_secs(remaining))
+            });
         }
     }
 
-    // Keybindings for the player view.
     fn on_event(&mut self, event: Event) -> EventResult {
-        match event {
-            Event::Char('h' | ' ') | Event::Key(Key::Left) => return self.play_or_pause(),
-            Event::Char('j') | Event::Key(Key::Down) => self.next(),
-            Event::Char('k') | Event::Key(Key::Up) => self.previous(),
-            Event::Char('l') | Event::Key(Key::Enter | Key::Right) => return self.stop(),
+        use Action::*;
+        use MouseEvent::*;
 
-            Event::Char(']') => return self.increase_volume(),
-            Event::Char('[') => return self.decrease_volume(),
-            Event::Char('v') => return self.toggle_volume_display(),
-            Event::Char('m') => return self.toggle_mute(),
-
-            Event::Char('\'') => self.player.seek_to_min(),
-            Event::Char('"') => self.player.seek_to_sec(),
-            Event::Char('.') => self.player.step_forward(),
-            Event::Char(',') => self.player.step_backward(),
-
-            Event::Char('*' | 'r') => return self.toggle_randomization(),
-            Event::Char('g') => self.player.play_key_selection(),
-            Event::CtrlChar('g') => self.player.play_last_track(),
-
-            Event::Char('0') => self.player.num_keys.push(0),
-            Event::Char('1') => self.player.num_keys.push(1),
-            Event::Char('2') => self.player.num_keys.push(2),
-            Event::Char('3') => self.player.num_keys.push(3),
-            Event::Char('4') => self.player.num_keys.push(4),
-            Event::Char('5') => self.player.num_keys.push(5),
-            Event::Char('6') => self.player.num_keys.push(6),
-            Event::Char('7') => self.player.num_keys.push(7),
-            Event::Char('8') => self.player.num_keys.push(8),
-            Event::Char('9') => self.player.num_keys.push(9),
-
-            Event::CtrlChar('p') => return self.parent(),
-            Event::CtrlChar('o') => self.open_file_manager(),
-            Event::Char('?') => return keys_view(),
-            Event::Char('q') => return quit(),
-
-            // TODO: scroll to adjust vertical offset, not select track.
-            // FIXME: mouse stop, mouse play, mouse select -> playback is
-            // stopped but should be playing.
-            Event::Mouse {
-                event,
-                offset,
-                position,
-            } => match event {
-                MouseEvent::Press(MouseButton::Left) => self.mouse_button_left(offset, position),
-                MouseEvent::Press(MouseButton::Right) => return self.stop(),
-                MouseEvent::Release(MouseButton::Left) => self.mouse_release_seek(),
-                MouseEvent::Hold(MouseButton::Left) => {
-                    if self.mouse_seek_time.is_some() {
-                        self.mouse_hold_seek(offset, position);
+        if let Some(action) = PLAYER_EVENT_TO_ACTION.get(&event) {
+            match action {
+                PlayOrPause => self.player.play_or_pause(),
+                Stop => self.player.stop(),
+                Next => self.next(),
+                Previous => self.previous(),
+                IncreaseVolume => self.increase_volume(),
+                DecreaseVolume => self.decrease_volume(),
+                ToggleMute => self.player.toggle_mute(),
+                ToggleShowingVolume => _ = self.showing_volume.toggle(),
+                SeekToMin => self.seek_to_min(),
+                SeekToSec => self.seek_to_sec(),
+                SeekForward => self.player.seek_forward(SEEK_TIME),
+                SeekBackward => self.player.seek_backward(SEEK_TIME),
+                ToggleRandomize => self.player.toggle_randomize(),
+                ToggleShuffle => self.player.toggle_shuffle(),
+                PlayTrackNumber => self.play_track_number(),
+                PlayLastTrack => self.player.play_last_track(),
+                ShowHelp => return show_help_view(),
+                Quit => return quit(),
+            }
+        } else {
+            match event {
+                Event::Char(c) if c.is_ascii_digit() => {
+                    self.number_input.push(c.to_digit(10).unwrap() as usize);
+                }
+                Event::Mouse {
+                    event,
+                    offset,
+                    position,
+                } => match event {
+                    Press(MouseButton::Left) => self.mouse_button_left(offset, position),
+                    Press(MouseButton::Right) => self.player.stop(),
+                    Release(MouseButton::Left) => self.mouse_release_seek(),
+                    Hold(MouseButton::Left) => {
+                        if self.mouse_seek_time.is_some() {
+                            self.mouse_hold_seek(offset, position);
+                        }
                     }
-                }
-                MouseEvent::WheelUp | MouseEvent::WheelDown => {
-                    self.mouse_wheel(event, offset, position)
-                }
+                    WheelUp | WheelDown => self.mouse_wheel(event, offset, position),
+                    _ => (),
+                },
                 _ => (),
-            },
-            _ => (),
+            }
         }
-        EventResult::Consumed(None)
+
+        EventResult::Ignored
     }
 }
 
-// Callback to select the previous album.
-pub fn previous_album(_: &Event) -> Option<EventResult> {
-    Some(EventResult::with_cb(|siv| {
-        if let Ok(player) = PlayerBuilder::PreviousAlbum.from(None, siv) {
-            PlayerView::load(player, siv);
-        }
-    }))
-}
-
-// Callback to select a random album.
-pub fn random_album(_: &Event) -> Option<EventResult> {
-    Some(EventResult::with_cb(|siv| {
-        if let Ok(player) = PlayerBuilder::RandomAlbum.from(None, siv) {
-            PlayerView::load(player, siv);
-        }
-    }))
-}
-
-// Quit the app.
 fn quit() -> EventResult {
     EventResult::with_cb(|siv| {
         siv.quit();
     })
 }
 
-// Shows the keys_view popup.
-fn keys_view() -> EventResult {
+fn show_help_view() -> EventResult {
     EventResult::with_cb(|siv| {
-        load_keys_view(siv);
+        HelpView::load(siv);
     })
 }
 
@@ -634,13 +586,40 @@ fn sub_block(extra: usize) -> &'static str {
 
 // Formats the playback time.
 fn mins_and_secs(secs: usize) -> String {
-    format!("  {:02}:{:02}  ", secs / 60, secs % 60)
+    format!("  {:02}:{:02}", secs / 60, secs % 60)
 }
 
-// Remove all layers from the view stack except the top layer.
-fn remove_layers_to_top(siv: &mut Cursive) {
-    while siv.screen().len() > 1 {
-        siv.screen_mut()
-            .remove_layer(cursive::views::LayerPosition::FromBack(0));
+// Represents different areas of the player.
+enum Area {
+    ProgressBar,
+    Playlist,
+    Background,
+}
+
+impl Area {
+    fn from(position: XY<usize>, offset: XY<usize>, size: XY<usize>) -> Self {
+        let translation_y = position.y - offset.y;
+
+        if position.y <= offset.y
+            || translation_y > size.y
+            || position.x <= offset.x + 1
+            || position.x + 2 - offset.x >= size.x
+            || size.x <= 16
+        {
+            return Area::Background;
+        }
+
+        if translation_y >= size.y - 2 && translation_y <= size.y {
+            return Area::ProgressBar;
+        }
+
+        Area::Playlist
     }
+}
+
+// Concatenates the single-digit numbers in the input array into a single number.
+// For example, given [1, 2, 3], the function returns 123.
+// Assumes all elements of the array are between 0 and 9.
+fn concatenate_digits(arr: &[usize]) -> usize {
+    arr.iter().fold(0, |acc, x| acc * 10 + x)
 }
