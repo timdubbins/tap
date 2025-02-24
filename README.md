@@ -45,7 +45,7 @@ Option                  | Description
 `-b` `--term-bg`        | Use the terminal background color.
 `-t` `--term-color`     | Use the terminal background and foreground colors only.
 `-c` `--default-color`  | Ignore any user-defined colors.
-`--color <COLOR>`       | Set your own color scheme. See [Notes](#notes) for available names.
+`--color <COLOR>`       | Set your own color scheme. See [here](#colors) for available names.
 `--cli`                 | Play audio in CLI-mode (without the TUI).
 
 
@@ -145,11 +145,11 @@ tap doesn't create the config file for you, but it looks for one in the followin
 - $HOME/.config/tap/tap.yml
 - $HOME/.tap.yml
 
-A example config file can be found [here]("https://github.com/timdubbins/tap/blob/master/doc/tap.yml).
+A example config file can be found [here](https://github.com/timdubbins/tap/blob/master/doc/tap.yml).
 
-**Colors:**
+### Colors
 
-Colors can be set in the [config](#configuration) file or using the ```--color``` command.
+Colors can be set in the config file or using the ```--color``` command.
 
 The following example will set a [Solarized](https://ethanschoonover.com/solarized/) theme:
 ```
@@ -158,9 +158,9 @@ The following example will set a [Solarized](https://ethanschoonover.com/solariz
 
 
 
-**Default Path:**
+### Default Path
 
-The default path can be set in the tap.yml [config](#configuration) file. This allows you to load the default directory with the `-d --default` command and also provides faster load times by caching.
+The default path can be set in the config file. This allows you to load the default directory with the `-d --default` command and also provides faster load times by caching.
 
 When setting a default path tap will write a small amount of encoded data to `~/.cache/tap`. This is guaranteed to be at least as small as the in-memory data and will be updated everytime the default path is accessed. Using the `-s --set` command will update the `path` field in the `tap.yml` config file.
 
@@ -174,7 +174,8 @@ You will need an `ncurses` distribution (with development headers) to compile ta
 <details>
 <summary><b>macOS</b></summary>
 <br>
-You can install with <a href="https://brew.sh/">Homebrew</a>:
+
+You can install with [Homebrew](https://brew.sh/)
 
 ```bash
 > brew install timdubbins/tap/tap
@@ -195,8 +196,8 @@ You can install with <a href="https://brew.sh/">Homebrew</a>:
 <summary><b>Arch Linux</b></summary>
 <br>
 
-~~You can install with an <a href="https://wiki.archlinux.org/title/AUR_helpers">AUR helper</a>,
-such as <a href="https://github.com/Jguer/yay">yay</a>:~~
+~~You can install with an AUR [helper](https://wiki.archlinux.org/title/AUR_helpers),
+such as [yay](https://github.com/Jguer/yay)~~
 
 **The Arch package is not currently maintained. Please install with Rust.**
 
@@ -211,7 +212,7 @@ such as <a href="https://github.com/Jguer/yay">yay</a>:~~
 > yay -S ncurses
 ```
 
-The AUR package is available <a href="https://aur.archlinux.org/packages/tap">here</a>.~~
+The AUR package is available [here]("https://aur.archlinux.org/packages/tap).
 <br>
 </details>
 
@@ -220,7 +221,7 @@ The AUR package is available <a href="https://aur.archlinux.org/packages/tap">he
 <summary><b>Debian</b> (or a Debian derivative, such as <b>Ubuntu</b>)</summary>
 <br>
 
-You can install with a binary <code>.deb</code> file provided in each <a href="https://github.com/timdubbins/tap/releases/tag/v0.5.0">tap release</a>:
+You can install with a binary `.deb` file provided in each tap [release](https://github.com/timdubbins/tap/releases/tag/v0.5.0).
 
 ```bash
 > curl -LO https://github.com/timdubbins/tap/releases/download/v0.5.0/tap_0.5.0.deb
@@ -240,7 +241,7 @@ You can install with a binary <code>.deb</code> file provided in each <a href="h
 <summary><b>Rust</b></summary>
 <br>
 
-To compile from source, first you need a <a href="https://www.rust-lang.org/learn/get-started">Rust installation</a> (if you don't have one) and then you can use <a href="https://github.com/rust-lang/cargo">cargo</a>:
+To compile from source, first you need a [Rust](https://www.rust-lang.org/learn/get-started) installation (if you don't have one) and then you can use [cargo](https://github.com/rust-lang/cargo):
 
 ```bash
 > git clone https://github.com/timdubbins/tap
