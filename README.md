@@ -1,6 +1,6 @@
 # tap
 
-tap is a lightweight TUI audio player with a built-in fuzzy finder. Jump to any album in your library with fuzzy-finder shortcuts!
+tap is a TUI audio player with fuzzy-finder. Quickly navigate to any album in your library!
 
 **Quick links:** [Options](#options), [Controls](#controls), [Configuration](#configuration), [Installation](#installation).
 
@@ -13,15 +13,17 @@ tap is a lightweight TUI audio player with a built-in fuzzy finder. Jump to any 
 > tap [options] [path]
 ```
 
-- Run `tap` in a directory containing music folders to launch the fuzzy-finder. Simply select an album to begin playback.
-- Press `Tab` at any time to return to the fuzzy-finder.
+### Fuzzy-Finder
 
-**Example:**
-
+Run `tap` in a directory containing music folders to launch the fuzzy-finder:
 ```bash
 > cd ~/path/to/my_music
 > tap
 ```
+Playback will begin on selection and you can return to the fuzzy-finder by pressing `Tab`.
+
+
+
 
 If no `path` is specified, `tap` defaults to the current working directory.
 
