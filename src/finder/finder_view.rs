@@ -81,7 +81,7 @@ impl FinderView {
             let cb_sink = siv.cb_sink().clone();
             let mut finder_view = FinderView::new(finder, cb_sink);
 
-            if let LibraryFilter::ByKey(key) = filter {
+            if let LibraryFilter::Key(key) = filter {
                 finder_view.insert(key.to_ascii_lowercase(), false);
             }
 
@@ -102,26 +102,26 @@ impl FinderView {
         self.finder.update(self.finder.query.clone());
     }
 
-    pub fn by_depth(event: &Event) -> Option<EventResult> {
+    pub fn depth(event: &Event) -> Option<EventResult> {
         let depth = event.f_num().expect("event should be usize");
-        Self::load(LibraryFilter::ByDepth(depth))
+        Self::load(LibraryFilter::Depth(depth))
     }
 
-    pub fn by_key(event: &Event) -> Option<EventResult> {
+    pub fn key(event: &Event) -> Option<EventResult> {
         let key = event.char().expect("event should be char");
-        Self::load(LibraryFilter::ByKey(key))
+        Self::load(LibraryFilter::Key(key))
     }
 
     pub fn all(_: &Event) -> Option<EventResult> {
         Self::load(LibraryFilter::Unfiltered)
     }
 
-    pub fn by_artist(_: &Event) -> Option<EventResult> {
-        Self::load(LibraryFilter::ByArtist)
+    pub fn artist(_: &Event) -> Option<EventResult> {
+        Self::load(LibraryFilter::Artist)
     }
 
-    pub fn by_album(_: &Event) -> Option<EventResult> {
-        Self::load(LibraryFilter::ByAlbum)
+    pub fn album(_: &Event) -> Option<EventResult> {
+        Self::load(LibraryFilter::Album)
     }
 
     pub fn parent(_: &Event) -> Option<EventResult> {

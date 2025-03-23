@@ -3,7 +3,7 @@ use std::{
     env,
     fs::{self, OpenOptions},
     io::{self, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use {anyhow::bail, regex::Captures, regex::Regex, serde::Deserialize};
@@ -121,5 +121,17 @@ impl FileConfig {
 
         res.keybinding
             .ok_or(anyhow::anyhow!("Failed to load keybindings from config"))
+    }
+
+    pub fn expanded_path(&self) -> Option<PathBuf> {
+        self.path.as_ref().map(|p| {
+            let path_str = p.to_string_lossy();
+            if path_str.starts_with("~/") {
+                if let Ok(home) = env::var("HOME") {
+                    return Path::new(&home).join(&path_str[2..]);
+                }
+            }
+            p.clone()
+        })
     }
 }

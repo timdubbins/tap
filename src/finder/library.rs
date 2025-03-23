@@ -170,10 +170,10 @@ impl Library {
         use LibraryFilter::*;
 
         let predicate: Box<dyn Fn(&FuzzyDir) -> bool> = match filter {
-            ByArtist => Box::new(|fdir| fdir.contains_subdir),
-            ByAlbum => Box::new(|fdir| fdir.contains_audio),
-            ByDepth(depth) => Box::new(|fdir| fdir.depth == *depth),
-            ByKey(key) => Box::new(|fdir| !fdir.contains_audio && fdir.key == *key),
+            Artist => Box::new(|fdir| fdir.contains_subdir),
+            Album => Box::new(|fdir| fdir.contains_audio),
+            Depth(depth) => Box::new(|fdir| fdir.depth == *depth),
+            Key(key) => Box::new(|fdir| !fdir.contains_audio && fdir.key == *key),
             _ => return self.clone(),
         };
 
@@ -261,11 +261,17 @@ impl LibraryEvent {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum LibraryFilter {
+    // All dirs
     Unfiltered,
-    ByDepth(usize),
-    ByArtist,
-    ByAlbum,
-    ByKey(char),
+    // Dir depth from search root (1-4)
+    Depth(usize),
+    // All artists
+    Artist,
+    // All ablums
+    Album,
+    // All artists starting with key (A-Z)
+    Key(char),
+    // The parent of current dir
     Parent(Option<FuzzyDir>),
 }
 

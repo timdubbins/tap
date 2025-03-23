@@ -217,10 +217,10 @@ fn set_global_callbacks(siv: &mut Cursive) {
     siv.set_on_pre_event('-', PlayerView::previous_album);
     siv.set_on_pre_event('=', PlayerView::random_album);
     siv.set_on_pre_event_inner(unfiltered_trigger(), FinderView::all);
-    siv.set_on_pre_event_inner(fn_keys(), FinderView::by_depth);
-    siv.set_on_pre_event_inner(uppercase_chars(), FinderView::by_key);
-    siv.set_on_pre_event_inner(Event::CtrlChar('a'), FinderView::by_artist);
-    siv.set_on_pre_event_inner(Event::CtrlChar('d'), FinderView::by_album);
+    siv.set_on_pre_event_inner(fn_keys(), FinderView::depth);
+    siv.set_on_pre_event_inner(uppercase_chars(), FinderView::key);
+    siv.set_on_pre_event_inner(Event::CtrlChar('a'), FinderView::artist);
+    siv.set_on_pre_event_inner(Event::CtrlChar('d'), FinderView::album);
     siv.set_on_pre_event_inner(Event::Char('`'), FinderView::parent);
     siv.set_on_pre_event(Event::CtrlChar('o'), open_file_manager);
     siv.set_on_pre_event(Event::CtrlChar('q'), |siv| siv.quit());

@@ -56,17 +56,19 @@ impl Config {
             bail!("Default path not set");
         }
 
-        let path = match args.path.clone().or_else(|| file_config.path.clone()) {
-            Some(path) => path,
-            None => env::current_dir().with_context(|| "Failed to get working directory")?,
-        };
+        let default_path = file_config.expanded_path();
 
-        if !path.exists() {
-            bail!("No such path: {:?}", path);
+        self.search_root = match args.path.as_ref().or(default_path.as_ref()) {
+            Some(path) => path.clone(),
+            None => env::current_dir().with_context(|| "Failed to get working directory")?,
+        }
+        .canonicalize()?;
+
+        if !self.search_root.exists() {
+            bail!("No such path: {:?}", self.search_root);
         }
 
-        self.search_root = path.canonicalize()?;
-        self.default_path = file_config.path.clone();
+        self.default_path = default_path;
 
         Ok(())
     }
@@ -116,3 +118,13 @@ impl Config {
         Ok(())
     }
 }
+
+// fn expand_tilde(path: PathBuf) -> PathBuf {
+//     let path_str = path.to_string_lossy();
+//     if path_str.starts_with("~/") {
+//         if let Ok(home) = env::var("HOME") {
+//             return std::path::Path::new(&home).join(&path_str[2..]);
+//         }
+//     }
+//     path
+// }
