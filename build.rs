@@ -1,19 +1,22 @@
-use std::env;
+use std::process::Command;
 
 fn main() {
     if cfg!(target_os = "macos") {
-        let arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
-        let brew_ncurses = match arch.as_str() {
-            "aarch64" => "/opt/homebrew/opt/ncurses", // Apple Silicon
-            "x86_64" => "/usr/local/opt/ncurses",     // Intel
-            _ => panic!("Unsupported architecture: {}", arch),
-        };
+        let output = Command::new("brew")
+            .args(&["--prefix", "ncurses"])
+            .output()
+            .expect("Failed to run `brew --prefix ncurses`. Make sure Homebrew is installed.");
 
-        println!("cargo:rustc-link-search=native={}/lib", brew_ncurses);
-        println!("cargo:rustc-link-lib=ncurses");
-    } else if cfg!(target_os = "linux") {
-        println!("cargo:rustc-link-lib=ncurses");
+        if !output.status.success() {
+            panic!("Failed to locate Homebrew ncurses. Please ensure ncurses is installed via Homebrew.");
+        }
+
+        let prefix = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+        println!("cargo:rustc-link-search=native={}/lib", prefix);
+        println!("cargo:rustc-link-lib=dylib=ncurses");
+        println!("cargo:include={}/include", prefix);
     } else {
-        panic!("Unsupported operating system");
+        println!("cargo:rustc-link-lib=ncurses");
     }
 }
