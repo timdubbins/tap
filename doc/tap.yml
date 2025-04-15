@@ -1,18 +1,7 @@
-# This is an example config file for "tap".
-#
-# "tap" does not create a config file automatically, but it looks for one in
-# the following locations:
-#
-# 1. $XDG_CONFIG_HOME/tap/tap.yml
-# 2. $XDG_CONFIG_HOME/tap.yml
-# 3. $HOME/.config/tap/tap.yml
-# 4. $HOME/.tap.yml
-
 # Set a default path. For use with [-d, --default] flag.
 # path: "~/path/to/my_music"
 
 # Set the colors.
-#
 # Values can be hexadecimal ("#81a1be", "1f211d") or named ("red", "light green", etc).
 #
 # color:
@@ -36,13 +25,9 @@
 # default_color: false
 
 # Set keybindings for the player.
-#
-# Multiple keys can be assigned per action.
-# Format: `action: ["key1", "key2", "key3"]`.
-#
-# Available Keys: "a"..="z", symbols, "Ctrl+[char]",
-# "Up", "Down", "Left", "Right", "Enter", "Esc", "Backspace", "Delete",
-# "Insert", "Home", "End", "PageUp", "PageDown", "Tab", "Space".
+# Available Keys: "a"..="z", symbols, "Ctrl+[char]", "Up", "Down", "Left",
+# "Right", "Enter", "Esc", "Backspace", "Delete", "Insert", "Home", "End",
+# "PageUp", "PageDown", "Tab", "Space".
 #
 # keybindings:
 #   play_or_pause: ["h", "Space", "Left"]
