@@ -180,7 +180,7 @@ You can install with [Homebrew](https://brew.sh/)
 ```bash
 > brew install timdubbins/tap/tap
 > tap --version
-0.5.0
+0.5.1
 ```
 
 `ncurses` can be installed with:
@@ -204,7 +204,7 @@ such as [yay](https://github.com/Jguer/yay)~~
 ```bash
 > yay -S tap
 > tap --version
-0.5.0
+0.5.1
 ```
 
 `ncurses` can be installed with:
@@ -221,13 +221,13 @@ The AUR package is available [here]("https://aur.archlinux.org/packages/tap).
 <summary><b>Debian</b> (or a Debian derivative, such as <b>Ubuntu</b>)</summary>
 <br>
 
-You can install with a binary `.deb` file provided in each tap [release](https://github.com/timdubbins/tap/releases/tag/v0.5.0).
+You can install with a binary `.deb` file provided in each tap [release](https://github.com/timdubbins/tap/releases/tag/v0.5.1).
 
 ```bash
-> curl -LO https://github.com/timdubbins/tap/releases/download/v0.5.0/tap_0.5.0.deb
-> sudo dpkg -i tap_0.5.0.deb
+> curl -LO https://github.com/timdubbins/tap/releases/download/v0.5.1/tap_0.5.1.deb
+> sudo dpkg -i tap_0.5.1.deb
 > tap --version
-0.5.0
+0.5.1
 ```
 
 `ncurses` can be installed with:
@@ -248,12 +248,12 @@ To compile from source, first you need a [Rust](https://www.rust-lang.org/learn/
 > cd tap
 > cargo install --path .
 > tap --version
-0.5.0
+0.5.1
 ```
 
 </details>
 
-The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.5.0).
+The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.5.1).
 
 
 ## Notes
