@@ -57,9 +57,8 @@ fn set_up_run() -> Result<(), TapError> {
         return CliPlayer::try_run(&config.search_root);
     }
 
-    let mut siv = cursive::ncurses();
+    let mut siv = cursive::crossterm();
     siv.set_theme(CursiveTheme::from(&config.theme));
-    siv.set_fps(15);
 
     if let Ok(playlist) = Playlist::process(&config.search_root, true) {
         let player = Player::try_new(playlist)?;

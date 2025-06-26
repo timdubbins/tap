@@ -19,7 +19,7 @@ use {
 use crate::{
     config::ColorStyles,
     finder::{ErrorView, Finder, FuzzyDir, Library, LibraryFilter},
-    player::{Player, PlayerView, Playlist},
+    player::{self, Player, PlayerView, Playlist},
 };
 
 static FRAMES: Lazy<Vec<&str>> = Lazy::new(|| {
@@ -63,6 +63,8 @@ impl FinderView {
 
     pub fn load(filter: LibraryFilter) -> Option<EventResult> {
         Some(EventResult::with_cb(move |siv: &mut Cursive| {
+            siv.set_fps(0);
+
             let library = {
                 let base_library = siv
                     .user_data::<Library>()
@@ -85,8 +87,12 @@ impl FinderView {
                 finder_view.insert(key.to_ascii_lowercase(), false);
             }
 
-            Self::remove(siv);
+            Self::remove_finder_view(siv);
             siv.add_layer(finder_view.with_name(super::ID).full_screen());
+
+            _ = siv.call_on_name(player::ID, |player_view: &mut PlayerView| {
+                player_view.hide();
+            });
         }))
     }
 
@@ -300,7 +306,7 @@ impl FinderView {
                     player_view.update_playlist(next.clone(), true);
                 }
             })
-            .map(|_| _ = Self::remove(siv))
+            .map(|_| _ = Self::remove_finder_view(siv))
             .unwrap_or_else(|| match Player::try_new(next.clone()) {
                 Ok(player) => PlayerView::load(siv, player),
                 Err(_) => ErrorView::load(siv, anyhow!("Invalid selection!")),
@@ -350,6 +356,7 @@ impl FinderView {
                 siv.quit();
             } else {
                 siv.pop_layer();
+                siv.set_fps(10);
             }
         })
     }
@@ -366,7 +373,7 @@ impl FinderView {
         self.init_timestamp = ts;
     }
 
-    pub fn remove(siv: &mut cursive::Cursive) {
+    pub fn remove_finder_view(siv: &mut cursive::Cursive) {
         if siv.find_name::<FinderView>(super::ID).is_some() {
             siv.pop_layer();
         }

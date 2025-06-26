@@ -34,6 +34,8 @@ pub struct PlayerView {
     number_input: Vec<usize>,
     // Whether or not a double-tap event was registered.
     timed_bool: ExpiringBool,
+    //
+    is_visible: bool,
     // The vertical offset required to ensure the current track is visible in the playlist.
     offset_y: usize,
     // The dimensions of the view, in cells.
@@ -49,6 +51,7 @@ impl PlayerView {
             cb_sink,
             mouse_seek_time: None,
             offset_y: 0,
+            is_visible: true,
             showing_volume: ExpiringBool::new(false, Duration::from_millis(1500)),
             number_input: vec![],
             timed_bool: ExpiringBool::new(false, Duration::from_millis(500)),
@@ -60,20 +63,30 @@ impl PlayerView {
         let cb_sink = siv.cb_sink().clone();
         let player_view = PlayerView::new(player, cb_sink).with_name(super::ID);
 
+        siv.set_fps(10);
         siv.pop_layer();
         siv.add_layer(player_view);
     }
 
     pub fn update_playlist(&mut self, next: Playlist, set_playing: bool) {
+        _ = self.cb_sink.send(Box::new(|siv| {
+            siv.set_fps(10);
+        }));
+
         let is_stopped = self.player.is_stopped();
         self.player.previous = Some(self.player.current.clone());
         self.player.current = next;
         self.player.stop();
         self.player.play();
+        self.is_visible = true;
 
         if !set_playing && is_stopped {
             self.player.stop();
         }
+    }
+
+    pub fn hide(&mut self) {
+        self.is_visible = false;
     }
 
     fn increase_volume(&mut self) {
@@ -170,7 +183,7 @@ impl PlayerView {
             });
         });
 
-        crate::finder::FinderView::remove(siv);
+        crate::finder::FinderView::remove_finder_view(siv);
     }
 
     // Callback to select a random album.
@@ -191,7 +204,7 @@ impl PlayerView {
                 .map(|player| PlayerView::load(siv, player));
         });
 
-        crate::finder::FinderView::remove(siv);
+        crate::finder::FinderView::remove_finder_view(siv);
     }
 
     // Play the track selected from keyboard input.
@@ -409,6 +422,10 @@ impl View for PlayerView {
     }
 
     fn draw(&self, p: &Printer) {
+        if !self.is_visible {
+            return;
+        }
+
         let (w, h) = (self.size.x, self.size.y);
         let f = self.player.current_file();
         let duration_column = w.saturating_sub(9);

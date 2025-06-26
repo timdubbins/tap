@@ -36,6 +36,7 @@ clap = { version = "4.1.8", features = ["derive"] }
 colored = "2"
 cursive = { git = "https://github.com/timdubbins/cursive", branch = "tap", features = [
     "ncurses-backend",
+    "crossterm-backend",
     "toml",
 ] }
 expiring_bool = { git = "https://github.com/timdubbins/expiring_bool" }
