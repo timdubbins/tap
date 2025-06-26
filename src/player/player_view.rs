@@ -66,9 +66,9 @@ impl PlayerView {
 
     pub fn update_playlist(&mut self, next: Playlist, set_playing: bool) {
         let is_stopped = self.player.is_stopped();
-        self.player.stop();
         self.player.previous = Some(self.player.current.clone());
         self.player.current = next;
+        self.player.stop();
         self.player.play();
 
         if !set_playing && is_stopped {
@@ -107,7 +107,32 @@ impl PlayerView {
         }
     }
 
+    // FIXME - bug: select track with next, toggle randomization, select track with next.
+    // this should select a random track and play it. currently this updates ui but doesn't
+    // change track. same for shuffle. pressing next again works as expected.
+
     // Selects a random track from a random album.
+    // fn random_track_and_album(&self) {
+    //     let mut current = self.player.current.clone();
+
+    //     _ = self.cb_sink.send(Box::new(|siv| {
+    //         let next = match siv.user_data::<Library>() {
+    //             Some(library) => {
+    //                 let dirs = library.audio_dirs();
+    //                 Playlist::randomized_track(current, &dirs)
+    //             }
+    //             None => {
+    //                 current.set_random_index();
+    //                 current
+    //             }
+    //         };
+
+    //         siv.call_on_name(super::ID, |player_view: &mut PlayerView| {
+    //             player_view.update_playlist(next, false);
+    //         });
+    //     }));
+    // }
+
     fn random_track_and_album(&self) {
         let mut current = self.player.current.clone();
 
@@ -123,8 +148,8 @@ impl PlayerView {
                 }
             };
 
-            siv.call_on_name(super::ID, |player_view: &mut PlayerView| {
-                player_view.update_playlist(next, false);
+            siv.call_on_name(super::ID, |pv: &mut PlayerView| {
+                pv.update_playlist(next, false);
             });
         }));
     }

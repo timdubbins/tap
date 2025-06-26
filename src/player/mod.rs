@@ -7,9 +7,14 @@ pub use self::{
     audio_file::AudioFile, help_view::HelpView, player_view::PlayerView, playlist::Playlist,
 };
 
-use std::time::{Duration, Instant};
+use std::{
+    fs::File,
+    io::BufReader,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
-use rodio::{OutputStream, Sink};
+use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
 use crate::TapError;
 
@@ -46,16 +51,17 @@ pub struct Player {
     last_started: Instant,
     // The instant that the player was paused. Reset when player is stopped.
     last_elapsed: Duration,
-    // Handle to the audio sink.
-    pub sink: Sink,
-    // Reference to the output stream.
-    _stream: OutputStream,
+
+    // Audio backend
+    sink: Sink,
+    stream: Arc<OutputStream>,
+    stream_handle: OutputStreamHandle,
 }
 
 impl Player {
     pub fn try_new(playlist: Playlist) -> Result<Self, TapError> {
-        let (_stream, _stream_handle) = OutputStream::try_default()?;
-        let sink = Sink::try_new(&_stream_handle)?;
+        let (stream, stream_handle) = OutputStream::try_default()?;
+        let sink = Sink::try_new(&stream_handle)?;
 
         let mut player = Self {
             current: playlist,
@@ -68,8 +74,9 @@ impl Player {
             status: PlaybackStatus::Stopped,
             last_started: Instant::now(),
             last_elapsed: Duration::ZERO,
+            stream: Arc::new(stream),
+            stream_handle,
             sink,
-            _stream,
         };
 
         player.play();
@@ -106,6 +113,9 @@ impl Player {
     pub fn stop(&mut self) {
         self.next_track_queued = false;
         self.sink.stop();
+
+        self.sink = rodio::Sink::try_new(&self.stream_handle).unwrap();
+
         self.status = PlaybackStatus::Stopped;
         self.last_elapsed = Duration::ZERO;
     }
@@ -333,12 +343,19 @@ impl Player {
         self.next_track_queued = false;
         self.play();
     }
+
+    pub fn sink_len(&self) -> usize {
+        self.sink.len()
+    }
+
+    pub fn sink_append(&self, source: Decoder<BufReader<File>>) {
+        self.sink.append(source)
+    }
 }
 
 impl Clone for Player {
     fn clone(&self) -> Self {
-        let (_stream, _stream_handle) = OutputStream::try_default().expect("Stream reinit");
-        let sink = Sink::try_new(&_stream_handle).expect("Sink reinit");
+        let sink = Sink::try_new(&self.stream_handle).expect("Sink reinit");
 
         Player {
             current: self.current.clone(),
@@ -351,8 +368,9 @@ impl Clone for Player {
             status: self.status.clone(),
             last_started: Instant::now(),
             last_elapsed: self.last_elapsed,
+            stream: self.stream.clone(),
+            stream_handle: self.stream_handle.clone(),
             sink,
-            _stream,
         }
     }
 }

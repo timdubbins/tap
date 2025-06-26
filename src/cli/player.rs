@@ -41,7 +41,7 @@ impl CliPlayer {
             .skip(1)
             .take(100)
             .filter_map(|file| file.decode().ok())
-            .for_each(|source| player.sink.append(source));
+            .for_each(|source| player.sink_append(source));
 
         Ok(Self { player })
     }
@@ -49,10 +49,10 @@ impl CliPlayer {
     fn start(&mut self) -> Result<(), TapError> {
         self.update_display()?;
         let rx = Self::setup_input_thread();
-        let mut len = self.player.sink.len();
+        let mut len = self.player.sink_len();
 
         loop {
-            let current_len = self.player.sink.len();
+            let current_len = self.player.sink_len();
 
             if Self::should_exit(&rx, current_len) {
                 return Ok(());
