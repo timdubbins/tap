@@ -1,6 +1,6 @@
 [package]
 name = "tap"
-version = "0.5.1"
+version = "0.5.2"
 authors = ["Tim Dubbins <timdubbins@gmail.com>"]
 description = "An audio player for the terminal with fuzzy-finder"
 documentation = "https://github.com/timdubbins/tap"
@@ -35,7 +35,6 @@ bincode = "2.0.0-rc.3"
 clap = { version = "4.1.8", features = ["derive"] }
 colored = "2"
 cursive = { git = "https://github.com/timdubbins/cursive", branch = "tap", features = [
-    "ncurses-backend",
     "crossterm-backend",
     "toml",
 ] }

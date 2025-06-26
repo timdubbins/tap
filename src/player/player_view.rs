@@ -34,7 +34,7 @@ pub struct PlayerView {
     number_input: Vec<usize>,
     // Whether or not a double-tap event was registered.
     timed_bool: ExpiringBool,
-    //
+    // Whether or not the player is being shown.
     is_visible: bool,
     // The vertical offset required to ensure the current track is visible in the playlist.
     offset_y: usize,
@@ -119,32 +119,6 @@ impl PlayerView {
             self.player.decrement_track();
         }
     }
-
-    // FIXME - bug: select track with next, toggle randomization, select track with next.
-    // this should select a random track and play it. currently this updates ui but doesn't
-    // change track. same for shuffle. pressing next again works as expected.
-
-    // Selects a random track from a random album.
-    // fn random_track_and_album(&self) {
-    //     let mut current = self.player.current.clone();
-
-    //     _ = self.cb_sink.send(Box::new(|siv| {
-    //         let next = match siv.user_data::<Library>() {
-    //             Some(library) => {
-    //                 let dirs = library.audio_dirs();
-    //                 Playlist::randomized_track(current, &dirs)
-    //             }
-    //             None => {
-    //                 current.set_random_index();
-    //                 current
-    //             }
-    //         };
-
-    //         siv.call_on_name(super::ID, |player_view: &mut PlayerView| {
-    //             player_view.update_playlist(next, false);
-    //         });
-    //     }));
-    // }
 
     fn random_track_and_album(&self) {
         let mut current = self.player.current.clone();

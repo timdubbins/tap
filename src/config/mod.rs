@@ -14,7 +14,6 @@ use anyhow::{bail, Context};
 use crate::{cli::Args, TapError};
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-// TODO - update link and README
 
 // Program-wide configuration. Derived from merging default values with
 #[derive(Debug, Default)]
@@ -118,13 +117,3 @@ impl Config {
         Ok(())
     }
 }
-
-// fn expand_tilde(path: PathBuf) -> PathBuf {
-//     let path_str = path.to_string_lossy();
-//     if path_str.starts_with("~/") {
-//         if let Ok(home) = env::var("HOME") {
-//             return std::path::Path::new(&home).join(&path_str[2..]);
-//         }
-//     }
-//     path
-// }
