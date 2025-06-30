@@ -15,12 +15,19 @@ use crate::TapError;
 pub static AUDIO_FORMATS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
     let mut m = HashSet::new();
     m.insert("aac");
+    m.insert("AAC");
     m.insert("flac");
+    m.insert("FLAC");
     m.insert("mp3");
+    m.insert("MP3");
     m.insert("m4a");
+    m.insert("M4A");
     m.insert("ogg");
+    m.insert("OGG");
     m.insert("wav");
+    m.insert("WAV");
     m.insert("wma");
+    m.insert("WMA");
     m
 });
 
