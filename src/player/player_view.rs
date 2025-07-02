@@ -89,6 +89,10 @@ impl PlayerView {
         self.is_visible = false;
     }
 
+    pub fn show(&mut self) {
+        self.is_visible = true;
+    }
+
     fn increase_volume(&mut self) {
         self.player.increment_volume();
         self.showing_volume.set();

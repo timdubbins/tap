@@ -90,7 +90,7 @@ impl FinderView {
             Self::remove_finder_view(siv);
             siv.add_layer(finder_view.with_name(super::ID).full_screen());
 
-            _ = siv.call_on_name(player::ID, |player_view: &mut PlayerView| {
+            siv.call_on_name(player::ID, |player_view: &mut PlayerView| {
                 player_view.hide();
             });
         }))
@@ -352,11 +352,14 @@ impl FinderView {
 
     fn on_cancel(&self) -> EventResult {
         EventResult::with_cb(|siv| {
-            if let None = siv.call_on_name(crate::player::ID, |_: &mut PlayerView| {}) {
-                siv.quit();
-            } else {
-                siv.pop_layer();
-                siv.set_fps(10);
+            match siv.call_on_name(crate::player::ID, |pv: &mut PlayerView| {
+                pv.show();
+            }) {
+                Some(_) => {
+                    siv.pop_layer();
+                    siv.set_fps(10);
+                }
+                None => siv.quit(),
             }
         })
     }
