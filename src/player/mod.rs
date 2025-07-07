@@ -307,6 +307,7 @@ impl Player {
                 self.last_elapsed = Duration::ZERO;
                 self.current.index += 1;
                 self.next_track_queued = false;
+                return;
             } else if let Some(next) = self.current.get_next_track() {
                 if let Ok(source) = next.decode() {
                     self.sink.append(source);
@@ -315,6 +316,7 @@ impl Player {
             }
         } else if self.sink.empty() {
             self.stop();
+            return;
         }
     }
 

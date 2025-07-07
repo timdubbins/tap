@@ -352,14 +352,16 @@ impl FinderView {
 
     fn on_cancel(&self) -> EventResult {
         EventResult::with_cb(|siv| {
-            match siv.call_on_name(crate::player::ID, |pv: &mut PlayerView| {
-                pv.show();
-            }) {
-                Some(_) => {
-                    siv.pop_layer();
-                    siv.set_fps(10);
-                }
-                None => siv.quit(),
+            let is_showing = siv
+                .call_on_name(crate::player::ID, |pv: &mut PlayerView| {
+                    pv.show();
+                })
+                .is_some();
+
+            if is_showing {
+                Self::remove_finder_view(siv)
+            } else {
+                siv.quit()
             }
         })
     }
@@ -378,6 +380,7 @@ impl FinderView {
 
     pub fn remove_finder_view(siv: &mut cursive::Cursive) {
         if siv.find_name::<FinderView>(super::ID).is_some() {
+            siv.set_fps(crate::FPS);
             siv.pop_layer();
         }
     }

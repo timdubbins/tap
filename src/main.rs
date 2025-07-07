@@ -31,6 +31,8 @@ use crate::{
 
 pub type TapError = anyhow::Error;
 
+pub const FPS: u32 = 1;
+
 fn main() {
     if let Err(err) = set_up_run() {
         let err_prefix = "[tap error]:".red().bold();
