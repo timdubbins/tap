@@ -1,5 +1,10 @@
 use std::time::Duration;
 
+use cursive::{
+    theme::Style,
+    utils::{markup::StyledString, span::SpannedString},
+};
+
 use {
     cursive::{
         event::{Event, EventResult, MouseButton, MouseEvent},
@@ -22,6 +27,10 @@ use crate::{
 
 const SEEK_TIME: Duration = Duration::from_secs(10);
 
+// Drawing constants
+const SPACER: &'static str = "  ";
+const TICK: u32 = 5;
+
 // A struct representing the view and state of the audio player.
 pub struct PlayerView {
     // The `AudioPlayer` instance responsible for handling audio playback.
@@ -36,6 +45,13 @@ pub struct PlayerView {
     timed_bool: ExpiringBool,
     // Whether or not the player is being shown.
     is_visible: bool,
+    // The elapsed playback time in whole seconds.
+    elapsed: usize,
+    duration: usize,
+    index: usize,
+
+    // The styled strings required to render the header and playlist.
+    lines: Vec<SpannedString<Style>>,
     // The vertical offset required to ensure the current track is visible in the playlist.
     offset_y: usize,
     // The dimensions of the view, in cells.
@@ -52,6 +68,10 @@ impl PlayerView {
             mouse_seek_time: None,
             offset_y: 0,
             is_visible: true,
+            elapsed: 0,
+            duration: 0,
+            index: 0,
+            lines: Vec::new(),
             showing_volume: ExpiringBool::new(false, Duration::from_millis(1500)),
             number_input: vec![],
             timed_bool: ExpiringBool::new(false, Duration::from_millis(500)),
@@ -63,34 +83,60 @@ impl PlayerView {
         let cb_sink = siv.cb_sink().clone();
         let player_view = PlayerView::new(player, cb_sink).with_name(super::ID);
 
-        siv.set_fps(10);
+        siv.set_fps(TICK);
+
         siv.pop_layer();
         siv.add_layer(player_view);
     }
 
     pub fn update_playlist(&mut self, next: Playlist, set_playing: bool) {
-        _ = self.cb_sink.send(Box::new(|siv| {
-            siv.set_fps(10);
-        }));
-
         let is_stopped = self.player.is_stopped();
+
+        let volume = if self.player.is_muted {
+            0.0
+        } else {
+            (self.player.volume as f32) / 100.0
+        };
+
         self.player.previous = Some(self.player.current.clone());
         self.player.current = next;
         self.player.stop();
         self.player.play();
-        self.is_visible = true;
+        self.player.set_volume(volume);
 
         if !set_playing && is_stopped {
             self.player.stop();
         }
+
+        self.lines.clear();
+        self.show();
     }
 
     pub fn hide(&mut self) {
         self.is_visible = false;
+
+        _ = self.cb_sink.send(Box::new(|siv| {
+            siv.set_fps(0);
+        }));
     }
 
     pub fn show(&mut self) {
         self.is_visible = true;
+
+        _ = self.cb_sink.send(Box::new(|siv| {
+            siv.set_fps(TICK);
+        }));
+    }
+
+    fn play_or_pause(&mut self) {
+        match self.player.status {
+            PlaybackStatus::Paused => self.player.resume(),
+            PlaybackStatus::Playing => {
+                // self.was_paused.store(true, Ordering::Relaxed);
+                self.player.pause()
+            }
+            PlaybackStatus::Stopped => self.player.play(),
+        };
     }
 
     fn increase_volume(&mut self) {
@@ -124,7 +170,7 @@ impl PlayerView {
         }
     }
 
-    fn random_track_and_album(&self) {
+    fn random_track_and_album(&mut self) {
         let mut current = self.player.current.clone();
 
         _ = self.cb_sink.send(Box::new(|siv| {
@@ -154,14 +200,19 @@ impl PlayerView {
 
     // Callback to select the previous album.
     pub fn previous_album(siv: &mut Cursive) {
-        siv.call_on_name(super::ID, |player_view: &mut PlayerView| {
-            player_view.player.previous.clone().map(|mut previous| {
+        let updated = siv.call_on_name(super::ID, |player_view: &mut PlayerView| {
+            if let Some(mut previous) = player_view.player.previous.clone() {
                 previous.index = 0;
-                player_view.update_playlist(previous, false)
-            });
+                player_view.update_playlist(previous, false);
+                true
+            } else {
+                false
+            }
         });
 
-        crate::finder::FinderView::remove_finder_view(siv);
+        if updated == Some(true) {
+            crate::finder::FinderView::remove_finder_view(siv);
+        }
     }
 
     // Callback to select a random album.
@@ -247,12 +298,12 @@ impl PlayerView {
                 let index = position.y - offset.y + self.offset_y - 1;
 
                 if index == self.player.current.index {
-                    self.player.play_or_pause();
+                    self.play_or_pause();
                 } else {
                     self.player.play_index(index);
                 }
             }
-            Area::Background => _ = self.player.play_or_pause(),
+            Area::Background => _ = self.play_or_pause(),
         }
     }
 
@@ -315,18 +366,18 @@ impl PlayerView {
 
     // Formats the display showing whether the player is muted or randomized.
     #[inline]
-    fn playback_opts(&self) -> &'static str {
+    fn playback_opts(&self) -> Option<&'static str> {
         match (
             self.player.is_randomized,
             self.player.is_shuffled,
             self.player.is_muted,
         ) {
-            (true, false, true) => " *m",
-            (false, true, true) => " ~m",
-            (true, false, false) => "  *", // is_randomized
-            (false, true, false) => "  ~", // is_shuffled
-            (false, false, true) => "  m", //is_muted
-            _ => unreachable!(),
+            (true, false, true) => Some(" *m"),
+            (false, true, true) => Some(" ~m"),
+            (true, false, false) => Some("  *"), // is_randomized
+            (false, true, false) => Some("  ~"), // is_shuffled
+            (false, false, true) => Some("  m"), //is_muted
+            _ => None,
         }
     }
 
@@ -343,17 +394,7 @@ impl PlayerView {
     // Formats the volume display.
     #[inline]
     fn volume(&self) -> String {
-        format!("  vol: {:>3} %", self.player.volume)
-    }
-
-    // The elapsed playback time to display. When seeking with the mouse we use the
-    // elapsed time had the seeking process completed.
-    #[inline]
-    fn elapsed(&self) -> usize {
-        match self.mouse_seek_time {
-            Some(t) if self.player.is_paused() => t,
-            _ => self.player.elapsed().as_secs() as usize,
-        }
+        format!("{}vol: {:>3} %{}", SPACER, self.player.volume, SPACER)
     }
 
     // Computes the y offset needed to show the results of the fuzzy match.
@@ -366,6 +407,44 @@ impl PlayerView {
 
         std::cmp::min(index, offset)
     }
+
+    fn build_static_lines(&mut self) {
+        let artist_style = Style::from(ColorStyles::header_1()).combine(Effect::Bold);
+        let album_style = Style::from(ColorStyles::header_2())
+            .combine(Effect::Bold)
+            .combine(Effect::Italic);
+        let active_style = ColorStyles::hl();
+        let inactive_style = ColorStyles::fg();
+
+        for f in self.player.current.audio_files.iter() {
+            let mut track = StyledString::new();
+            let mut duration = StyledString::new();
+            let mut curr_track = StyledString::new();
+            let mut curr_duration = StyledString::new();
+            let mut header = StyledString::new();
+
+            let track_str = format!("{:02}{}{}", f.track, SPACER, f.title);
+            let duration_str = mins_and_secs(f.duration);
+
+            track.append_styled(track_str.clone(), inactive_style);
+            self.lines.push(track);
+
+            duration.append_styled(duration_str.clone(), inactive_style);
+            self.lines.push(duration);
+
+            curr_track.append_styled(track_str, active_style);
+            self.lines.push(curr_track);
+
+            curr_duration.append_styled(duration_str, active_style);
+            self.lines.push(curr_duration);
+
+            header.append_plain(SPACER);
+            header.append_styled(f.artist.clone(), artist_style);
+            header.append_plain(SPACER);
+            header.append_styled(self.album_and_year(&f), album_style);
+            self.lines.push(header);
+        }
+    }
 }
 
 impl View for PlayerView {
@@ -373,19 +452,31 @@ impl View for PlayerView {
         if self.player.is_playing() {
             if self.player.is_randomized {
                 if self.player.is_empty() {
-                    self.random_track_and_album()
+                    self.random_track_and_album();
                 }
             } else if self.player.is_shuffled {
                 if self.player.is_empty() {
-                    self.shuffled_track()
+                    self.shuffled_track();
                 }
             } else {
-                self.player.update_on_poll();
+                self.player.update_on_poll()
             }
         }
 
+        self.elapsed = match self.mouse_seek_time {
+            Some(t) if self.player.is_paused() => t,
+            _ => self.player.elapsed().as_secs() as usize,
+        };
+
+        self.duration = self.player.current_file().duration;
+        self.index = self.player.current.index;
+
         self.size = self.required_size(size);
         self.offset_y = self.update_offset();
+
+        if self.lines.is_empty() {
+            self.build_static_lines();
+        }
     }
 
     fn required_size(&mut self, constraint: cursive::Vec2) -> cursive::Vec2 {
@@ -405,108 +496,96 @@ impl View for PlayerView {
         }
 
         let (w, h) = (self.size.x, self.size.y);
-        let f = self.player.current_file();
-        let duration_column = w.saturating_sub(9);
-        let elapsed = self.elapsed();
-        let (length, extra) = ratio(elapsed, f.duration, w.saturating_sub(16));
+        let dur_col = w.saturating_sub(9);
 
-        let p = p.cropped((w.saturating_sub(2), h));
-
-        // Draw the header: 'Artist, Album, Year'.
+        // HEADER
         if h > 1 {
-            p.with_effect(Effect::Bold, |p| {
-                p.with_color(ColorStyles::header_1(), |p| p.print((2, 0), &f.artist));
-                p.with_effect(Effect::Italic, |p| {
-                    p.with_color(ColorStyles::header_2(), |p| {
-                        p.print((f.artist.len() + 4, 0), &self.album_and_year(f))
-                    })
-                })
-            });
+            // Artist + album + year
+            if let Some(line) = self.lines.chunks(5).nth(self.index) {
+                if let Some(header) = line.get(4) {
+                    p.print_styled((0, 0), header);
+                }
+            }
 
-            // Draw the current volume.
+            // Volume
             if self.showing_volume.is_true() {
                 p.with_color(ColorStyles::prompt(), |p| {
-                    p.print((duration_column.saturating_sub(5), 0), &self.volume())
+                    p.print((dur_col.saturating_sub(5), 0), &self.volume())
                 });
             };
         }
 
-        // Draw the playlist, with rows: 'Track, Title, Duration'.
-        if h > 2 {
-            for (i, f) in self
-                .player
-                .current
-                .audio_files
-                .iter()
-                .enumerate()
-                .skip(self.offset_y)
-                .take(h - 2)
-            {
-                let current_row = i + 1 - self.offset_y;
+        // PLAYLIST
+        for (i, track_lines) in self
+            .lines
+            .chunks(5)
+            .enumerate()
+            .skip(self.offset_y)
+            .take(h - 2)
+        {
+            let is_current = i == self.player.current.index;
+            let row = 1 + i - self.offset_y;
 
-                if i == self.player.current.index {
-                    // Draw the playback status.
-                    let (symbol, color, effect) = self.playback_status();
-                    p.with_color(color, |p| {
-                        p.with_effect(effect, |p| p.print((3, current_row), symbol))
-                    });
-                    // Draw the active row.
-                    p.with_color(ColorStyles::hl(), |p| {
-                        p.print((6, current_row), &format!("{:02}  {}", f.track, f.title));
-                        if duration_column > 11
-                            && (self.player.is_randomized
-                                || self.player.is_shuffled
-                                || self.player.is_muted)
-                        {
-                            // Draw the playback options.
-                            p.with_color(ColorStyles::info(), |p| {
-                                p.with_effect(Effect::Italic, |p| {
-                                    p.print(
-                                        (duration_column - 3, current_row),
-                                        self.playback_opts(),
-                                    )
-                                })
-                            })
-                        }
-                        p.print((duration_column, current_row), &mins_and_secs(f.duration));
-                    })
-                } else {
-                    // Draw the inactive rows.
-                    p.with_color(ColorStyles::fg(), |p| {
-                        p.print((6, current_row), &format!("{:02}  {}", f.track, f.title));
-                        p.print((duration_column, current_row), &mins_and_secs(f.duration));
+            let track_line = if is_current {
+                &track_lines[2]
+            } else {
+                &track_lines[0]
+            };
+            let duration_line = if is_current {
+                &track_lines[3]
+            } else {
+                &track_lines[1]
+            };
+
+            // Playback status
+            if is_current {
+                let (symbol, color, effect) = self.playback_status();
+                p.with_color(color, |p| {
+                    p.with_effect(effect, |p| p.print((3, row), symbol))
+                });
+            }
+
+            // Track + title
+            p.print_styled((6, row), track_line);
+
+            // Playback option
+            if is_current {
+                if let Some(option) = self.playback_opts() {
+                    p.with_color(ColorStyles::info(), |p| {
+                        p.with_effect(Effect::Italic, |p| {
+                            p.print((dur_col.saturating_sub(3), row), option)
+                        })
                     })
                 }
             }
+
+            // Duration
+            p.print_styled((dur_col, row), duration_line);
         }
 
-        // Draw the footer: elapsed time, progress bar, remaining time
+        // FOOTER
         if h > 0 {
-            let bottom_row = h - 1;
-            let remaining = f.duration.saturating_sub(elapsed);
+            let last_row = h - 1;
+            let (length, extra) = ratio(self.elapsed, self.duration, w.saturating_sub(16));
+            let remaining = self.duration.saturating_sub(self.elapsed);
 
-            // Draw the elapsed time.
+            // Elapsed time
             p.with_color(ColorStyles::hl(), |p| {
-                p.print((0, bottom_row), &mins_and_secs(elapsed));
+                p.print((0, last_row), &mins_and_secs(self.elapsed));
             });
 
-            // Draw the progress bar.
-            {
-                // Draw the fractional component.
-                p.with_color(ColorStyles::progress(), |p| {
-                    p.print((length + 8, bottom_row), sub_block(extra));
+            // Progress bar
+            p.with_color(ColorStyles::progress(), |p| {
+                p.print((length + 8, last_row), sub_block(extra));
+            });
+            p.cropped((length + 8, h))
+                .with_color(ColorStyles::progress(), |p| {
+                    p.print_hline((8, last_row), length, "█");
                 });
 
-                // Draw the block component.
-                p.cropped((length + 8, h))
-                    .with_color(ColorStyles::progress(), |p| {
-                        p.print_hline((8, bottom_row), length, "█");
-                    });
-            }
-
-            // Draw the remaining time.
+            // Remaining time
             p.with_color(ColorStyles::hl(), |p| {
-                p.print((duration_column, bottom_row), &mins_and_secs(remaining))
+                p.print((dur_col, last_row), &mins_and_secs(remaining))
             });
         }
     }
@@ -517,7 +596,7 @@ impl View for PlayerView {
 
         if let Some(action) = PLAYER_EVENT_TO_ACTION.get(&event) {
             match action {
-                PlayOrPause => self.player.play_or_pause(),
+                PlayOrPause => self.play_or_pause(),
                 Stop => self.player.stop(),
                 Next => self.next(),
                 Previous => self.previous(),
@@ -606,7 +685,7 @@ fn sub_block(extra: usize) -> &'static str {
 
 // Formats the playback time.
 fn mins_and_secs(secs: usize) -> String {
-    format!("  {:02}:{:02}", secs / 60, secs % 60)
+    format!("{}{:02}:{:02}{}", SPACER, secs / 60, secs % 60, SPACER)
 }
 
 // Represents different areas of the player.
