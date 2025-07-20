@@ -1,16 +1,14 @@
 use std::{cmp::min, time::Instant};
 
-use cursive::event::Key;
-use once_cell::sync::Lazy;
-
 use {
     anyhow::anyhow,
     cursive::{
-        event::{Event, EventResult, MouseButton, MouseEvent},
+        event::{Event, EventResult, Key, MouseButton, MouseEvent},
         theme::Effect,
         view::{Nameable, Resizable},
         CbSink, Cursive, Printer, View, XY,
     },
+    once_cell::sync::Lazy,
     rand::{seq::SliceRandom, thread_rng},
     unicode_segmentation::UnicodeSegmentation,
     unicode_width::UnicodeWidthStr,
@@ -63,10 +61,8 @@ impl FinderView {
 
     pub fn load(filter: LibraryFilter) -> Option<EventResult> {
         Some(EventResult::with_cb(move |siv: &mut Cursive| {
-            siv.set_fps(0);
-
             let library = {
-                let base_library = siv
+                let base_library = &siv
                     .user_data::<Library>()
                     .expect("Library should be set in user_data");
 
@@ -379,6 +375,9 @@ impl FinderView {
     }
 
     pub fn remove_finder_view(siv: &mut cursive::Cursive) {
+        siv.call_on_name(player::ID, |player_view: &mut PlayerView| {
+            player_view.show();
+        });
         if siv.find_name::<FinderView>(super::ID).is_some() {
             siv.set_fps(crate::FPS);
             siv.pop_layer();

@@ -1,15 +1,11 @@
 use std::time::Duration;
 
-use cursive::{
-    theme::Style,
-    utils::{markup::StyledString, span::SpannedString},
-};
-
 use {
     cursive::{
         event::{Event, EventResult, MouseButton, MouseEvent},
-        theme::{ColorStyle, Effect},
+        theme::{ColorStyle, Effect, Style},
         traits::View,
+        utils::{markup::StyledString, span::SpannedString},
         view::Nameable,
         CbSink, Cursive, Printer, XY,
     },
@@ -29,6 +25,7 @@ const SEEK_TIME: Duration = Duration::from_secs(10);
 
 // Drawing constants
 const SPACER: &'static str = "  ";
+const TICK: u32 = 5;
 
 // A struct representing the view and state of the audio player.
 pub struct PlayerView {
@@ -44,6 +41,12 @@ pub struct PlayerView {
     timed_bool: ExpiringBool,
     // Whether or not the player is being shown.
     is_visible: bool,
+    // The elapsed playback time in whole seconds.
+    elapsed: usize,
+    // The duration of the current track.
+    duration: usize,
+    // The index of the current track.
+    index: usize,
     // The styled strings required to render the header and playlist.
     lines: Vec<SpannedString<Style>>,
     // The vertical offset required to ensure the current track is visible in the playlist.
@@ -62,6 +65,9 @@ impl PlayerView {
             mouse_seek_time: None,
             offset_y: 0,
             is_visible: true,
+            elapsed: 0,
+            duration: 0,
+            index: 0,
             lines: Vec::new(),
             showing_volume: ExpiringBool::new(false, Duration::from_millis(1500)),
             number_input: vec![],
@@ -74,36 +80,58 @@ impl PlayerView {
         let cb_sink = siv.cb_sink().clone();
         let player_view = PlayerView::new(player, cb_sink).with_name(super::ID);
 
-        siv.set_fps(crate::FPS);
+        siv.set_fps(TICK);
         siv.pop_layer();
         siv.add_layer(player_view);
     }
 
     pub fn update_playlist(&mut self, next: Playlist, set_playing: bool) {
-        _ = self.cb_sink.send(Box::new(|siv| {
-            siv.set_fps(crate::FPS);
-        }));
-
         let is_stopped = self.player.is_stopped();
+
+        let volume = if self.player.is_muted {
+            0.0
+        } else {
+            (self.player.volume as f32) / 100.0
+        };
+
         self.player.previous = Some(self.player.current.clone());
         self.player.current = next;
         self.player.stop();
         self.player.play();
+
+        self.player.set_volume(volume);
 
         if !set_playing && is_stopped {
             self.player.stop();
         }
 
         self.lines.clear();
-        self.is_visible = true;
+
+        self.show();
     }
 
     pub fn hide(&mut self) {
         self.is_visible = false;
+
+        _ = self.cb_sink.send(Box::new(|siv| {
+            siv.set_fps(0);
+        }));
     }
 
     pub fn show(&mut self) {
         self.is_visible = true;
+
+        _ = self.cb_sink.send(Box::new(|siv| {
+            siv.set_fps(TICK);
+        }));
+    }
+
+    fn play_or_pause(&mut self) {
+        match self.player.status {
+            PlaybackStatus::Paused => self.player.resume(),
+            PlaybackStatus::Playing => self.player.pause(),
+            PlaybackStatus::Stopped => self.player.play(),
+        };
     }
 
     fn increase_volume(&mut self) {
@@ -265,12 +293,12 @@ impl PlayerView {
                 let index = position.y - offset.y + self.offset_y - 1;
 
                 if index == self.player.current.index {
-                    self.player.play_or_pause();
+                    self.play_or_pause();
                 } else {
                     self.player.play_index(index);
                 }
             }
-            Area::Background => _ = self.player.play_or_pause(),
+            Area::Background => _ = self.play_or_pause(),
         }
     }
 
@@ -364,16 +392,6 @@ impl PlayerView {
         format!("{}vol: {:>3} %{}", SPACER, self.player.volume, SPACER)
     }
 
-    // The elapsed playback time to display. When seeking with the mouse we use the
-    // elapsed time had the seeking process completed.
-    #[inline]
-    fn elapsed(&self) -> usize {
-        match self.mouse_seek_time {
-            Some(t) if self.player.is_paused() => t,
-            _ => self.player.elapsed().as_secs() as usize,
-        }
-    }
-
     // Computes the y offset needed to show the results of the fuzzy match.
     #[inline]
     fn update_offset(&self) -> usize {
@@ -440,6 +458,14 @@ impl View for PlayerView {
             }
         }
 
+        self.elapsed = match self.mouse_seek_time {
+            Some(t) if self.player.is_paused() => t,
+            _ => self.player.elapsed().as_secs() as usize,
+        };
+
+        self.duration = self.player.current_file().duration;
+        self.index = self.player.current.index;
+
         self.size = self.required_size(size);
         self.offset_y = self.update_offset();
 
@@ -465,16 +491,15 @@ impl View for PlayerView {
         }
 
         let (w, h) = (self.size.x, self.size.y);
-        let f = self.player.current_file();
-        let duration_x = w.saturating_sub(9);
-        let elapsed = self.elapsed();
-        let (length, extra) = ratio(elapsed, f.duration, w.saturating_sub(16));
+
+        let dur_col = w.saturating_sub(9);
 
         // HEADER
         if h > 1 {
             // Artist + album + year
-            if let Some(entry) = self.lines.chunks(5).nth(self.player.current.index) {
-                if let Some(header) = entry.get(4) {
+
+            if let Some(line) = self.lines.chunks(5).nth(self.index) {
+                if let Some(header) = line.get(4) {
                     p.print_styled((0, 0), header);
                 }
             }
@@ -482,7 +507,7 @@ impl View for PlayerView {
             // Volume
             if self.showing_volume.is_true() {
                 p.with_color(ColorStyles::prompt(), |p| {
-                    p.print((duration_x.saturating_sub(5), 0), &self.volume())
+                    p.print((dur_col.saturating_sub(5), 0), &self.volume())
                 });
             };
         }
@@ -525,38 +550,39 @@ impl View for PlayerView {
                 if let Some(option) = self.playback_opts() {
                     p.with_color(ColorStyles::info(), |p| {
                         p.with_effect(Effect::Italic, |p| {
-                            p.print((duration_x.saturating_sub(3), row), option)
+                            p.print((dur_col.saturating_sub(3), row), option)
                         })
                     })
                 }
             }
 
             // Duration
-            p.print_styled((duration_x, row), duration_line);
+            p.print_styled((dur_col, row), duration_line);
         }
 
         // FOOTER
         if h > 0 {
-            let bottom_row = h - 1;
-            let remaining = f.duration.saturating_sub(elapsed);
+            let last_row = h - 1;
+            let (length, extra) = ratio(self.elapsed, self.duration, w.saturating_sub(16));
+            let remaining = self.duration.saturating_sub(self.elapsed);
 
             // Elapsed time
             p.with_color(ColorStyles::hl(), |p| {
-                p.print((0, bottom_row), &mins_and_secs(elapsed));
+                p.print((0, last_row), &mins_and_secs(self.elapsed));
             });
 
             // Progress bar
             p.with_color(ColorStyles::progress(), |p| {
-                p.print((length + 8, bottom_row), sub_block(extra));
+                p.print((length + 8, last_row), sub_block(extra));
             });
             p.cropped((length + 8, h))
                 .with_color(ColorStyles::progress(), |p| {
-                    p.print_hline((8, bottom_row), length, "█");
+                    p.print_hline((8, last_row), length, "█");
                 });
 
             // Remaining time
             p.with_color(ColorStyles::hl(), |p| {
-                p.print((duration_x, bottom_row), &mins_and_secs(remaining))
+                p.print((dur_col, last_row), &mins_and_secs(remaining))
             });
         }
     }
@@ -567,7 +593,7 @@ impl View for PlayerView {
 
         if let Some(action) = PLAYER_EVENT_TO_ACTION.get(&event) {
             match action {
-                PlayOrPause => self.player.play_or_pause(),
+                PlayOrPause => self.play_or_pause(),
                 Stop => self.player.stop(),
                 Next => self.next(),
                 Previous => self.previous(),

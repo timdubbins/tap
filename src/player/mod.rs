@@ -120,15 +120,6 @@ impl Player {
         self.last_elapsed = Duration::ZERO;
     }
 
-    // Starts playback if not playing, pauses otherwise.
-    pub fn play_or_pause(&mut self) {
-        match self.status {
-            PlaybackStatus::Paused => self.resume(),
-            PlaybackStatus::Playing => self.pause(),
-            PlaybackStatus::Stopped => self.play(),
-        };
-    }
-
     // Play the last track in the current playlist.
     pub fn play_last_track(&mut self) {
         let last = self.current.audio_files.len().saturating_sub(1);
@@ -160,6 +151,10 @@ impl Player {
         if !is_stopped {
             self.play();
         }
+    }
+
+    pub fn set_volume(&mut self, value: f32) {
+        self.sink.set_volume(value);
     }
 
     // Increases volume by 10%, to maximum of 120%.
@@ -231,8 +226,10 @@ impl Player {
 
     // Performs the seek operation in the forward direction.
     pub fn seek_forward(&mut self, seek: Duration) {
-        if !self.is_playing() {
-            self.play_or_pause();
+        if self.is_paused() {
+            self.resume();
+        } else if self.is_stopped() {
+            self.play();
         }
 
         let elapsed = self.elapsed();
@@ -254,8 +251,10 @@ impl Player {
 
     // Performs the seek operation in the backward direction.
     pub fn seek_backward(&mut self, seek: Duration) {
-        if !self.is_playing() {
-            self.play_or_pause();
+        if self.is_paused() {
+            self.resume();
+        } else if self.is_stopped() {
+            self.play();
         }
 
         let elapsed = self.elapsed();
