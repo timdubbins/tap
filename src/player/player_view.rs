@@ -1,15 +1,11 @@
 use std::time::Duration;
 
-use cursive::{
-    theme::Style,
-    utils::{markup::StyledString, span::SpannedString},
-};
-
 use {
     cursive::{
         event::{Event, EventResult, MouseButton, MouseEvent},
-        theme::{ColorStyle, Effect},
+        theme::{ColorStyle, Effect, Style},
         traits::View,
+        utils::{markup::StyledString, span::SpannedString},
         view::Nameable,
         CbSink, Cursive, Printer, XY,
     },
@@ -131,10 +127,7 @@ impl PlayerView {
     fn play_or_pause(&mut self) {
         match self.player.status {
             PlaybackStatus::Paused => self.player.resume(),
-            PlaybackStatus::Playing => {
-                // self.was_paused.store(true, Ordering::Relaxed);
-                self.player.pause()
-            }
+            PlaybackStatus::Playing => self.player.pause(),
             PlaybackStatus::Stopped => self.player.play(),
         };
     }

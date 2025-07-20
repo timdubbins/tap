@@ -1,16 +1,14 @@
 use std::{cmp::min, time::Instant};
 
-use cursive::event::Key;
-use once_cell::sync::Lazy;
-
 use {
     anyhow::anyhow,
     cursive::{
-        event::{Event, EventResult, MouseButton, MouseEvent},
+        event::{Event, EventResult, Key, MouseButton, MouseEvent},
         theme::Effect,
         view::{Nameable, Resizable},
         CbSink, Cursive, Printer, View, XY,
     },
+    once_cell::sync::Lazy,
     rand::{seq::SliceRandom, thread_rng},
     unicode_segmentation::UnicodeSegmentation,
     unicode_width::UnicodeWidthStr,

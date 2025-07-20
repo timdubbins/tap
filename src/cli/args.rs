@@ -4,8 +4,6 @@ use {anyhow::bail, clap::Parser};
 
 use crate::TapError;
 
-// TODO - update README
-
 // A struct that represents the command line arguments.
 #[derive(Debug, Parser)]
 #[command(
