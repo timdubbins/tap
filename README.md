@@ -1,10 +1,61 @@
-# tap
+# tap (*Terminal Audio Player*)
 
-tap is a TUI audio player with fuzzy-finder. Quickly navigate to any album in your library!
+A blazing-fast, keyboard-first audio player for the terminal — with built-in fuzzy search for an intuitive, seamless way to find and play your music.
 
-**Quick links:** [Options](#options), [Controls](#controls), [Configuration](#configuration), [Installation](#installation).
+Written in Rust, fully configurable, and cross-platform — `tap` puts powerful playback and search features in a minimal, distraction-free UI that runs smoothly even on modest hardware.
+
+**Quick links:** [Usage](#usage), [Options](#options), [Controls](#controls), [Configuration](#configuration), [Installation](#installation).
 
 <img src="https://github.com/timdubbins/tap/blob/master/doc/tap_screenshot.png" width="650"/>
+
+## 🎧 Features
+
+- **Fuzzy Finder Interface**
+  - fzf-style search for albums, artists, or folders
+  - Launches into fuzzy mode by default when run in a music library
+  - Jump back to fuzzy search any time with `Tab`
+  - Search results are shuffled by default, with sorting toggle
+
+- **Full Playback Control**
+  - Play, pause, stop, skip and seek
+  - Shuffle and randomized playback modes
+  - Mute and volume controls
+  - Gapless playback support
+  - Jump to first/last track or a specific track number
+
+- **Keyboard-First UI**
+  - Vim-inspired, fully customizable keybindings
+  - Intuitive shortcuts for playback, search and navigation
+  - All functionality accessible via keyboard (mouse optional)
+
+- **Mouse Support**
+  - Full mouse navigation in the UI
+  - Supports scroll, click, and cursor movement
+
+- **Cross-Platform Support**
+  - Runs on macOS, Linux, and Windows
+  - Optimized for low resource usage
+
+- **Customizable Appearance**
+  - Configurable themes via CLI flags or config file
+  - Terminal background/foreground color support
+  - Fine-grained color control with named themes or hex values
+
+- **Configurable Behavior**
+  - Optional `tap.yml` config file with support for:
+    - Custom keybindings
+    - Default start path
+    - Color themes
+  - Default music directory support with persistent caching
+
+- **Flexible CLI Options**
+  - CLI-only playback mode (`--cli`)
+  - Set or print default path
+  - Launch with or without custom colors/themes
+
+- **Wide Format Support**
+  - Plays: `mp3`, `flac`, `aac`, `m4a`, `ogg`, `wav`
+
 
 
 ## Usage
@@ -80,7 +131,7 @@ previous                | `k` or `p` or <kbd>&uarr;</kbd>
 stop                    | `l` or <kbd>&rarr;</kbd> or `Ctrl + j` or `Enter`
 randomize               | `*` or `r` (next track is random from library)
 shuffle                 | `~` or `s` (current playlist order is shuffled)
-seek << / >>            | `,` / `.`
+seek backward / forward | `,` / `.`
 seek to second          | `0-9`, `"`
 seek to minute          | `0-9`, `'`
 volume down / up        | `[` / `]`
@@ -168,8 +219,6 @@ Without setting a default path tap is `read-only`.
 
 
 ## Installation
-You will need an `ncurses` distribution (with development headers) to compile tap. Installation instructions for each supported platform are below:
-
 
 <details>
 <summary><b>macOS</b></summary>
@@ -180,17 +229,38 @@ You can install with [Homebrew](https://brew.sh/)
 ```bash
 > brew install timdubbins/tap/tap
 > tap --version
-0.5.1
+0.5.2
 ```
+</details>
 
-`ncurses` can be installed with:
+<details>
+<summary><b>Debian</b> (or a Debian derivative, such as <b>Ubuntu</b>)</summary>
+<br>
+
+You can install with a binary `.deb` file provided in each tap [release](https://github.com/timdubbins/tap/releases/tag/v0.5.2).
+
 ```bash
-> brew install ncurses
+> curl -LO https://github.com/timdubbins/tap/releases/download/v0.5.2/tap_0.5.2.deb
+> sudo dpkg -i tap_0.5.2.deb
+> tap --version
+0.5.2
 ```
-
 
 </details>
 
+<details>
+<summary><b>Windows</b></summary>
+<br>
+
+You can install with [Scoop](https://scoop.sh/)
+
+```bash
+> scoop bucket add tap https://github.com/timdubbins/scoop-tap
+> scoop install tap
+> tap --version
+0.5.2
+```
+</details>
 
 <details>
 <summary><b>Arch Linux</b></summary>
@@ -204,37 +274,11 @@ such as [yay](https://github.com/Jguer/yay)~~
 ```bash
 > yay -S tap
 > tap --version
-0.5.1
+0.4.11
 ```
 
-`ncurses` can be installed with:
-```bash
-> yay -S ncurses
-```
-
-The AUR package is available [here]("https://aur.archlinux.org/packages/tap).
+The AUR package is available [here](https://aur.archlinux.org/packages/tap).
 <br>
-</details>
-
-
-<details>
-<summary><b>Debian</b> (or a Debian derivative, such as <b>Ubuntu</b>)</summary>
-<br>
-
-You can install with a binary `.deb` file provided in each tap [release](https://github.com/timdubbins/tap/releases/tag/v0.5.1).
-
-```bash
-> curl -LO https://github.com/timdubbins/tap/releases/download/v0.5.1/tap_0.5.1.deb
-> sudo dpkg -i tap_0.5.1.deb
-> tap --version
-0.5.1
-```
-
-`ncurses` can be installed with:
-```bash
-> sudo apt install libncurses5-dev libncursesw5-dev
-```
-
 </details>
 
 <details>
@@ -248,19 +292,12 @@ To compile from source, first you need a [Rust](https://www.rust-lang.org/learn/
 > cd tap
 > cargo install --path .
 > tap --version
-0.5.1
+0.5.2
 ```
 
 </details>
 
-The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.5.1).
-
-
-## Notes
-
-**Supports:**
-- Gapless playback.
-- `aac`, `flac`, `mp3`, `m4a`, `ogg` and `wav`.
+The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.5.2).
 
 ## Contributing
 
