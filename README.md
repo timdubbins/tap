@@ -4,7 +4,7 @@ A blazing-fast, keyboard-first audio player for the terminal — with built-in f
 
 Written in Rust, fully configurable, and cross-platform — `tap` puts powerful playback and search features in a minimal, distraction-free UI that runs smoothly even on modest hardware.
 
-**Quick links:** [Usage](#-usage), [Options](#-options), [Controls](#-controls), [Configuration](#-configuration), [Installation](#-installation).
+**Quick links:** [Usage](#-usage), [Options](#-options), [Controls](#-controls), [Configuration](#%EF%B8%8F-configuration), [Installation](#-installation).
 
 <img src="https://github.com/timdubbins/tap/blob/master/doc/tap_screenshot.png" width="650"/>
 
