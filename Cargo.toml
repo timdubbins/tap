@@ -34,7 +34,7 @@ anyhow = "1.0.95"
 bincode = "2.0.0-rc.3"
 clap = { version = "4.1.8", features = ["derive"] }
 colored = "2"
-cursive = { git = "https://github.com/timdubbins/cursive", branch = "tap", features = [
+cursive = { git = "https://github.com/timdubbins/cursive", branch = "tap", default-features = false, features = [
     "crossterm-backend",
     "toml",
 ] }
