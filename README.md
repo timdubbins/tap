@@ -1,4 +1,4 @@
-# tap (*Terminal Audio Player*)
+# ⚡ tap (*Terminal Audio Player*)
 
 A blazing-fast, keyboard-first audio player for the terminal — with built-in fuzzy search for an intuitive, seamless way to find and play your music.
 
@@ -58,13 +58,13 @@ Written in Rust, fully configurable, and cross-platform — `tap` puts powerful 
 
 
 
-## Usage
+## 💡 Usage
 
 ```bash
 > tap [options] [path]
 ```
 
-### Fuzzy-Finder
+###	🔍 Fuzzy-Finder
 
 Run `tap` in a directory containing music folders to launch the fuzzy-finder:
 ```bash
@@ -78,7 +78,7 @@ Playback will begin on selection and you can return to the fuzzy-finder by press
 
 If no `path` is specified, `tap` defaults to the current working directory.
 
-### Direct Playback
+### ▶️ Direct Playback
 
 To skip the fuzzy-finder and directly open an audio file or album:
 
@@ -87,7 +87,7 @@ To skip the fuzzy-finder and directly open an audio file or album:
 ```
 
 
-## Options
+## 📋 Options
 Option                  | Description
 ---                     |---
 `-d` `--default`        | Run from the default directory, if set.
@@ -100,7 +100,7 @@ Option                  | Description
 `--cli`                 | Play audio in CLI-mode (without the TUI).
 
 
-## Controls
+## 🎮 Controls
 
 <details open>
 <summary><b>Keyboard</b></summary>
@@ -186,7 +186,7 @@ select              | `Left Click`
 </details>
 
 
-## Configuration
+## ⚙️ Configuration
 
 
 tap doesn't create the config file for you, but it looks for one in the following locations:
@@ -198,7 +198,11 @@ tap doesn't create the config file for you, but it looks for one in the followin
 
 A example config file can be found [here](https://github.com/timdubbins/tap/blob/master/doc/tap.yml).
 
-### Colors
+### ⌨️ Keybindings
+
+Keybindings for the player can be set in the config file. You can bind multiple keys to an event.
+
+### 🎨 Colors
 
 Colors can be set in the config file or using the ```--color``` command.
 
@@ -207,9 +211,7 @@ The following example will set a [Solarized](https://ethanschoonover.com/solariz
 --color fg=268bd2,bg=002b36,hl=fdf6e3,prompt=586e75,header_1=859900,header_2=cb4b16,progress=6c71c4,info=2aa198,err=dc322f
 ```
 
-
-
-### Default Path
+### 📂 Default Path
 
 The default path can be set in the config file. This allows you to load the default directory with the `-d --default` command and also provides faster load times by caching.
 
@@ -218,7 +220,7 @@ When setting a default path tap will write a small amount of encoded data to `~/
 Without setting a default path tap is `read-only`.
 
 
-## Installation
+## 📦 Installation
 
 <details>
 <summary><b>macOS</b></summary>
@@ -303,12 +305,12 @@ The binaries for each release are also available [here](https://github.com/timdu
 
 Suggestions / bug reports are welcome!
 
-### Inspired by
+### 🚀 Inspired by
 
 - [cmus](https://github.com/cmus/cmus) - popular console music player with many features
 - [fzf](https://github.com/junegunn/fzf) - command line fuzzy finder
 
-### Made possible by
+### 🚀 Made possible by
 
 - [cursive](https://github.com/gyscos/cursive) - TUI library for Rust with great documentation
 - [rodio](https://github.com/RustAudio/rodio) - audio playback library for Rust
