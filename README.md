@@ -4,7 +4,7 @@ A fast, Rust-powered CLI music player for the terminal, with a built-in fuzzy fi
 
 Cross-platform (macOS, Linux, Windows), fully configurable, and lightweight, tap delivers powerful playback and search features in a minimal, distraction-free TUI.
 
-**Quick links:** [Usage](#-usage), [Controls](#-controls), [Options](#-command-line-options),  [Configuration](#-configuration), [Installation](#-installation).
+**Quick links:** [Usage](#-usage), [Controls](#-controls), [Options](#-command-line-options),  [Configuration](#%EF%B8%8F-configuration), [Installation](#-installation).
 
 <img src="https://github.com/timdubbins/tap/blob/master/doc/tap_screenshot.png" width="650"/>
 
@@ -130,7 +130,7 @@ select              | `Left Click`
 </details>
 
 
-## <span style="color:red;">&gt;</span> Command-line Options
+## `>` Command-line Options
 
 Option                  | Description
 ---                     |---
@@ -189,7 +189,7 @@ You can install with [Homebrew](https://brew.sh/)
 ```bash
 > brew install timdubbins/tap/tap
 > tap --version
-0.5.2
+0.5.3
 ```
 </details>
 
@@ -197,13 +197,13 @@ You can install with [Homebrew](https://brew.sh/)
 <summary><b>Debian</b> (or a Debian derivative, such as <b>Ubuntu</b>)</summary>
 <br>
 
-You can install with a binary `.deb` file provided in each tap [release](https://github.com/timdubbins/tap/releases/tag/v0.5.2).
+You can install with a binary `.deb` file provided in each tap [release](https://github.com/timdubbins/tap/releases/tag/v0.5.3).
 
 ```bash
-> curl -LO https://github.com/timdubbins/tap/releases/download/v0.5.2/tap_0.5.2.deb
-> sudo dpkg -i tap_0.5.2.deb
+> curl -LO https://github.com/timdubbins/tap/releases/download/v0.5.3/tap_0.5.3.deb
+> sudo dpkg -i tap_0.5.3.deb
 > tap --version
-0.5.2
+0.5.3
 ```
 
 </details>
@@ -218,7 +218,7 @@ You can install with [Scoop](https://scoop.sh/)
 > scoop bucket add tap https://github.com/timdubbins/scoop-tap
 > scoop install tap
 > tap --version
-0.5.2
+0.5.3
 ```
 </details>
 
@@ -252,12 +252,12 @@ To compile from source, first you need a [Rust](https://www.rust-lang.org/learn/
 > cd tap
 > cargo install --path .
 > tap --version
-0.5.2
+0.5.3
 ```
 
 </details>
 
-The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.5.2).
+The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.5.3).
 
 ## 👋 Contributing
 

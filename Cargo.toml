@@ -1,6 +1,6 @@
 [package]
 name = "tap"
-version = "0.5.2"
+version = "0.5.3"
 authors = ["Tim Dubbins <timdubbins@gmail.com>"]
 description = "An audio player for the terminal with fuzzy-finder"
 documentation = "https://github.com/timdubbins/tap"
