@@ -62,34 +62,36 @@ impl Library {
     }
 
     pub fn load_in_background(config: Config, lib_tx: Sender<LibraryEvent>) {
-        let (fdir_tx, fdir_rx) = mpsc::channel::<FuzzyDir>();
-        let search_root: PathBuf;
+        thread::spawn(move || {
+            let (fdir_tx, fdir_rx) = mpsc::channel::<FuzzyDir>();
+            let search_root: PathBuf;
 
-        match Self::deserialize(&config) {
-            Ok(library) => {
-                search_root = library.root.clone();
-                _ = lib_tx.send(LibraryEvent::Init(library));
-                LibraryEvent::spawn_update_cache(&search_root, fdir_rx, lib_tx)
+            match Self::deserialize(&config) {
+                Ok(library) => {
+                    search_root = library.root.clone();
+                    _ = lib_tx.send(LibraryEvent::Init(library));
+                    LibraryEvent::spawn_update_cache(&search_root, fdir_rx, lib_tx)
+                }
+                Err(_) if config.use_default_path && config.default_path.is_some() => {
+                    search_root = config.default_path.clone().unwrap();
+                    LibraryEvent::spawn_update_cache(&search_root, fdir_rx, lib_tx)
+                }
+                _ => {
+                    search_root = config.search_root.clone();
+                    LibraryEvent::spawn_batch(&search_root, fdir_rx, lib_tx);
+                }
             }
-            Err(_) if config.use_default_path && config.default_path.is_some() => {
-                search_root = config.default_path.clone().unwrap();
-                LibraryEvent::spawn_update_cache(&search_root, fdir_rx, lib_tx)
-            }
-            _ => {
-                search_root = config.search_root.clone();
-                LibraryEvent::spawn_batch(&search_root, fdir_rx, lib_tx);
-            }
-        }
 
-        let entries = Self::walk_entries(&search_root);
+            let entries = Self::walk_entries(&search_root);
 
-        if config.sequential {
-            entries.for_each(|entry| Self::try_send_fdir(entry, &fdir_tx));
-        } else {
-            entries
-                .par_bridge()
-                .for_each_with(fdir_tx, |tx, entry| Self::try_send_fdir(entry, tx));
-        }
+            if config.sequential {
+                entries.for_each(|entry| Self::try_send_fdir(entry, &fdir_tx));
+            } else {
+                entries
+                    .par_bridge()
+                    .for_each_with(fdir_tx, |tx, entry| Self::try_send_fdir(entry, tx));
+            }
+        });
     }
 
     pub fn serialize(&self) -> Result<(), TapError> {
