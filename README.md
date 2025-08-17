@@ -1,106 +1,47 @@
-# ⚡ tap (*Terminal Audio Player*)
+# tap – Terminal Audio Player
 
-A blazing-fast, keyboard-first audio player for the terminal — with built-in fuzzy search for an intuitive, seamless way to find and play your music.
+A fast, Rust-powered CLI music player for the terminal, with a built-in fuzzy finder (fzf-style) to quickly browse and play your audio library.
 
-Written in Rust, fully configurable, and cross-platform — `tap` puts powerful playback and search features in a minimal, distraction-free UI that runs smoothly even on modest hardware.
+Cross-platform (macOS, Linux, Windows), fully configurable, and lightweight, tap delivers powerful playback and search features in a minimal, distraction-free TUI.
 
-**Quick links:** [Usage](#-usage), [Options](#-options), [Controls](#-controls), [Configuration](#%EF%B8%8F-configuration), [Installation](#-installation).
+**Quick links:** [Usage](#-usage), [Controls](#-controls), [Options](#-command-line-options),  [Configuration](#-configuration), [Installation](#-installation).
 
 <img src="https://github.com/timdubbins/tap/blob/master/doc/tap_screenshot.png" width="650"/>
 
-## 🎧 Features
 
-- **Fuzzy Finder Interface**
-  - fzf-style search for albums, artists, or folders
-  - Launches into fuzzy mode by default when run in a music library
-  - Jump back to fuzzy search any time with `Tab`
-  - Search results are shuffled by default, with sorting toggle
-
-- **Full Playback Control**
-  - Play, pause, stop, skip and seek
-  - Shuffle and randomized playback modes
-  - Mute and volume controls
-  - Gapless playback support
-  - Jump to first/last track or a specific track number
-
-- **Keyboard-First UI**
-  - Vim-inspired, fully customizable keybindings
-  - Intuitive shortcuts for playback, search and navigation
-  - All functionality accessible via keyboard (mouse optional)
-
-- **Mouse Support**
-  - Full mouse navigation in the UI
-  - Supports scroll, click, and cursor movement
-
-- **Cross-Platform Support**
-  - Runs on macOS, Linux, and Windows
-  - Optimized for low resource usage
-
-- **Customizable Appearance**
-  - Configurable themes via CLI flags or config file
-  - Terminal background/foreground color support
-  - Fine-grained color control with named themes or hex values
-
-- **Configurable Behavior**
-  - Optional `tap.yml` config file with support for:
-    - Custom keybindings
-    - Default start path
-    - Color themes
-  - Default music directory support with persistent caching
-
-- **Flexible CLI Options**
-  - CLI-only playback mode (`--cli`)
-  - Set or print default path
-  - Launch with or without custom colors/themes
-
-- **Wide Format Support**
-  - Plays: `mp3`, `flac`, `aac`, `m4a`, `ogg`, `wav`
-
-
-
-## 💡 Usage
+## 🎧 Usage
 
 ```bash
 > tap [options] [path]
 ```
 
-###	🔍 Fuzzy-Finder
+By default, `tap` starts in the **Finder view**, where you can search your music library.
 
-Run `tap` in a directory containing music folders to launch the fuzzy-finder:
+- Selecting an album switches to the **Player view** and begins playback.
+
+- You can reopen or cancel a search at any time without interrupting current playback.
+
+
+### 🔍 Example
+
 ```bash
 > cd ~/path/to/my_music
 > tap
 ```
-Playback will begin on selection and you can return to the fuzzy-finder by pressing `Tab`.
 
+If no path is specified, `tap` defaults to the current working directory.
 
-
-
-If no `path` is specified, `tap` defaults to the current working directory.
 
 ### ▶️ Direct Playback
 
-To skip the fuzzy-finder and directly open an audio file or album:
+To skip the Finder and start playback immediately, launch tap with a file or album path:
 
 ```bash
 > tap ~/path/to/my_album
 ```
 
 
-## 📋 Options
-Option                  | Description
----                     |---
-`-d` `--default`        | Run from the default directory, if set.
-`-p` `--print`          | Print the path of the default directory, if set.
-`-s` `--set`            | Set a default directory. Requires a `tap.yml` config file.
-`-b` `--term-bg`        | Use the terminal background color.
-`-t` `--term-color`     | Use the terminal background and foreground colors only.
-`-c` `--default-color`  | Ignore any user-defined colors.
-`--color <COLOR>`       | Set your own color scheme. See [here](#colors) for available names.
-`--cli`                 | Play audio in CLI-mode (without the TUI).
-
-
-## 🎮 Controls
+## ⌨ Controls
 
 <details open>
 <summary><b>Keyboard</b></summary>
@@ -119,7 +60,10 @@ parent search       | `` ` ``
 open file manager   | `Ctrl + o`
 quit                | `Ctrl + q`
 
-**Note:** Search results are shuffled by default. Sort with `Ctrl` + `s`.
+**Note:**
+- Results are shuffled by default.
+- Use `Ctrl + s` to sort.
+- Use any search shortcut (such as `Tab` or `Ctrl + a`) to shuffle again.
 
 
 
@@ -146,6 +90,7 @@ quit                    | `q`
 Finder              | Binding
 ---                 |---
 select              | `Ctrl + j` or `Enter`
+cancel search       | `Esc`
 next                | `Ctrl + n` or <kbd>&darr;</kbd>
 previous            | `Ctrl + p` or <kbd>&uarr;</kbd>
 sort results        | `Ctrl + s`
@@ -154,7 +99,6 @@ cursor left         | `Ctrl + b` or <kbd>&larr;</kbd>
 cursor home         | `Home`
 cursor end          | `End`
 clear query         | `Ctrl + u`
-cancel search       | `Esc`
 page up             | `PageUp`
 page down           | `PageDown`
 
@@ -186,6 +130,20 @@ select              | `Left Click`
 </details>
 
 
+## <span style="color:red;">&gt;</span> Command-line Options
+
+Option                  | Description
+---                     |---
+`--sequential`          | Traverse files sequentially (instead of in parallel). Can improve startup time on older systems, virtual machines, network drives, or HDDs.
+`-d`, `--default`       | Run from the default directory, if set.
+`-p`, `--print`         | Print the path of the default directory, if set.
+`-s`, `--set`           | Set a default directory. Requires a `tap.yml` config file.
+`-b`, `--term-bg`       | Use the terminal background color.
+`-t`, `--term-color`    | Restrict colors to the terminal’s background and foreground only.
+`-c`, `--default-color` | Ignore any user-defined colors and use defaults.
+`--color <COLOR>`       | Apply a custom color scheme. See [Colors](#colors) for available values.
+`--cli`                 | Run in CLI mode (disable the TUI; audio only).
+
 ## ⚙️ Configuration
 
 
@@ -198,7 +156,7 @@ tap doesn't create the config file for you, but it looks for one in the followin
 
 A example config file can be found [here](https://github.com/timdubbins/tap/blob/master/doc/tap.yml).
 
-### ⌨️ Keybindings
+### `→` Keybindings
 
 Keybindings for the player can be set in the config file. You can bind multiple keys to an event.
 
@@ -211,7 +169,7 @@ The following example will set a [Solarized](https://ethanschoonover.com/solariz
 --color fg=268bd2,bg=002b36,hl=fdf6e3,prompt=586e75,header_1=859900,header_2=cb4b16,progress=6c71c4,info=2aa198,err=dc322f
 ```
 
-### 📂 Default Path
+### `/` Default Path
 
 The default path can be set in the config file. This allows you to load the default directory with the `-d --default` command and also provides faster load times by caching.
 
@@ -301,7 +259,7 @@ To compile from source, first you need a [Rust](https://www.rust-lang.org/learn/
 
 The binaries for each release are also available [here](https://github.com/timdubbins/tap/releases/tag/v0.5.2).
 
-## Contributing
+## 👋 Contributing
 
 Suggestions / bug reports are welcome!
 
@@ -310,7 +268,7 @@ Suggestions / bug reports are welcome!
 - [cmus](https://github.com/cmus/cmus) - popular console music player with many features
 - [fzf](https://github.com/junegunn/fzf) - command line fuzzy finder
 
-### 🚀 Made possible by
+### 🙏 Made possible by
 
 - [cursive](https://github.com/gyscos/cursive) - TUI library for Rust with great documentation
 - [rodio](https://github.com/RustAudio/rodio) - audio playback library for Rust
