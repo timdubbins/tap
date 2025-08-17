@@ -1,6 +1,11 @@
 # Set a default path. For use with [-d, --default] flag.
 # path: "~/path/to/my_music"
 
+# Disable parallel filesystem scanning. Useful on older systems, VMs, networked drives,
+# or HDDS. If tap takes a long time to load you can try setting this to true.
+#
+# sequential: false
+
 # Set the colors.
 # Values can be hexadecimal ("#81a1be", "1f211d") or named ("red", "light green", etc).
 #

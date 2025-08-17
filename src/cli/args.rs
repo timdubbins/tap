@@ -28,6 +28,10 @@ pub struct Args {
     #[arg(short = 'p', long = "print")]
     pub print_default_path: bool,
 
+    /// Disable parallel filesystem scanning (useful on network drives, VMs, older CPUs, or HDDs)
+    #[arg(long = "sequential")]
+    pub sequential: bool,
+
     /// Use the terminal background color
     #[arg(short = 'b', long = "term_bg")]
     pub term_bg: bool,

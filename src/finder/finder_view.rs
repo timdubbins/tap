@@ -289,7 +289,7 @@ impl FinderView {
     }
 
     fn update_finder(&mut self, dir: FuzzyDir) -> EventResult {
-        let library = Library::new(&dir.path);
+        let library = Library::new(&dir.path, true);
         self.finder.library = library;
         self.clear();
         EventResult::consumed()

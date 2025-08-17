@@ -52,7 +52,7 @@ fn set_up_run() -> Result<(), TapError> {
     }
 
     if config.set_default_path {
-        return Cli::set_cache(&config.search_root);
+        return Cli::set_cache(&config);
     }
 
     if config.use_cli_player {
@@ -71,9 +71,10 @@ fn set_up_run() -> Result<(), TapError> {
         let (lib_tx, lib_rx) = mpsc::channel();
         let (err_tx, err_rx) = mpsc::channel::<TapError>();
         let err_state = Arc::new(Mutex::new(None));
-        Library::load_in_background(&config, lib_tx.clone());
+        Library::load_in_background(config, lib_tx.clone());
         spawn_tui_loader(lib_rx, err_tx.clone(), cb_sink.clone());
         let err_handle = spawn_err_handle(err_rx, Arc::clone(&err_state), cb_sink);
+
         siv.run();
         check_err_state(err_handle, err_state)?;
     }
@@ -107,11 +108,7 @@ fn check_err_state(
 fn spawn_tui_loader(lib_rx: Receiver<LibraryEvent>, err_tx: Sender<TapError>, cb_sink: CbSink) {
     thread::spawn(move || {
         while let Ok(event) = lib_rx.recv() {
-            let is_finished = match &event {
-                LibraryEvent::Finished(_) => true,
-                _ => false,
-            };
-
+            let is_finished = matches!(event, LibraryEvent::Finished(_));
             let err_tx = err_tx.clone();
 
             let cb = Box::new(move |siv: &mut Cursive| match event {

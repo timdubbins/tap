@@ -14,6 +14,7 @@ use crate::TapError;
 #[derive(Default, Deserialize)]
 pub struct FileConfig {
     pub path: Option<PathBuf>,
+    pub sequential: Option<bool>,
     pub color: Option<HashMap<String, String>>,
     pub term_bg: Option<bool>,
     pub term_color: Option<bool>,

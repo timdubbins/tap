@@ -2,13 +2,15 @@ pub mod args;
 pub mod logger;
 pub mod player;
 
-use std::path::PathBuf;
-
 use anyhow::anyhow;
 use reqwest::blocking::Client;
 use serde::Deserialize;
 
-use crate::{config::FileConfig, finder::Library, TapError};
+use crate::{
+    config::{Config, FileConfig},
+    finder::Library,
+    TapError,
+};
 
 pub use self::{args::Args, logger::Logger};
 
@@ -17,12 +19,12 @@ const REPO_URL: &str = "https://api.github.com/repos/timdubbins/tap/releases/lat
 pub struct Cli {}
 
 impl Cli {
-    pub fn set_cache(search_root: &PathBuf) -> Result<(), TapError> {
+    pub fn set_cache(config: &Config) -> Result<(), TapError> {
         FileConfig::find()?;
         let logger = Logger::start("setting default");
-        let library = Library::new(search_root);
+        let library = Library::new(&config.search_root, config.sequential);
         library.serialize()?;
-        FileConfig::update_path(search_root)?;
+        FileConfig::update_path(&config.search_root)?;
         logger.stop();
         Ok(())
     }

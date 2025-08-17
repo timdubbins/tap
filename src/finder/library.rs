@@ -26,14 +26,21 @@ pub struct Library {
 }
 
 impl Library {
-    pub fn new(root: &PathBuf) -> Self {
-        let fdirs = WalkDir::new(root)
-            .into_iter()
-            .par_bridge()
-            .filter_map(|entry| entry.ok())
-            .filter(FuzzyDir::is_visible_dir)
-            .filter_map(|entry| FuzzyDir::new(entry).ok())
-            .collect::<Vec<FuzzyDir>>();
+    pub fn new(root: &PathBuf, sequential: bool) -> Self {
+        let entries = Self::walk_entries(root);
+
+        let fdirs: Vec<FuzzyDir> = if sequential {
+            entries
+                .filter(FuzzyDir::is_visible_dir)
+                .filter_map(|entry| FuzzyDir::new(entry).ok())
+                .collect()
+        } else {
+            entries
+                .par_bridge()
+                .filter(FuzzyDir::is_visible_dir)
+                .filter_map(|entry| FuzzyDir::new(entry).ok())
+                .collect()
+        };
 
         Self {
             fdirs,
@@ -42,9 +49,7 @@ impl Library {
     }
 
     pub fn first(root: &PathBuf) -> Self {
-        let first = WalkDir::new(root)
-            .into_iter()
-            .filter_map(|entry| entry.ok())
+        let first = Self::walk_entries(root)
             .filter(FuzzyDir::is_visible_dir)
             .filter_map(|entry| FuzzyDir::new(entry).ok())
             .filter(|fdir| fdir.contains_audio)
@@ -56,11 +61,11 @@ impl Library {
         }
     }
 
-    pub fn load_in_background(config: &Config, lib_tx: Sender<LibraryEvent>) {
+    pub fn load_in_background(config: Config, lib_tx: Sender<LibraryEvent>) {
         let (fdir_tx, fdir_rx) = mpsc::channel::<FuzzyDir>();
         let search_root: PathBuf;
 
-        match Self::deserialize(config) {
+        match Self::deserialize(&config) {
             Ok(library) => {
                 search_root = library.root.clone();
                 _ = lib_tx.send(LibraryEvent::Init(library));
@@ -76,17 +81,15 @@ impl Library {
             }
         }
 
-        WalkDir::new(search_root)
-            .into_iter()
-            .par_bridge()
-            .filter_map(|entry| entry.ok())
-            .for_each_with(fdir_tx, |fdir_tx, entry| {
-                if FuzzyDir::is_visible_dir(&entry) {
-                    if let Ok(fdir) = FuzzyDir::new(entry) {
-                        _ = fdir_tx.send(fdir);
-                    }
-                }
-            });
+        let entries = Self::walk_entries(&search_root);
+
+        if config.sequential {
+            entries.for_each(|entry| Self::try_send_fdir(entry, &fdir_tx));
+        } else {
+            entries
+                .par_bridge()
+                .for_each_with(fdir_tx, |tx, entry| Self::try_send_fdir(entry, tx));
+        }
     }
 
     pub fn serialize(&self) -> Result<(), TapError> {
@@ -187,6 +190,18 @@ impl Library {
         Self {
             fdirs,
             root: self.root.clone(),
+        }
+    }
+
+    fn walk_entries(root: &PathBuf) -> impl Iterator<Item = walkdir::DirEntry> {
+        WalkDir::new(root).into_iter().filter_map(Result::ok)
+    }
+
+    fn try_send_fdir(entry: walkdir::DirEntry, tx: &Sender<FuzzyDir>) {
+        if FuzzyDir::is_visible_dir(&entry) {
+            if let Ok(fdir) = FuzzyDir::new(entry) {
+                _ = tx.send(fdir);
+            }
         }
     }
 }

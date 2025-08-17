@@ -24,6 +24,7 @@ pub struct Config {
     pub set_default_path: bool,
     pub use_default_path: bool,
     pub print_default_path: bool,
+    pub sequential: bool,
     pub use_cli_player: bool,
     pub theme: Theme,
     term_bg: bool,
@@ -77,11 +78,13 @@ impl Config {
         file_config.term_bg.map(|v| self.term_bg = v);
         file_config.term_color.map(|v| self.term_color = v);
         file_config.default_color.map(|v| self.default_color = v);
+        file_config.sequential.map(|v| self.sequential = v);
 
         // Update `self` with the command line args.
         self.set_default_path |= args.set_default_path;
         self.use_default_path |= args.use_default_path;
         self.print_default_path |= args.print_default_path;
+        self.sequential |= args.sequential;
         self.term_bg |= args.term_bg;
         self.term_color |= args.term_color;
         self.default_color |= args.default_color;
