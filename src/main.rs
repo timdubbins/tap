@@ -150,6 +150,7 @@ fn init_finder_view(library: Library, siv: &mut Cursive, err_tx: Sender<TapError
     siv.call_on_name(F_ID, |fv: &mut FinderView| {
         fv.set_init_timestamp(Some(Instant::now()))
     });
+    siv.set_fps(10);
 }
 
 fn update_library(batch: &mut Vec<FuzzyDir>, siv: &mut Cursive) {
@@ -173,6 +174,7 @@ fn set_library(full_library: Option<Library>, siv: &mut Cursive, err_tx: Sender<
         }
     }
     siv.call_on_name(F_ID, |fv: &mut FinderView| fv.set_init_timestamp(None));
+    siv.set_fps(0);
 }
 
 fn spawn_err_handle(

@@ -363,9 +363,9 @@ impl FinderView {
     }
 
     fn spinner_frame(&self) -> Option<&str> {
-        self.init_timestamp.and_then(|last_update| {
-            let elapsed = last_update.elapsed().as_millis() / 100;
-            let index = (elapsed % FRAMES.len() as u128) as usize;
+        self.init_timestamp.and_then(|t| {
+            let elapsed = t.elapsed().as_millis() as usize;
+            let index = (elapsed / 100) % FRAMES.len();
             Some(FRAMES[index])
         })
     }
